@@ -140,6 +140,47 @@ function withAccess(def, want) {
   return { args, readOnly: p === 'agy-json' ? want !== 'full' : want === 'full' ? false : !!def.readOnly };
 }
 
+// 模型：认得的三种命令行可以在界面上选模型，存在 settings.memberPrefs[id].model（空 = 用工具自己的默认设置）
+const MODEL_FLAG = { 'claude-stream': '--model', 'codex-json': '-m', 'agy-json': '--model' };
+// 模型名会拼进命令行（.cmd 要经过 cmd.exe），只允许安全字符
+const MODEL_RE = /^[A-Za-z0-9._:/\[\]-]{1,80}$/;
+const isModelFlag = (a, parser) => a === '--model' || (parser === 'codex-json' && a === '-m');
+function modelInArgs(args, parser) {
+  const i = (args || []).findIndex((a) => isModelFlag(a, parser));
+  return i >= 0 ? args[i + 1] || '' : '';
+}
+function withModel(args, parser, model) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) { if (isModelFlag(args[i], parser)) { i++; continue; } out.push(args[i]); }
+  const at = parser === 'codex-json' && out.includes('exec') ? out.indexOf('exec') + 1 : parser === 'claude-stream' && out.includes('-p') ? out.indexOf('-p') + 1 : out.length;
+  return [...out.slice(0, at), MODEL_FLAG[parser], model, ...out.slice(at)];
+}
+// 思考深度：Claude / Antigravity 用 --effort，Codex 用 -c model_reasoning_effort=…；只接受下面这几个值
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+const isEffortArg = (args, i, parser) => parser === 'codex-json'
+  ? (args[i] === '-c' || args[i] === '--config') && /^model_reasoning_effort=/.test(args[i + 1] || '')
+  : args[i] === '--effort';
+function effortInArgs(args, parser) {
+  const i = (args || []).findIndex((_, k) => isEffortArg(args, k, parser));
+  return i >= 0 ? String(args[i + 1] || '').replace(/^model_reasoning_effort=/, '').replace(/"/g, '') : '';
+}
+function withEffort(args, parser, effort) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) { if (isEffortArg(args, i, parser)) { i++; continue; } out.push(args[i]); }
+  const add = parser === 'codex-json' ? ['-c', 'model_reasoning_effort=' + effort] : ['--effort', effort];
+  const at = parser === 'codex-json' && out.includes('exec') ? out.indexOf('exec') + 1 : parser === 'claude-stream' && out.includes('-p') ? out.indexOf('-p') + 1 : out.length;
+  return [...out.slice(0, at), ...add, ...out.slice(at)];
+}
+// Codex 没选模型 / 思考深度时，用的是它自己 config.toml 里的设置
+function codexConfig(key) {
+  try {
+    const t = fs.readFileSync(path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'config.toml'), 'utf8');
+    const mt = t.match(new RegExp('^\\s*' + key + '\\s*=\\s*"([^"]+)"', 'm'));
+    return mt ? mt[1] : '';
+  } catch (_) { return ''; }
+}
+const codexDefaultModel = () => codexConfig('model');
+
 const members = {};
 let ORDER = [];
 function buildMembers() {
@@ -161,6 +202,13 @@ function buildMembers() {
     if (m.access && (pref.access === 'full' || pref.access === 'safe') && pref.access !== m.access) {
       Object.assign(m, withAccess(def, pref.access));
       m.access = pref.access;
+    }
+    if (m.type === 'api') m.model = (def.api || {}).model || '';
+    else if (MODEL_FLAG[def.parser]) {
+      if (pref.model && MODEL_RE.test(pref.model)) m.args = withModel(m.args || [], def.parser, pref.model);
+      if (EFFORTS.includes(pref.effort)) m.args = withEffort(m.args || [], def.parser, pref.effort);
+      m.model = modelInArgs(m.args, def.parser);
+      m.effort = effortInArgs(m.args, def.parser);
     }
     // Codex 能直接看图片：用 --image= 把老板发的图片交给它
     if (m.cmd === 'codex' && !m.imageFlag) Object.assign(m, { imageFlag: '--image=', imageFlagAfter: 'exec' });
@@ -308,10 +356,54 @@ function splitArgs(str) {
 }
 function keyHint(k) { return k ? (k.length > 10 ? k.slice(0, 3) + '…' + k.slice(-4) : '已填写') : ''; }
 
+// 编辑队友时的模型下拉：Claude 用别名；Codex 读它自己的模型列表；Antigravity 运行 agy models（联网，缓存 10 分钟）
+let agyModels = { at: 0, list: [] };
+async function modelChoices(m) {
+  const r = await modelChoicesRaw(m);
+  const pref = settings.memberPrefs[m.id] || {};
+  // 思考深度：Codex 每个模型支持的档位不同（efforts 按模型给），其他两家固定这几档
+  const base = EFFORTS.slice(0, 5);
+  return { ...r, current: pref.model || '', effort: pref.effort || '', efforts: r.efforts || { '': base }, effortHint: r.effortHint || '' };
+}
+async function modelChoicesRaw(m) {
+  if (m.parser === 'claude-stream') return { defaultHint: '', choices: ['fable', 'opus', 'sonnet'].map((id) => ({ id, label: id[0].toUpperCase() + id.slice(1) })) };
+  if (m.parser === 'codex-json') {
+    let choices = [];
+    const efforts = {};
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'models_cache.json'), 'utf8'));
+      const list = (j.models || []).filter((x) => x && x.slug && x.visibility === 'list');
+      choices = list.map((x) => ({ id: x.slug, label: x.display_name || x.slug }));
+      for (const x of list) efforts[x.slug] = (x.supported_reasoning_levels || []).map((e) => e.effort).filter((e) => EFFORTS.includes(e));
+    } catch (_) {}
+    efforts[''] = efforts[codexDefaultModel()] || EFFORTS.slice(0, 5);
+    return { defaultHint: codexDefaultModel(), choices, efforts, effortHint: codexConfig('model_reasoning_effort') };
+  }
+  if (m.parser === 'agy-json') {
+    if (Date.now() - agyModels.at > 600000 && m.resolved) {
+      const out = await new Promise((resolve) => {
+        const chunks = [];
+        let child;
+        try { child = spawnMember(m, ['models'], { cwd: WORKSPACE, env: cleanEnv() }); } catch (_) { return resolve(''); }
+        const t = setTimeout(() => killTree(child), 20000);
+        child.stdout.on('data', (d) => chunks.push(d));
+        child.on('error', () => resolve(''));
+        child.on('close', () => { clearTimeout(t); resolve(stripAnsi(decodeOut(Buffer.concat(chunks)))); });
+      });
+      const list = out.split(/\r?\n/).map((l) => l.split('\t')).filter((p) => p.length >= 2 && MODEL_RE.test(p[0].trim()))
+        .map(([id, label]) => ({ id: id.trim(), label: label.trim(), other: !/^gemini/i.test(id.trim()) }));
+      if (list.length) agyModels = { at: Date.now(), list };
+    }
+    return { defaultHint: '', choices: agyModels.list };
+  }
+  return { defaultHint: '', choices: [] };
+}
+
 function publicMembers() {
   return ORDER.map((id) => members[id]).map((m) => ({
     id: m.id, name: m.name, color: m.color, strengths: strengthsOf(m), readOnly: !!m.readOnly,
     online: m.online, version: m.version, problem: m.problem, type: m.type, builtin: !!m.builtin, enabled: m.enabled, access: m.access,
+    model: m.model || '', effort: m.effort || '', modelPick: m.type !== 'api' && !!MODEL_FLAG[m.parser],
     edit: m.type === 'api'
       ? { baseUrl: (m.api || {}).baseUrl || '', model: (m.api || {}).model || '', keyHint: keyHint((m.api || {}).apiKey), temperature: (m.api || {}).temperature ?? '' }
       : { cmd: m.cmd || '', argsText: joinArgs(m.args), parser: m.parser || 'plain', readOnly: !!m.readOnly, versionCheck: m.versionCheck !== false },
@@ -652,6 +744,14 @@ function readMemory(c) {
 
 // ---------------------------------------------------------------- 输出解析
 
+// 用量统一记成 { input（含缓存）, cached, output }，各家口径不同，在这里换算
+function addUsage(msg, u) {
+  if (!msg || !u) return;
+  const n = (x) => (Number.isFinite(+x) ? +x : 0);
+  const cur = msg.usage || { input: 0, cached: 0, output: 0 };
+  msg.usage = { input: cur.input + n(u.input), cached: cur.cached + n(u.cached), output: cur.output + n(u.output) };
+}
+
 function makeParser(kind, c, msg) {
   const texts = [];
   let finalText = '';
@@ -677,7 +777,12 @@ function makeParser(kind, c, msg) {
               P(x.is_error ? 'error' : 'result', clip(t, 600));
             }
           }
+        } else if (o.type === 'system' && o.subtype === 'init' && o.model) {
+          msg.model = o.model;
         } else if (o.type === 'result') {
+          const u = o.usage || {};
+          // Claude 的 input_tokens 不含缓存读写，要加上
+          if (o.usage) addUsage(msg, { input: (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0), cached: u.cache_read_input_tokens, output: u.output_tokens });
           if (typeof o.result === 'string') finalText = o.result;
           if (o.is_error) P('error', o.result || o.subtype || '出错了');
         }
@@ -693,6 +798,7 @@ function makeParser(kind, c, msg) {
         const o = tryJSON(line);
         if (!o) return P('log', line);
         captureFromJson(c, memberOf(msg), msg, o);
+        if (o.type === 'turn.completed' && o.usage) addUsage(msg, { input: o.usage.input_tokens, cached: o.usage.cached_input_tokens, output: o.usage.output_tokens });
         const it = o.item || null;
         if (it && o.type === 'item.started' && it.type === 'command_execution') P('tool', '运行命令：' + it.command);
         else if (it && o.type === 'item.completed') {
@@ -719,6 +825,7 @@ function makeParser(kind, c, msg) {
         let e = env(all);
         for (let i = lines.length - 1; i >= 0 && !e; i--) e = env(lines[i]);
         if (e) captureFromJson(c, memberOf(msg), msg, e);
+        if (e && e.usage) addUsage(msg, { input: e.usage.input_tokens, cached: e.usage.cache_read_tokens, output: e.usage.output_tokens });
         if (!e) { if (all) P('log', all); return all; }
         if (e.status && e.status !== 'SUCCESS') P('error', '状态：' + e.status);
         return String(e.response || '').trim();
@@ -832,22 +939,29 @@ async function runApi(c, m, prompt, msg) {
   let text = '', err = '', think = '';
   const flushThink = (force) => { if (think && (force || think.length > 500)) { proc('think', think); think = ''; } };
   try {
-    const body = { model: a.model, stream: true, messages: [{ role: 'user', content: prompt }] };
+    const body = { model: a.model, stream: true, stream_options: { include_usage: true }, messages: [{ role: 'user', content: prompt }] };
     if (a.temperature !== '' && a.temperature != null && !isNaN(+a.temperature)) body.temperature = +a.temperature;
     proc('tool', `调用接口：${a.model}`);
-    const res = await fetch(String(a.baseUrl).replace(/\/+$/, '') + '/chat/completions', {
+    const call = () => fetch(String(a.baseUrl).replace(/\/+$/, '') + '/chat/completions', {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', ...(a.apiKey ? { Authorization: 'Bearer ' + a.apiKey } : {}) },
       body: JSON.stringify(body),
     });
+    let res = await call();
+    let raw = '';
+    // 个别服务商不认 stream_options（用来要用量），去掉再试一次
+    if (res.status === 400) { raw = await res.text(); if (/stream_options|include_usage/i.test(raw)) { delete body.stream_options; res = await call(); raw = ''; } }
+    // 有的服务商每个分片都带累计用量：只取最后一次，不累加
+    const usageOf = (u) => u && msg && (delete msg.usage, addUsage(msg, { input: u.prompt_tokens, cached: (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || u.prompt_cache_hit_tokens, output: u.completion_tokens }));
     if (!res.ok) {
-      const raw = await res.text();
+      raw = raw || await res.text();
       let detail = raw.slice(0, 300);
       try { const j = JSON.parse(raw); detail = (j.error && (j.error.message || j.error)) || j.message || detail; } catch (_) {}
       const hint = (EN() ? { 401: 'Invalid or expired API key', 402: 'Insufficient balance', 403: 'No permission to use this model', 404: 'Wrong API address or model name', 429: 'Rate limited, or out of quota' } : { 401: 'API Key 不对或已失效', 402: '账户余额不足', 403: '没有权限使用这个模型', 404: '接口地址或模型名不对', 429: '调用太频繁，或额度用完了' })[res.status];
       err = `${hint ? hint + T('。', '. ') : ''}${T('接口返回', 'API returned')} HTTP ${res.status}${T('：', ': ')}${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
     } else if (!String(res.headers.get('content-type') || '').includes('event-stream')) {
       const o = await res.json();
+      usageOf(o.usage);
       const mo = (o.choices && o.choices[0] && o.choices[0].message) || {};
       if (mo.reasoning_content) proc('think', mo.reasoning_content);
       text = mo.content || '';
@@ -866,6 +980,7 @@ async function runApi(c, m, prompt, msg) {
           if (!d || d === '[DONE]') continue;
           let o; try { o = JSON.parse(d); } catch (_) { continue; }
           if (o.error) { err = o.error.message || JSON.stringify(o.error); continue; }
+          if (o.usage) usageOf(o.usage);
           const delta = (o.choices && o.choices[0] && (o.choices[0].delta || o.choices[0].message)) || {};
           if (delta.reasoning_content || delta.reasoning) { think += delta.reasoning_content || delta.reasoning; flushThink(false); }
           if (delta.content) text += delta.content;
@@ -883,6 +998,11 @@ async function runApi(c, m, prompt, msg) {
 }
 
 async function runMember(c, m, prompt, msg, images) {
+  // 记下这次实际用的模型（之后改了设置，旧消息仍显示当时的模型）；Claude 会在输出里报告更准确的名字
+  if (msg) {
+    msg.model = m.model || (m.parser === 'codex-json' ? codexDefaultModel() : '') || undefined;
+    msg.effort = m.effort || (m.parser === 'codex-json' ? codexConfig('model_reasoning_effort') : '') || undefined;
+  }
   if (m.type === 'api') return runApi(c, m, prompt + apiExtras(c), msg);
   const dirs = mediaWatchDirs(m);
   const before = dirs.length ? snapshotDirs(dirs) : null;
@@ -1005,7 +1125,9 @@ function loginHint(m) {
   if (m.type === 'api') return T('\n\n常见原因：API Key 不对、余额不足，或模型名写错了。', '\n\nCommon causes: wrong API key, no balance left, or a wrong model name.');
   const how = LOGIN_BAT[m.id] ? T(`双击 Hola 文件夹里的 ${LOGIN_BAT[m.id]} 重新登录`, `double-click ${LOGIN_BAT[m.id]} in the Hola folder to sign in again`)
     : T(`在终端运行一次 ${m.cmd} 重新登录`, `run ${m.cmd} once in a terminal to sign in again`);
-  return T(`\n\n常见原因：登录过期（${how}），或订阅额度用完。`, `\n\nCommon causes: the sign-in expired (${how}), or the subscription quota ran out.`);
+  const picked = (settings.memberPrefs[m.id] || {}).model;
+  return T(`\n\n常见原因：登录过期（${how}），或订阅额度用完。`, `\n\nCommon causes: the sign-in expired (${how}), or the subscription quota ran out.`) +
+    (picked ? T(`也可能是选的模型 ${picked} 这个订阅用不了：到"队友 → 编辑"把模型改回"默认"。`, ` Or the chosen model ${picked} isn't available on this subscription: set it back to "Default" under Teammates → Edit.`) : '');
 }
 function replyLangRule() {
   if (profile.language === 'en') return '用英文（English）回复。';
@@ -1897,8 +2019,19 @@ const server = http.createServer(async (req, res) => {
         const color = /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : null;
         let savedId = d.id;
         const access = d.access === 'full' || d.access === 'safe' ? d.access : null;
+        const model = typeof d.cliModel === 'string' ? d.cliModel.trim() : null;
+        if (model && !MODEL_RE.test(model)) return json({ error: T('模型名只能用英文字母、数字和 . _ - : /', 'Model names can only use letters, digits and . _ - : /') }, 400);
+        const effort = typeof d.cliEffort === 'string' ? d.cliEffort : null;
+        if (effort && !EFFORTS.includes(effort)) return json({ error: 'bad effort' }, 400);
+        const setPrefs = (id) => {
+          const p = { ...(settings.memberPrefs[id] || {}), ...(access ? { access } : {}) };
+          if (model !== null) { if (model) p.model = model; else delete p.model; }
+          if (effort !== null) { if (effort) p.effort = effort; else delete p.effort; }
+          settings.memberPrefs[id] = p;
+        };
         if (d.id && members[d.id] && members[d.id].builtin) {
-          settings.memberPrefs[d.id] = { ...(settings.memberPrefs[d.id] || {}), ...(color ? { color } : {}), ...(typeof d.enabled === 'boolean' ? { enabled: d.enabled } : {}), ...(access ? { access } : {}) };
+          settings.memberPrefs[d.id] = { ...(settings.memberPrefs[d.id] || {}), ...(color ? { color } : {}), ...(typeof d.enabled === 'boolean' ? { enabled: d.enabled } : {}) };
+          setPrefs(d.id);
           if (typeof d.strengths === 'string') settings.strengths[d.id] = d.strengths.slice(0, 300);
           saveSettings();
         } else {
@@ -1929,7 +2062,7 @@ const server = http.createServer(async (req, res) => {
             delete cm.api;
           }
           saveCustomMembers();
-          if (access) { settings.memberPrefs[cm.id] = { ...(settings.memberPrefs[cm.id] || {}), access }; saveSettings(); }
+          if (access || model !== null || effort !== null) { setPrefs(cm.id); saveSettings(); }
         }
         buildMembers();
         checkChanged();
@@ -1939,6 +2072,11 @@ const server = http.createServer(async (req, res) => {
         const i = customMembers.findIndex((x) => x.id === body.id);
         if (i >= 0) { customMembers.splice(i, 1); saveCustomMembers(); buildMembers(); checkChanged(); }
         return json({ ok: true });
+      }
+      case '/api/models': {
+        const m = members[body.id];
+        if (!m) return json({ error: T('找不到这位队友', 'Teammate not found') }, 404);
+        return json(await modelChoices(m));
       }
       case '/api/members/test': {
         const m = members[body.id];

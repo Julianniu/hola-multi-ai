@@ -369,6 +369,10 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
 .concl-head .save-skill{margin-left:auto;display:flex;align-items:center;gap:5px;font-weight:500;font-size:12.5px;color:var(--ink2);padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface)}
 .concl-head .save-skill:hover{color:var(--ink);border-color:var(--ink3)}
 .concl-head .save-skill svg{width:14px;height:14px}
+.usage-sum{margin:4px 8px 2px;padding:8px 10px;border-radius:9px;background:var(--wash);font-size:12.5px;display:flex;flex-direction:column;gap:3px}
+.usage-sum b{font-weight:600;font-size:12.5px}
+.usage-sum div{display:flex;justify-content:space-between;gap:12px;color:var(--ink2)}
+.usage-sum small{color:var(--ink3);font-size:11.5px;margin-top:2px}
 .decide{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:7px}
 .decide-h{font-weight:600;font-size:13px;color:var(--ink)}
 .decide-h.done{font-weight:500;color:var(--ink3)}
@@ -627,6 +631,15 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
         <label class="check"><input type="checkbox" id="mReadOnly">只读：它不能写文件（成果写在回复里）</label>
         <label class="check"><input type="checkbox" id="mVer" checked>用 --version 检查它是否安装好</label>
       </div>
+      <div class="field" id="modelField" hidden>
+        <label for="mModelSel">模型</label>
+        <select id="mModelSel"></select>
+        <input id="mModelCustom" placeholder="填模型名，比如 opus" hidden>
+        <small id="mModelNote"></small>
+        <label for="mEffortSel" style="margin-top:10px">思考深度</label>
+        <select id="mEffortSel"></select>
+        <small>想得越深，答得越好，但更慢、更费额度。</small>
+      </div>
       <div class="field" id="accessField" hidden>
         <label class="check"><input type="checkbox" id="mFull">完全权限：能运行命令、读写电脑上任何地方的文件，不用确认</label>
         <small>关着是安全模式：只在对话文件夹里干活（Gemini 只能读不能写）。有的 AI 在 Windows 的安全模式下跑不了命令，遇到时打开这个。</small>
@@ -660,6 +673,29 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function member(id){return S.members.find(m=>m.id===id)||{id,name:id}}
 function nameOf(id){return id==='boss'?(S.profile.name||t('你')):id==='system'?t('系统'):member(id).name}
 function fmtTime(ts){return new Date(ts).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}
+// ---------- 用量（tokens）
+function fmtTok(n){ n=+n||0; return n<1000 ? String(n) : n<1e6 ? (n/1000).toFixed(n<1e4?1:0).replace(/\.0$/,'')+'k' : (n/1e6).toFixed(1).replace(/\.0$/,'')+'M' }
+const EN_UI=()=>window.HOLA_LANG==='en';
+function usageTip(u){
+  const loc=x=>(+x||0).toLocaleString();
+  return EN_UI()
+    ? `Input ${loc(u.input)} tokens${u.cached?`, of which ${loc(u.cached)} are cached (re-read context, cheaper)`:''}\nOutput ${loc(u.output)} tokens\nOn a subscription this counts toward your plan's quota and isn't billed separately; on an API it's billed at the provider's price.`
+    : `输入 ${loc(u.input)} tokens${u.cached?`，其中 ${loc(u.cached)} 是缓存（重复读取的上下文，更省）`:''}\n输出 ${loc(u.output)} tokens\n用订阅时计入订阅额度，不另外收费；用 API 时按服务商的价格计费。`;
+}
+// 每条回复：用的模型 + 用量
+function usageLine(m){
+  const parts=[];
+  if(m.model) parts.push(esc(m.model) + (m.effort ? ` (${esc(EN_UI()?m.effort:(EFFORT_LABEL[m.effort]||m.effort))})` : ''));
+  if(m.usage) parts.push(`<span title="${esc(usageTip(m.usage))}">${EN_UI()?'in':'输入'} ${fmtTok(m.usage.input)} · ${EN_UI()?'out':'输出'} ${fmtTok(m.usage.output)}</span>`);
+  return parts.length ? `<span class="usage" data-raw> · ${parts.join(' · ')}</span>` : '';
+}
+// 本对话里每位队友的用量合计（含整理记忆、整理技能）
+function convUsageHTML(){
+  const tot={};
+  for(const x of (S.conv&&S.conv.messages)||[]) if(x.usage){ const t=tot[x.from]||(tot[x.from]={input:0,cached:0,output:0}); t.input+=x.usage.input||0; t.cached+=x.usage.cached||0; t.output+=x.usage.output||0 }
+  const ids=Object.keys(tot); if(!ids.length) return '';
+  return `<div class="usage-sum"><b>本对话用量</b>${ids.map(id=>`<div data-raw title="${esc(usageTip(tot[id]))}"><span>${esc(nameOf(id))}</span><span>${EN_UI()?'in':'输入'} ${fmtTok(tot[id].input)} · ${EN_UI()?'out':'输出'} ${fmtTok(tot[id].output)}</span></div>`).join('')}<small>用订阅时计入订阅额度，不另外收费。</small></div>`;
+}
 function dur(ms){const s=Math.max(0,Math.round(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
 function size(n){return n>1e6?(n/1e6).toFixed(1)+' MB':n>1e3?Math.round(n/1e3)+' KB':n+' B'}
 function fileUrl(p,dl){return `/files/${S.cur}/${p.split('/').map(encodeURIComponent).join('/')}${dl?'?download':''}`}
@@ -837,7 +873,8 @@ function renderLights(){
   const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',decided:'按你的拍板分工中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
     : list.some(m=>m.problem==='检查中…') ? '检查中' : `${on}/${n} 在线`;
-  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}</p></div></div>`).join('') +
+  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}${m.model?` · <span data-raw>${esc(m.model)}</span>`:''}</p></div></div>`).join('') +
+    convUsageHTML() +
     `<div style="padding:6px 8px 4px;display:flex;gap:6px"><span class="btn" id="popRecheck" role="button">重新检查</span><span class="btn" id="popTeam" role="button">管理队友</span></div>`;
   const pt=$('#popTeam'); if(pt) pt.onclick=e=>{e.stopPropagation();$('#memberPop').classList.remove('show');openTeam()};
   const rc=$('#popRecheck'); if(rc) rc.onclick=e=>{e.stopPropagation();api('recheck');toast('正在重新检查队友')};
@@ -972,7 +1009,7 @@ function msgHTML(m){
   const last=m.process.length?m.process[m.process.length-1]:null;
   const latest = !running ? '' : sp ? (last?`<div class="latest" data-raw>${esc(t(KIND[last.k]||''))}　${esc(last.t.split('\n')[0])}</div>`:'') : (m.text?`<div class="latest" data-raw data-fun="${m.id}">${esc(funLabel(m))}</div>`:'');
   const steps=m.process.filter(it=>it.k!=='say');
-  const proc=!sp ? (!running&&m.endedAt&&m.startedAt&&m.from!=='boss'?`<div class="took">${window.HOLA_LANG==='en'?'Worked for ':'忙活了 '}${dur(m.endedAt-m.startedAt)}</div>`:'') : steps.length?`<details class="proc"><summary><svg class="i"><use href="#i-chev"/></svg>过程 ${steps.length} 步${m.endedAt&&m.startedAt?' · 用时 '+dur(m.endedAt-m.startedAt):''}</summary><div class="steps">${steps.map(stepHTML).join('')}</div></details>`:'';
+  const proc=!sp ? (!running&&m.endedAt&&m.startedAt&&m.from!=='boss'?`<div class="took">${window.HOLA_LANG==='en'?'Worked for ':'忙活了 '}${dur(m.endedAt-m.startedAt)}${usageLine(m)}</div>`:'') : steps.length?`<details class="proc"><summary><svg class="i"><use href="#i-chev"/></svg>过程 ${steps.length} 步${m.endedAt&&m.startedAt?' · 用时 '+dur(m.endedAt-m.startedAt):''}${usageLine(m)}</summary><div class="steps">${steps.map(stepHTML).join('')}</div></details>`:'';
   const state=m.status==='stopped'?' · 已叫停':m.status==='error'?' · 出错':'';
   const files = m.from==='boss' ? filesHTML(m.attachments,true) : '';
   const out = m.from!=='boss' && m.files && m.files.length ? `<div class="filebar">产出 ${m.files.length} 个文件</div>${filesHTML(m.files)}` : '';
@@ -1243,7 +1280,7 @@ function openTeam(){ renderTeam(); if(!$('#teamDlg').open) $('#teamDlg').showMod
 function renderTeam(){
   $('#teamList').innerHTML = S.members.map(m=>{
     const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.access==='full' ? '</span><span class="tag">完全权限' : '');
-    const sub = !m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线');
+    const sub = (!m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线')) + (m.model ? ` · <span data-raw>${esc(m.model)}</span>` : '');
     return `<div class="team-row${m.enabled?'':' disabled'}"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span>
       <div class="info"><b>${esc(m.name)}</b><span class="tag">${kind}</span><small>${esc(m.strengths)}</small><small class="${m.enabled&&!m.online?'bad':''}">${sub}</small></div>
       <div class="acts"><button class="btn" data-tedit="${m.id}">编辑</button><button class="btn" data-ttoggle="${m.id}">${m.enabled?'停用':'启用'}</button></div></div>`;
@@ -1293,12 +1330,42 @@ function openMember(m){
   $('#mDelete').hidden = !m || builtin;
   $('#mRes').textContent=''; $('#mRes').className='testres';
   showAccess();
+  if(m && m.modelPick) loadModels(m);
   $('#memberDlg').showModal();
 }
 // 认得的三种命令行（Claude / Codex / Antigravity）才能一键切换权限
 const ACCESS_PARSERS = ['claude-stream','codex-json','agy-json'];
 const accessShown = ()=> editing && editing.builtin ? !!editing.access : mType==='cli' && ACCESS_PARSERS.includes($('#mParser').value);
-function showAccess(){ $('#accessField').hidden = !accessShown() }
+function showAccess(){ $('#accessField').hidden = !accessShown(); $('#modelField').hidden = !(editing && editing.id && accessShown()) }
+// 模型下拉：列表从各家工具实时读取；"默认"表示用工具自己的设置
+async function loadModels(m){
+  const sel=$('#mModelSel'), note=$('#mModelNote');
+  sel.innerHTML='<option value="">读取中…</option>'; note.textContent=''; $('#mModelCustom').hidden=true;
+  let j={}; try{ j=await api('models',{id:m.id}) }catch(_){}
+  if(editing!==m) return;
+  const list=j.choices||[], cur=j.current||'';
+  const opt=(v,l)=>`<option value="${esc(v)}">${esc(l)}</option>`;
+  const def = j.defaultHint ? `默认（${j.defaultHint}）` : '默认（用它自己的设置）';
+  const main=list.filter(x=>!x.other), other=list.filter(x=>x.other);
+  sel.innerHTML = opt('',def) + main.map(x=>opt(x.id,x.label)).join('') +
+    (other.length?`<optgroup label="其他家的模型（会失去多家模型互相讨论的意义）">${other.map(x=>opt(x.id,x.label)).join('')}</optgroup>`:'') +
+    opt('__custom','手动填写…');
+  if(cur && !list.some(x=>x.id===cur)){ sel.value='__custom'; $('#mModelCustom').value=cur; $('#mModelCustom').hidden=false } else { sel.value=cur; $('#mModelCustom').value='' }
+  note.textContent = list.length ? '列表来自它自己的命令行工具。选了订阅里没有的模型会出错，改回"默认"就好。' : '没读到模型列表，可以选"手动填写"。';
+  modelInfo=j; renderEfforts(j.effort||'');
+}
+// 思考深度的档位：Codex 跟着所选模型变，其他两家固定
+let modelInfo={};
+const EFFORT_LABEL={low:'低',medium:'中',high:'高',xhigh:'很高',max:'最高',ultra:'极限'};
+function renderEfforts(keep){
+  const ef=modelInfo.efforts||{}, m=$('#mModelSel').value;
+  const levels = ef[m==='__custom'?'':m] || ef[''] || [];
+  const hint = modelInfo.effortHint ? `默认（${EFFORT_LABEL[modelInfo.effortHint]||modelInfo.effortHint}）` : '默认（用它自己的设置）';
+  $('#mEffortSel').innerHTML = `<option value="">${esc(hint)}</option>` + levels.map(l=>`<option value="${l}">${EFFORT_LABEL[l]||l}</option>`).join('');
+  $('#mEffortSel').value = levels.includes(keep) ? keep : '';
+}
+$('#mModelSel').onchange=()=>{ $('#mModelCustom').hidden = $('#mModelSel').value!=='__custom'; renderEfforts($('#mEffortSel').value) };
+const pickedModel=()=> $('#mModelSel').value==='__custom' ? $('#mModelCustom').value.trim() : $('#mModelSel').value;
 $('#mParser').addEventListener('change', showAccess);
 $('#mFull').onchange = ()=>{
   if($('#mFull').checked && !confirm('打开完全权限？\n\n这位队友将能运行任何命令、修改或删除你电脑上任何地方的文件，而且不会先问你。请只给你信任的 AI 打开，重要文件记得备份。')) $('#mFull').checked = false;
@@ -1327,6 +1394,8 @@ $('#mSave').onclick = async()=>{
   const member = { id: editing ? editing.id : undefined, name: builtin ? editing.name : $('#mName').value.trim(), color: mColor,
     strengths: $('#mStrengths').value.trim(), enabled: $('#mEnabled').checked };
   if(accessShown()) member.access = $('#mFull').checked ? 'full' : 'safe';
+  const modelsLoaded = !!$('#mModelSel').querySelector('option[value="__custom"]');
+  if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }
   if(!builtin){
     member.type = mType;
     if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim() });

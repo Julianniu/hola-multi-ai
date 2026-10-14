@@ -77,6 +77,8 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   </ul></li>
 <li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，你发的文字类附件会直接附给它看。</li>
 <li>每位队友擅长什么、用什么颜色，在 <b>队友</b> 里点"编辑"修改，大家会按这个分工。</li>
+<li><b>模型</b>：在 <b>队友</b> → "编辑" 里可以给 Claude、Codex、Gemini 选模型，比如 Claude 选 Opus 还是 Sonnet，还能选<b>思考深度</b>（想得越深答得越好，但更慢、更费额度）；"默认"就是用它自己的设置。选了订阅里没有的模型会出错，改回"默认"就好。</li>
+<li><b>用量</b>：每条回复下面会写用的模型和用量（输入 / 输出 tokens，鼠标停在上面能看到明细），右上角的队友状态里有本对话每位队友的合计。用订阅时，用量计入订阅额度，不会另外收钱；用 API 时按服务商的价格计费。</li>
 <li><b>权限</b>：默认是安全模式，Claude、Codex 只在对话文件夹里干活，Gemini 只能读不能写。想让某位队友能运行命令、改动电脑上任何地方的文件，在 <b>队友</b> → "编辑" 里勾上<b>完全权限</b>，队友列表里会标出来。只给你信任的 AI 打开，重要文件记得备份。</li>
 <li>输入框下面的 <b>参与</b>：点一下名字，这次就不让 Ta 参与，再点一下恢复。每个对话分开记。你直接 @ Ta 时仍然会来。</li>
 </ul>
@@ -169,6 +171,8 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   </ul></li>
 <li>API teammates can't read or write files or go online; they think and write, and text attachments you send are included for them.</li>
 <li>Edit what each teammate is good at, and its colour, under <b>Teammates</b> → "Edit". The team divides work accordingly.</li>
+<li><b>Models</b>: under <b>Teammates</b> → "Edit" you can choose the model for Claude, Codex and Gemini, say Opus or Sonnet for Claude, and the <b>thinking effort</b> (deeper thinking gives better answers but is slower and uses more quota); "Default" uses the tool's own setting. Picking a model your subscription doesn't include will fail; just switch back to "Default".</li>
+<li><b>Usage</b>: each reply shows the model it used and its usage (input / output tokens; hover for details), and the teammate status at the top right shows this conversation's total per teammate. On a subscription, usage counts toward your plan's quota and nothing extra is billed; on an API it's billed at the provider's price.</li>
 <li><b>Permissions</b>: teammates start in safe mode. Claude and Codex work only inside the chat folder, and Gemini can read but not write. To let a teammate run commands and change files anywhere on the PC, tick <b>Full access</b> under <b>Teammates</b> → "Edit"; the teammate list marks it. Only turn it on for AIs you trust, and keep backups of important files.</li>
 <li><b>Working</b> under the input box: click a name to leave that teammate out this time, click again to bring them back. Remembered per conversation. @-ing them directly still brings them in.</li>
 </ul>
