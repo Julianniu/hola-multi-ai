@@ -1,0 +1,29 @@
+{
+  "port": 3457,
+  "workspace": "demo-workspace",
+  "timeoutMinutes": 5,
+  "members": {
+    "claude": {
+      "name": "Claude",
+      "strengths": "统筹拆解、写作与方案策划、推理、验收把关",
+      "cmd": "node",
+      "args": ["{ROOT}/demo/fake-ai.js", "Claude"],
+      "parser": "plain"
+    },
+    "codex": {
+      "name": "Codex",
+      "strengths": "写代码、运行脚本、处理数据表格、文件格式转换、做小工具",
+      "cmd": "node",
+      "args": ["{ROOT}/demo/fake-ai.js", "Codex"],
+      "parser": "plain"
+    },
+    "gemini": {
+      "name": "Gemini",
+      "strengths": "阅读和总结超长资料、看图片和视频、联网检索信息",
+      "cmd": "node",
+      "args": ["{ROOT}/demo/fake-ai.js", "Gemini"],
+      "parser": "plain",
+      "readOnly": true
+    }
+  }
+}

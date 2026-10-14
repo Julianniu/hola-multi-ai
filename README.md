@@ -1,0 +1,170 @@
+<p align="center">
+  <img src="docs/logo.png" width="120" alt="Hola logo">
+</p>
+
+<h1 align="center">Hola · 光辉联合</h1>
+
+<p align="center">
+  把 Claude、Codex（ChatGPT）、Gemini 拉进同一个群：<br>
+  它们<b>同时独立作答</b>，再<b>自己讨论、互相挑刺</b>，达成共识后给你一份<b>团队结论</b>。<br>
+  你只需要当包工头。
+</p>
+
+<p align="center">
+  <a href="#快速体验不需要任何账号">快速体验</a> ·
+  <a href="#正式安装windows">安装</a> ·
+  <a href="#怎么用">怎么用</a> ·
+  <a href="#接入更多-ai">接入 DeepSeek 等</a> ·
+  <a href="#english">English</a>
+</p>
+
+<p align="center"><img src="docs/screenshot-consensus.png" alt="三位 AI 讨论后达成共识，给出团队结论"></p>
+
+---
+
+## 为什么做这个
+
+同一个问题，Claude 说一套，ChatGPT 说一套，Gemini 又是一套。来回复制粘贴，最后还得自己判断谁对。
+
+Hola 换了个思路：**让它们自己讨论**。每个模型的训练数据和"性格"不一样，先各自独立思考，再互相看对方的观点，认同的吸收、不同意的说出理由，直到形成共识。这个判断和讨论的过程，往往比任何一家单独给的答案更周全。
+
+名字取"光辉联合"之意：红、绿、蓝三束光叠在一起，就变成白光。
+
+## 功能
+
+- **一个群，多个 AI**：Claude、Codex、Gemini 默认都在，还能接入 DeepSeek、通义千问、Kimi、本地模型等任意 AI。
+- **同时独立作答**：不点名时，参与的队友同时回答，互相看不到这一轮的答案，避免互相带偏。
+- **自主讨论、形成共识**：每位队友自己判断问题值不值得讨论。值得的话就进入多轮讨论，每轮亮出立场（同意 / 有异议），直到全员同意或到达轮数上限，最后由一位队友写出**团队结论**。整个过程不需要你插手，但你都看得见。
+- **@ 指定谁做、按什么顺序做**：`@Gemini 先查竞品，@Claude 再写文案，@Codex 做成 Excel`，按 @ 的顺序依次接力。
+- **队友之间自动交接**：结论里需要动手的部分，队友会 @ 对应的人，对方自动接手。
+- **每个对话独立记忆**：每轮结束后自动整理"对话记忆"（目标、你的偏好、已定结论、进度、重要文件），聊再久也不会忘。不同对话之间互不相通，你也可以随时手动修改。
+- **多模态**：图片、文件可以拖进来或者粘贴。队友生成的图片、视频、音频会自动收进对话文件夹（即使 AI 把它存在别处，或只放在返回数据里），直接在群里显示、播放、下载。
+- **读得懂 Office 文档**：发来的 Word、Excel、PPT 会自动转一份文字版（标题、段落、表格、多个工作表、日期、幻灯片和备注都保留），所有队友都能读，包括通过 API 接入的。对话里的文档点"预览"就能直接看，PDF 也能直接预览。
+- **说删就删**：删除对话时，聊天记录、对话记忆、附件和产出文件会一起永久删除。
+- **个人主页**：上传头像，填写你是谁、怎么称呼你、回答要多详细、什么语气、讨论要温和还是尖锐，以及其他长期要求。所有队友在所有对话里都会照着来。
+- **思考过程可见**：每条消息都能展开看它读了哪些文件、跑了什么命令、想了什么（取决于各家开放了多少）。
+- **选择谁参与**：输入框下方点一下名字，这次就不让 Ta 参与。
+- **跑在你自己电脑上**：用的是你已经付费的订阅（通过各家官方命令行工具），不经过任何第三方服务器。
+
+<table>
+<tr>
+<td><img src="docs/screenshot-thinking.png" alt="同时独立作答"></td>
+<td><img src="docs/screenshot-discussion.png" alt="内部讨论"></td>
+</tr>
+<tr>
+<td align="center">同时独立作答</td>
+<td align="center">内部讨论：同意 / 有异议</td>
+</tr>
+</table>
+
+## 快速体验（不需要任何账号）
+
+想先看看效果，可以用**演示模式**：队友按预设剧本回答，不调用真实 AI，完整体验"同时作答 → 讨论 → 共识结论 → 自动接力 → 自动记忆"的流程。
+
+1. 安装 [Node.js](https://nodejs.org/)（LTS 版，18 或以上）。
+2. 下载本项目（绿色的 **Code** 按钮 → **Download ZIP**），解压。
+3. Windows：双击 `START-DEMO.bat`。其他系统：在项目文件夹运行 `node server.js --demo`。
+4. 浏览器打开 <http://localhost:3457>。
+
+## 正式安装（Windows）
+
+**需要准备：**
+- Windows 10 / 11
+- [Node.js](https://nodejs.org/) LTS 版（18 或以上）
+- 至少一个订阅：Claude Pro/Max（用于 Claude）、ChatGPT Plus/Pro（用于 Codex）、Google AI Pro（用于 Gemini）。没有的那家，对应的队友会显示不在线，不影响其他人。
+
+**步骤：**
+1. 下载本项目并解压到一个简单的位置，比如 `D:\hola`（路径里最好不要有空格）。
+2. 双击 `SETUP.bat`：它会安装三家的官方命令行工具，再带你依次在浏览器里登录，最后在桌面创建 **Hola** 图标。
+3. 以后双击桌面的 **Hola** 图标就能打开：后台静默启动，以独立窗口打开，不会留一个黑色命令行窗口。
+
+> **Claude 登录注意**：要选择用 **Claude 账号（subscription）** 登录。如果启动后显示 `API Usage Billing`，说明走的是 API 按量计费，可以双击 `登录Claude.bat` 重新登录。
+>
+> **Gemini 说明**：Google 自 2026 年 6 月起不再让个人订阅使用 Gemini CLI，改为 [Antigravity CLI](https://antigravity.google/docs/cli/install/)（命令是 `agy`）。`SETUP.bat` 和 `登录Gemini.bat` 已经按新方式处理。
+
+macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` 后打开 <http://localhost:3456> 即可，但桌面启动器和安装脚本目前只有 Windows 版，也还没在这些系统上完整测试过，欢迎贡献。
+
+## 怎么用
+
+| 你想要 | 怎么发 |
+|---|---|
+| 让大家讨论出一个结论 | 直接说，不 @ 任何人 |
+| 指定某一位做 | `@Codex 把这份数据做成图表` |
+| 指定顺序接力 | `@Gemini 先读附件里的资料，@Claude 再写方案` |
+| 这次不让某位参与 | 输入框下方点一下 Ta 的名字 |
+| 给团队定规矩 | 右上角"对话记忆"里写上，比如品牌调性、禁用词 |
+| 中途叫停 | 点"叫停" |
+
+左下角 **设置** 里可以改：内部讨论最多几轮（默认 3）、团队结论由谁整理、队友之间最多自动接力几次、是否自动整理记忆。
+
+## 接入更多 AI
+
+左下角 **队友 → 添加队友**，两种方式：
+
+- **API 接入**：任何 OpenAI 兼容接口，内置了 DeepSeek、通义千问、Kimi、智谱、OpenRouter、本地 Ollama 的预设。填 API Key，点"保存并测试"即可。
+- **命令行**：任何有命令行工具的 AI。填命令和参数，参数里写 `{PROMPT}` 的地方会替换成任务内容（不写则通过标准输入传入）。
+
+<p align="center"><img src="docs/screenshot-team.png" width="720" alt="队友管理"></p>
+
+通过 API 接入的队友只能"动脑"：不能读写文件、不能联网，你发的文字类附件会直接附给它。它最适合作为讨论中一个额外的独立视角。API 一般按用量计费，请留意服务商后台的用量。
+
+## 它是怎么工作的
+
+```
+你发消息
+  ├─ 有 @ ──→ 按 @ 顺序依次执行 ──→ 队友之间可 @ 接力
+  └─ 没 @ ──→ 参与的队友同时独立作答（各自判断：需要讨论吗？）
+                ├─ 都说不需要 ──→ 结束
+                └─ 有人说需要 ──→ 内部讨论（每轮：同意 / 有异议）
+                                     └─ 全员同意或到上限 ──→ 团队结论 ──→ 需要动手的 @ 给队友
+每一轮结束 ──→ 自动整理本对话的记忆
+```
+
+- Hola 本身是一个零依赖的 Node.js 小程序（`server.js` + `public/index.html`），只监听本机 `127.0.0.1`。
+- 每位队友通过各家**官方命令行工具**调用（Claude Code 的 `claude -p`、Codex 的 `codex exec`、Antigravity 的 `agy -p`），或者通过 OpenAI 兼容 API 调用。
+- 每个对话是 `workspace/` 下的一个独立文件夹，里面有聊天记录、`对话记忆.md`、附件和产出文件。
+
+## 安全与隐私
+
+- 只监听本机，局域网和其他网站访问不到；所有写操作都要带专用请求头，防止网页偷偷调用。
+- 对话、记忆、API Key 都只保存在你电脑上（`workspace/`、`data/`），并且已写进 `.gitignore`，不会被误传。
+- 各队友的权限（默认配置）：Claude 只开放读写文件和查资料，不能执行命令；Codex 在它自带的沙盒里运行，只能改工作文件夹；Gemini 默认只读。你可以在 `config.json` 里按需调整，**放开权限前请确认你了解风险**。
+- 本项目与 Anthropic、OpenAI、Google、DeepSeek 等公司无关，只是调用它们公开提供的官方工具和接口。使用时请遵守各服务的条款，订阅额度和 API 费用由你自己的账号承担。
+
+## 常见问题
+
+**某个队友是灰的 / 不在线？** 点右上角的光点能看到原因，多半是没安装或登录过期。重新登录后点"重新检查"。
+
+**双击图标没反应？** 双击 `START.bat`，会显示带日志的窗口，按报错信息排查，或者提 Issue 时附上截图。
+
+**会不会很费额度？** 不点名时，参与的人每人至少答一次；需要讨论时，每轮每人再答一次，再加一次结论和一次记忆整理。简单问题他们会判断不需要讨论，直接结束。执行类任务建议用 @ 指定人，更省。
+
+**能看到 AI 的完整思考吗？** 能看到它们在群里的发言、读写了哪些文件、执行了什么命令，以及各家愿意公开的思考摘要。模型最底层的完整推理，有的厂商不开放。
+
+## 参与贡献
+
+欢迎提 Issue 和 Pull Request，尤其是这些方向：macOS / Linux 的启动器、更多 AI 的接入预设、界面英文化。
+
+想不登录账号调试界面和流程，可以用演示模式：`node server.js --demo`（队友剧本在 `demo/fake-ai.js`）。
+
+## 联系作者
+
+有问题、建议或合作意向，欢迎在 [Issues](https://github.com/Julianniu/hola-multi-ai/issues) 里留言。
+
+## 许可证
+
+[Apache License 2.0](LICENSE)
+
+---
+
+## English
+
+**Hola** puts Claude, Codex (ChatGPT) and Gemini — plus any OpenAI-compatible model such as DeepSeek — into one group chat on your own computer. When you don't @ anyone, the teammates answer **independently and in parallel**, decide for themselves whether the question deserves a debate, discuss over several rounds (each declaring *agree* or *object*), and hand you a **team conclusion** once they reach consensus. @-mentions set who works and in what order; each conversation keeps its own automatically curated memory; images and files can be dropped in.
+
+It is a zero-dependency Node.js app that drives each vendor's **official CLI** with your existing subscriptions (or any OpenAI-compatible API), listens on `127.0.0.1` only, and keeps all data local.
+
+- Try without any account: `node server.js --demo`, then open <http://localhost:3457>.
+- Windows install: run `SETUP.bat`, then use the desktop **Hola** icon.
+- The UI is currently in Chinese; contributions for English localization are welcome.
+
+Not affiliated with Anthropic, OpenAI, Google or DeepSeek. Licensed under Apache 2.0.

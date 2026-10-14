@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hola 使用说明</title>
+<link rel="icon" href="public/favicon.png">
+<style>
+:root{--night:#171933;--paper:#F8F8FB;--surface:#fff;--ink:#1C1E33;--ink2:#575A75;--line:#E4E5EE;--wash:#F0F1F6}
+@media (prefers-color-scheme:dark){:root{--paper:#12142A;--surface:#1B1E3A;--ink:#E9E9F4;--ink2:#A9ACC8;--line:#2C2F55;--wash:#20234A}}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.8 "HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:44px 20px 80px}
+.top{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.top img{width:56px;height:56px;border-radius:14px;box-shadow:0 0 30px rgba(110,130,255,.35)}
+h1{margin:0;font-size:30px}
+.lead{color:var(--ink2);margin:6px 0 30px}
+h2{font-size:19px;margin:36px 0 10px}
+ol,ul{padding-left:1.3em} li{margin:.35em 0}
+code,kbd{font:.9em Consolas,Menlo,monospace;background:var(--wash);padding:1px 6px;border-radius:5px}
+.note{border-left:3px solid #3D7BFF;background:var(--surface);padding:10px 14px;border-radius:0 10px 10px 0;color:var(--ink2)}
+dt{font-weight:600;margin-top:14px} dd{margin:3px 0 0;color:var(--ink2)}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><img src="public/logo.svg" alt=""><div><h1>Hola</h1></div></div>
+<p class="lead">光辉联合。三束光叠在一起变成白光：Claude、Codex、Gemini 三位队友地位平等、分工不同，你是中间那个点，也就是包工头。</p>
+
+<h2>第一次：创建桌面图标</h2>
+<ol>
+<li>如果之前的黑色"工地群聊"窗口还开着，先关掉它。</li>
+<li>双击这个文件夹里的 <b>创建桌面图标.bat</b>。</li>
+<li>桌面和开始菜单会出现 <b>Hola</b> 图标。以后双击它就能打开，不会再有黑色窗口。</li>
+</ol>
+<p class="note">Hola 在后台安静运行。窗口关掉后，如果 30 分钟内没有活在跑，它会自己退出。想马上退出，可以点左下角"设置"→"退出 Hola"。</p>
+
+<h2>怎么派活</h2>
+<ul>
+<li><b>@ 谁就让谁来</b>：比如"@Codex 把这个表格做成 Excel"。@ 多位时按 @ 的先后顺序依次来。</li>
+<li><b>不点名</b>：参与的队友同时独立作答。只要有人认为值得讨论，他们就会自己多轮讨论，直到都同意，再给你一个<b>团队结论</b>。讨论轮数、结论由谁整理，可以在"设置"里改。</li>
+<li><b>队友之间接力</b>：队友在回复里 @ 别人，就会自动交接。为了防止来回空转，最多自动接力 10 次（设置里可以改）。</li>
+<li><b>随时插话、叫停</b>：干活过程中可以继续发消息；点"叫停"会马上停下这个对话里的所有人。</li>
+</ul>
+
+<h2>接入更多 AI，选谁参与</h2>
+<ul>
+<li>左下角 <b>队友</b> → <b>添加队友</b>。有两种接法：
+  <ul>
+  <li><b>API 接入</b>：DeepSeek、通义千问、Kimi、智谱、OpenRouter、本地 Ollama 等 OpenAI 兼容接口。选服务商，填 API Key（模型名以服务商文档为准），点"保存并测试"。API Key 只保存在本机的 <code>data\members.json</code> 里。</li>
+  <li><b>命令行</b>：任何有命令行工具的 AI。填命令和参数，参数里写 <code>{PROMPT}</code> 的地方会换成要它做的事。</li>
+  </ul></li>
+<li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，老板发的文字类附件会直接附给它看。</li>
+<li>输入框下面的 <b>参与</b>：点一下名字，就让这位队友这次不参与（名字会划掉），再点一下恢复。每个对话分开记。不参与的队友不会加入讨论，也不会被队友自动交活；你直接 @ Ta 时仍然会来。</li>
+</ul>
+
+<h2>图片和文件</h2>
+<ul>
+<li>点输入框左边的回形针、直接拖进窗口，或者 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图，都可以添加附件。</li>
+<li>队友做出来的文件会直接显示在他的消息下面：图片可以点开放大，其他文件可以打开，或者在文件夹里找到它。</li>
+</ul>
+
+<h2>对话和记忆</h2>
+<ul>
+<li>左侧"新对话"（<kbd>Ctrl</kbd>+<kbd>N</kbd>）。每个对话都有自己的聊天记录、文件夹和<b>对话记忆</b>，互不干扰。</li>
+<li>点右上角"对话记忆"可以查看、修改。队友每次发言前都会先读它，也会把重要结论记进去。</li>
+<li>双击左侧的对话标题可以改名。删掉的对话会移到 <code>workspace\.trash</code>，不会被彻底删除。</li>
+</ul>
+
+<h2>常见问题</h2>
+<dl>
+<dt>右上角三束光有的暗着</dt>
+<dd>暗着就是那位队友没连上。点一下能看到原因，多半是登录过期：双击 <b>登录Claude.bat</b> 或 <b>登录Gemini.bat</b> 重新登录；Codex 的话在终端里运行一次 <code>codex</code>。弄好后点"重新检查"。</dd>
+<dt>双击图标没反应，或者提示没能启动</dt>
+<dd>双击 <b>START.bat</b>，会出现一个带报错信息的黑色窗口，截图发给 Claude。</dd>
+<dt>想改每个人擅长什么</dt>
+<dd>左下角"设置"，直接改每位队友的"擅长"，大家会按这个分工。</dd>
+</dl>
+</div></body>
+</html>

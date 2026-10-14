@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+// Hola 演示模式里的"假队友"：不调用任何真实 AI，按预设剧本回答，
+// 用来在没有账号的情况下体验 Hola 的界面和协作流程（同时作答 → 讨论 → 共识结论 → 接力干活）。
+'use strict';
+const fs = require('fs');
+const name = process.argv[2] || 'AI';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let prompt = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (d) => (prompt += d));
+process.stdin.on('end', async () => {
+  await sleep(900 + Math.random() * 1400);
+  process.stderr.write(`（演示模式）${name} 在按剧本回答\n`);
+  process.stdout.write(reply(prompt) + '\n');
+});
+
+function lastBoss(p) {
+  const all = p.match(/\[老板\] ([^\n]*)/g) || [];
+  return (all.pop() || '').replace('[老板] ', '').trim();
+}
+
+const VIEWS = {
+  Claude: (q) => `我先给个框架。「${q}」这件事，关键是先想清楚目标人群和要达成的结果，再倒推方案：目标不清楚，后面怎么做都会摇摆。`,
+  Codex: (q) => `我从落地角度看「${q}」：先估算成本和执行难度。看起来漂亮但做不出来、或者算不过账的方案，都应该先排除。`,
+  Gemini: (q) => `我补充一些外部视角：做「${q}」之前，先看看同类做法和用户的真实反馈，别只凭内部判断。`,
+};
+
+function reply(p) {
+  const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 40) || '这个问题';
+
+  if (p.includes('记忆整理员')) {
+    if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return '【无需更新】';
+    return `【本次变化】记下了关于「${q}」的团队结论和后续分工
+<<<记忆
+# 对话记忆
+
+## 目标与背景
+- 老板在问：${q}
+## 老板的偏好与要求
+- （演示模式：这里会记下老板说过的要求）
+## 已经定下的结论
+- 先明确目标人群和结果，再选方案；成本可控为前提
+## 进度与待办
+- Codex：把结论要点整理成表格
+## 重要文件
+- 结论要点.csv：团队结论的要点清单
+记忆>>>`;
+  }
+
+  if (p.includes('同时、独立作答')) {
+    if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return `老板好，${name} 在线，随时可以开工。\n\n【需要讨论】否`;
+    return `${(VIEWS[name] || VIEWS.Claude)(q)}\n\n（演示模式：这是预设的示范回答。接入真实 AI 后，这里是它真正的思考。）\n\n【需要讨论】是`;
+  }
+
+  const round = (p.match(/内部讨论第 (\d+) 轮/) || [])[1];
+  if (round) {
+    if (name === 'Codex' && round === '1') {
+      return `Claude 的框架我认同，Gemini 说的先看外部反馈也很有必要。\n\n但我有一个实质分歧：大家都没算成本。如果方案执行成本过高，再好的方向也落不了地，建议把"成本上限"作为前提写进结论。\n\n【立场】有异议`;
+    }
+    if (round === '1') {
+      return name === 'Claude'
+        ? `Gemini 说的"先看外部反馈"补上了我框架里缺的一步，我吸收进来：先调研，再定目标人群和方案。Codex 的落地视角我也同意。\n\n【立场】同意`
+        : `Claude 的框架很清楚，我没有反对意见。补一句：调研时重点看评论区的真实抱怨，比看点赞数有用。\n\n【立场】同意`;
+    }
+    if (name === 'Codex') return `我看到大家把"先调研"加进去了，只要成本上限也写进结论，我就同意。\n\n【立场】同意`;
+    return `Codex 提的成本问题我之前漏了，同意把"成本上限"作为前提写进结论。\n\n【立场】同意`;
+  }
+
+  if (p.includes('给老板写最终结论')) {
+    return `**结论：先明确目标人群和要达成的结果，在成本上限内选择最容易落地的方案。**
+
+讨论中最关键的取舍：Gemini 提醒要先看外部反馈，Codex 坚持把成本作为前提。两点都已经写进结论。
+
+（演示模式：接入真实 AI 后，这里会是针对你问题的具体答案。）
+
+@Codex 把结论要点整理成一张表格。`;
+  }
+
+  if (p.includes('@ 了你')) {
+    fs.writeFileSync('结论要点.csv', '﻿要点,负责人\n明确目标人群,团队\n设定成本上限,Codex\n参考外部反馈,Gemini\n');
+    return '表格做好了：**结论要点.csv**，三条要点和负责人都列在里面。';
+  }
+
+  return `收到，${name} 来处理。（演示模式：这是示范回复，接入真实 AI 后就是真正的工作结果。）`;
+}

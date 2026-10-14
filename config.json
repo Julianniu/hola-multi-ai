@@ -1,0 +1,30 @@
+{
+  "port": 3456,
+  "workspace": "workspace",
+  "timeoutMinutes": 20,
+  "members": {
+    "claude": {
+      "name": "Claude",
+      "strengths": "统筹拆解、写作与方案策划、推理、验收把关",
+      "cmd": "claude",
+      "args": ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"],
+      "parser": "claude-stream"
+    },
+    "codex": {
+      "name": "Codex",
+      "strengths": "写代码、运行脚本、处理数据表格、文件格式转换、做小工具",
+      "cmd": "codex",
+      "args": ["exec", "--json", "--sandbox", "workspace-write", "--skip-git-repo-check", "-o", "{OUTFILE}", "-"],
+      "parser": "codex-json"
+    },
+    "gemini": {
+      "name": "Gemini",
+      "strengths": "阅读和总结超长资料、看图片和视频、联网检索信息",
+      "cmd": "agy",
+      "args": ["-p", "{PROMPT}", "--output-format", "json", "--print-timeout", "20m"],
+      "parser": "agy-json",
+      "versionCheck": false,
+      "readOnly": true
+    }
+  }
+}
