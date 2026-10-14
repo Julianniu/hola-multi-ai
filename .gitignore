@@ -1,0 +1,9 @@
+# 运行时数据：对话、记忆、API Key 都在这里，不要上传
+data/
+data-demo/
+workspace/
+demo-workspace/
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
