@@ -3,40 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hola 使用说明</title>
+<title>Hola 使用说明 · Guide</title>
 <link rel="icon" href="public/favicon.png">
 <style>
-:root{--night:#171933;--paper:#F8F8FB;--surface:#fff;--ink:#1C1E33;--ink2:#575A75;--line:#E4E5EE;--wash:#F0F1F6}
+:root{--night:#171933;--paper:#F8F8FB;--surface:#fff;--ink:#1C1E33;--ink2:#575A75;--line:#E4E5EE;--wash:#F0F1F6;--warn:#FF5A4E}
 @media (prefers-color-scheme:dark){:root{--paper:#12142A;--surface:#1B1E3A;--ink:#E9E9F4;--ink2:#A9ACC8;--line:#2C2F55;--wash:#20234A}}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.8 "HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
 .wrap{max-width:720px;margin:0 auto;padding:44px 20px 80px}
 .top{display:flex;align-items:center;gap:16px;margin-bottom:8px}
 .top img{width:56px;height:56px;border-radius:14px;box-shadow:0 0 30px rgba(110,130,255,.35)}
+.top h1{flex:1}
 h1{margin:0;font-size:30px}
 .lead{color:var(--ink2);margin:6px 0 30px}
 h2{font-size:19px;margin:36px 0 10px}
 ol,ul{padding-left:1.3em} li{margin:.35em 0}
 code,kbd{font:.9em Consolas,Menlo,monospace;background:var(--wash);padding:1px 6px;border-radius:5px}
 .note{border-left:3px solid #3D7BFF;background:var(--surface);padding:10px 14px;border-radius:0 10px 10px 0;color:var(--ink2)}
+.note.warn{border-color:var(--warn)}
 dt{font-weight:600;margin-top:14px} dd{margin:3px 0 0;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--wash)}
+.sw{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none}
+.sw button{border:0;background:transparent;color:var(--ink2);font:inherit;font-size:14px;padding:4px 14px;cursor:pointer}
+.sw button.on{background:var(--night);color:#fff}
+[data-l]{display:none}
+html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><img src="public/logo.svg" alt=""><div><h1>Hola</h1></div></div>
+<div class="top"><img src="public/logo.svg" alt=""><h1>Hola</h1>
+<div class="sw" role="group" aria-label="Language"><button id="bZh" onclick="setL('zh')">中文</button><button id="bEn" onclick="setL('en')">English</button></div></div>
+
+<!-- ======================= 中文 ======================= -->
+<div data-l="zh">
 <p class="lead">光辉联合。三束光叠在一起变成白光：Claude、Codex、Gemini 三位队友地位平等、分工不同，你是中间那个点，也就是包工头。</p>
 
-<h2>第一次：创建桌面图标</h2>
+<h2>第一次：安装</h2>
 <ol>
-<li>如果之前的黑色"工地群聊"窗口还开着，先关掉它。</li>
-<li>双击这个文件夹里的 <b>创建桌面图标.bat</b>。</li>
-<li>桌面和开始菜单会出现 <b>Hola</b> 图标。以后双击它就能打开，不会再有黑色窗口。</li>
+<li>先装好 <a href="https://nodejs.org/">Node.js</a>（LTS 版）。</li>
+<li>双击 <b>SETUP.bat</b>：它会安装三家的命令行工具，带你依次登录（见下一节），最后在桌面创建 <b>Hola</b> 图标。</li>
+<li>以后双击桌面的 <b>Hola</b> 图标就能打开，不会有黑色窗口。只想重新创建图标的话，双击 <b>Create-Desktop-Icon.bat</b>。</li>
 </ol>
-<p class="note">Hola 在后台安静运行。窗口关掉后，如果 30 分钟内没有活在跑，它会自己退出。想马上退出，可以点左下角"设置"→"退出 Hola"。</p>
+
+<h2>重要：命令行队友要先登录</h2>
+<p>Claude、Codex、Gemini 这三位，以及你自己用"命令行"方式加的队友，都是通过各家的<b>官方命令行工具</b>干活的，用的是你自己的订阅。<b>每一位都必须先在这台电脑上登录一次</b>，否则 Hola 里会显示不在线。<code>SETUP.bat</code> 会带你登录一遍；之后想单独登录或重新登录，用下面的文件：</p>
+<table>
+<tr><th>队友</th><th>需要的订阅</th><th>怎么登录</th></tr>
+<tr><td>Claude</td><td>Claude Pro / Max</td><td>双击 <b>Login-Claude.bat</b>，输入 <code>/login</code>，选 <b>Claude account with subscription</b>，在浏览器里授权，然后 <code>/exit</code>。</td></tr>
+<tr><td>Codex</td><td>ChatGPT Plus / Pro</td><td>双击 <b>Login-Codex.bat</b>，选 <b>Sign in with ChatGPT</b>，在浏览器里登录，然后 <code>/exit</code>。</td></tr>
+<tr><td>Gemini</td><td>Google AI Pro</td><td>双击 <b>Login-Gemini.bat</b>（会顺便安装 Antigravity CLI，命令叫 <code>agy</code>），用订阅的 Google 账号登录，然后 <code>/quit</code>。</td></tr>
+<tr><td>你自己加的命令行 AI</td><td>看那家的要求</td><td>按那家命令行工具的说明，先在终端里登录或配置好 Key，确认它能单独跑通，再加进 Hola。</td></tr>
+</table>
+<p class="note warn"><b>Claude 一定要选订阅账号登录。</b>如果 Hola 里显示 <code>API Usage Billing</code>，说明走的是 API 按量计费（会另外扣钱），用 <b>Login-Claude.bat</b> 先 <code>/logout</code> 再重新 <code>/login</code>。<br>
+<b>Gemini 说明：</b>Google 从 2026 年 6 月起不再让个人订阅使用 Gemini CLI，必须用 Antigravity CLI（<code>agy</code>）。</p>
+<p class="note">没有哪家的订阅也没关系，那位队友显示不在线，不影响其他人。通过 <b>API</b> 接入的队友（DeepSeek 等）不需要登录，填 API Key 就行。登录过期时，右上角的光会暗掉，重新登录后点"重新检查"。</p>
 
 <h2>怎么派活</h2>
 <ul>
-<li><b>@ 谁就让谁来</b>：比如"@Codex 把这个表格做成 Excel"。@ 多位时按 @ 的先后顺序依次来。</li>
 <li><b>不点名</b>：参与的队友同时独立作答。只要有人认为值得讨论，他们就会自己多轮讨论，直到都同意，再给你一个<b>团队结论</b>。讨论轮数、结论由谁整理，可以在"设置"里改。</li>
+<li><b>@ 谁就让谁来</b>：比如"@Codex 把这个表格做成 Excel"。@ 多位时按 @ 的先后顺序依次来。</li>
 <li><b>队友之间接力</b>：队友在回复里 @ 别人，就会自动交接。为了防止来回空转，最多自动接力 10 次（设置里可以改）。</li>
 <li><b>随时插话、叫停</b>：干活过程中可以继续发消息；点"叫停"会马上停下这个对话里的所有人。</li>
 </ul>
@@ -46,33 +72,131 @@ dt{font-weight:600;margin-top:14px} dd{margin:3px 0 0;color:var(--ink2)}
 <li>左下角 <b>队友</b> → <b>添加队友</b>。有两种接法：
   <ul>
   <li><b>API 接入</b>：DeepSeek、通义千问、Kimi、智谱、OpenRouter、本地 Ollama 等 OpenAI 兼容接口。选服务商，填 API Key（模型名以服务商文档为准），点"保存并测试"。API Key 只保存在本机的 <code>data\members.json</code> 里。</li>
-  <li><b>命令行</b>：任何有命令行工具的 AI。填命令和参数，参数里写 <code>{PROMPT}</code> 的地方会换成要它做的事。</li>
+  <li><b>命令行</b>：任何有命令行工具的 AI（记得先登录，见上面）。填命令和参数，参数里写 <code>{PROMPT}</code> 的地方会换成要它做的事。</li>
   </ul></li>
-<li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，老板发的文字类附件会直接附给它看。</li>
-<li>输入框下面的 <b>参与</b>：点一下名字，就让这位队友这次不参与（名字会划掉），再点一下恢复。每个对话分开记。不参与的队友不会加入讨论，也不会被队友自动交活；你直接 @ Ta 时仍然会来。</li>
+<li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，你发的文字类附件会直接附给它看。</li>
+<li>每位队友擅长什么、用什么颜色，在 <b>队友</b> 里点"编辑"修改，大家会按这个分工。</li>
+<li>输入框下面的 <b>参与</b>：点一下名字，这次就不让 Ta 参与，再点一下恢复。每个对话分开记。你直接 @ Ta 时仍然会来。</li>
 </ul>
 
 <h2>图片和文件</h2>
 <ul>
 <li>点输入框左边的回形针、直接拖进窗口，或者 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图，都可以添加附件。</li>
-<li>队友做出来的文件会直接显示在他的消息下面：图片可以点开放大，其他文件可以打开，或者在文件夹里找到它。</li>
+<li>Word、Excel、PPT 会自动转一份文字版，所有队友都能读；点"预览"可以直接看，PDF 也可以。</li>
+<li>队友做出来的图片、视频、文件会显示在他的消息下面，可以放大、播放、下载，或者在文件夹里找到它。</li>
 </ul>
 
-<h2>对话和记忆</h2>
+<h2>对话、记忆和个人主页</h2>
 <ul>
 <li>左侧"新对话"（<kbd>Ctrl</kbd>+<kbd>N</kbd>）。每个对话都有自己的聊天记录、文件夹和<b>对话记忆</b>，互不干扰。</li>
-<li>点右上角"对话记忆"可以查看、修改。队友每次发言前都会先读它，也会把重要结论记进去。</li>
-<li>双击左侧的对话标题可以改名。删掉的对话会移到 <code>workspace\.trash</code>，不会被彻底删除。</li>
+<li>点右上角"对话记忆"可以查看、修改。每轮结束后会自动整理。</li>
+<li>双击左侧的对话标题可以改名。<b>删除对话是永久删除</b>：聊天记录、记忆、附件和产出文件一起删掉，无法恢复。</li>
+<li>点左下角你的头像打开<b>个人主页</b>：头像、怎么称呼你、回答要多详细、讨论风格等，所有队友都会照着来。</li>
+<li><b>设置 → 界面语言 / Language</b> 可以切换中文和英文。</li>
 </ul>
+<p class="note">Hola 在后台安静运行。窗口关掉后，如果 30 分钟内没有活在跑，它会自己退出。想马上退出，点左下角"设置"→"退出 Hola"。</p>
 
 <h2>常见问题</h2>
 <dl>
 <dt>右上角三束光有的暗着</dt>
-<dd>暗着就是那位队友没连上。点一下能看到原因，多半是登录过期：双击 <b>登录Claude.bat</b> 或 <b>登录Gemini.bat</b> 重新登录；Codex 的话在终端里运行一次 <code>codex</code>。弄好后点"重新检查"。</dd>
+<dd>暗着就是那位队友没连上。点一下能看到原因，多半是没安装或登录过期：用上面表格里对应的登录文件重新登录，弄好后点"重新检查"。</dd>
+<dt>Claude 显示 API Usage Billing</dt>
+<dd>没用订阅登录。双击 <b>Login-Claude.bat</b>，先 <code>/logout</code>，再 <code>/login</code> 选订阅账号。</dd>
 <dt>双击图标没反应，或者提示没能启动</dt>
-<dd>双击 <b>START.bat</b>，会出现一个带报错信息的黑色窗口，截图发给 Claude。</dd>
-<dt>想改每个人擅长什么</dt>
-<dd>左下角"设置"，直接改每位队友的"擅长"，大家会按这个分工。</dd>
+<dd>双击 <b>START.bat</b>，会出现一个带报错信息的窗口，截图后到 <a href="https://github.com/Julianniu/hola-multi-ai/issues">Issues</a> 提问。</dd>
+<dt>想先看看效果，不登录任何账号</dt>
+<dd>双击 <b>START-DEMO.bat</b>，打开 <code>http://localhost:3457</code>，队友会按预设剧本演示完整流程。</dd>
 </dl>
-</div></body>
+</div>
+
+<!-- ======================= English ======================= -->
+<div data-l="en">
+<p class="lead">Union of light. Three beams of light combine into white: Claude, Codex and Gemini are equal teammates with different strengths, and you are the point in the middle, the foreman.</p>
+
+<h2>First time: install</h2>
+<ol>
+<li>Install <a href="https://nodejs.org/">Node.js</a> (LTS).</li>
+<li>Double-click <b>SETUP.bat</b>. It installs the three command-line tools, walks you through signing in to each (see the next section), and creates a <b>Hola</b> icon on your desktop.</li>
+<li>From then on, double-click the <b>Hola</b> desktop icon. No command-prompt window stays open. To recreate the icon only, double-click <b>Create-Desktop-Icon.bat</b>.</li>
+</ol>
+
+<h2>Important: sign in to the command-line teammates first</h2>
+<p>Claude, Codex and Gemini, plus any teammate you add as a "command line" teammate, work through each vendor's <b>official CLI</b> using your own subscription. <b>Each one must be signed in on this computer once</b>, or it shows as offline in Hola. <code>SETUP.bat</code> walks you through this; to sign in again later, use these files:</p>
+<table>
+<tr><th>Teammate</th><th>Subscription</th><th>How to sign in</th></tr>
+<tr><td>Claude</td><td>Claude Pro / Max</td><td>Double-click <b>Login-Claude.bat</b>, type <code>/login</code>, choose <b>Claude account with subscription</b>, approve in the browser, then <code>/exit</code>.</td></tr>
+<tr><td>Codex</td><td>ChatGPT Plus / Pro</td><td>Double-click <b>Login-Codex.bat</b>, choose <b>Sign in with ChatGPT</b>, sign in in the browser, then <code>/exit</code>.</td></tr>
+<tr><td>Gemini</td><td>Google AI Pro</td><td>Double-click <b>Login-Gemini.bat</b> (it also installs the Antigravity CLI, <code>agy</code>), sign in with your subscribed Google account, then <code>/quit</code>.</td></tr>
+<tr><td>Your own CLI AI</td><td>Whatever it needs</td><td>Follow that tool's instructions to sign in or set its key in a terminal, make sure it runs on its own, then add it to Hola.</td></tr>
+</table>
+<p class="note warn"><b>Sign Claude in with your subscription.</b> If Hola shows <code>API Usage Billing</code>, Claude is on pay-as-you-go API billing (charged separately). Open <b>Login-Claude.bat</b>, run <code>/logout</code>, then <code>/login</code> again.<br>
+<b>About Gemini:</b> since June 2026 Google no longer lets personal subscriptions use the Gemini CLI; the Antigravity CLI (<code>agy</code>) is required.</p>
+<p class="note">Missing a subscription is fine: that teammate shows as offline and the others still work. Teammates added through an <b>API</b> (DeepSeek and others) don't need signing in, just an API key. When a sign-in expires, its light at the top right goes dark; sign in again and click "Recheck".</p>
+
+<h2>Giving out work</h2>
+<ul>
+<li><b>No @</b>: the working teammates answer independently, at the same time. If anyone thinks it's worth discussing, they discuss over several rounds until everyone agrees, then give you a <b>team conclusion</b>. The round limit and who writes the conclusion are in Settings.</li>
+<li><b>@ someone to assign it</b>: e.g. "@Codex turn this table into Excel". With several @s, they go in @ order.</li>
+<li><b>Hand-offs</b>: when a teammate @s someone in a reply, the work is handed over automatically, up to 10 times in a row (changeable in Settings) so nobody loops forever.</li>
+<li><b>Jump in or stop any time</b>: keep sending messages while they work; "Stop" halts everyone in the conversation right away.</li>
+</ul>
+
+<h2>Adding more AIs, choosing who works</h2>
+<ul>
+<li><b>Teammates</b> (bottom left) → <b>Add teammate</b>, in two ways:
+  <ul>
+  <li><b>API</b>: OpenAI-compatible endpoints such as DeepSeek, Qwen, Kimi, Zhipu, OpenRouter or local Ollama. Pick a provider, enter the API key (check the provider's docs for model names), click "Save and test". Keys are stored only on this computer in <code>data\members.json</code>.</li>
+  <li><b>Command line</b>: any AI with a CLI (sign it in first, see above). Enter the command and arguments; <code>{PROMPT}</code> in the arguments is replaced with the task.</li>
+  </ul></li>
+<li>API teammates can't read or write files or go online; they think and write, and text attachments you send are included for them.</li>
+<li>Edit what each teammate is good at, and its colour, under <b>Teammates</b> → "Edit". The team divides work accordingly.</li>
+<li><b>Working</b> under the input box: click a name to leave that teammate out this time, click again to bring them back. Remembered per conversation. @-ing them directly still brings them in.</li>
+</ul>
+
+<h2>Images and files</h2>
+<ul>
+<li>Use the paperclip, drag files into the window, or paste a screenshot with <kbd>Ctrl</kbd>+<kbd>V</kbd>.</li>
+<li>Word, Excel and PowerPoint files get an automatic text version every teammate can read. Click "Preview" to view them, and PDFs too.</li>
+<li>Images, videos and files your teammates make appear under their message: enlarge, play, download, or show them in the folder.</li>
+</ul>
+
+<h2>Conversations, memory and your profile</h2>
+<ul>
+<li>"New chat" on the left (<kbd>Ctrl</kbd>+<kbd>N</kbd>). Each conversation has its own history, folder and <b>memory</b>, kept separate.</li>
+<li>"Memory" at the top right lets you view and edit it. It's updated automatically after each round.</li>
+<li>Double-click a conversation title to rename it. <b>Deleting a conversation is permanent</b>: history, memory, attachments and output files are all removed.</li>
+<li>Click your avatar at the bottom left for <b>your profile</b>: avatar, what to call you, how detailed answers should be, discussion style and more. Every teammate follows it.</li>
+<li><b>Settings → 界面语言 / Language</b> switches between Chinese and English.</li>
+</ul>
+<p class="note">Hola runs quietly in the background. After you close the window, it exits on its own if nothing has run for 30 minutes. To quit right away: "Settings" → "Quit Hola".</p>
+
+<h2>FAQ</h2>
+<dl>
+<dt>Some of the lights at the top right are dark</dt>
+<dd>That teammate isn't connected. Click to see why; usually the CLI isn't installed or the sign-in expired. Sign in again with the matching file from the table above, then click "Recheck".</dd>
+<dt>Claude shows API Usage Billing</dt>
+<dd>It isn't signed in with a subscription. Double-click <b>Login-Claude.bat</b>, run <code>/logout</code>, then <code>/login</code> and choose the subscription account.</dd>
+<dt>Nothing happens when I double-click the icon</dt>
+<dd>Double-click <b>START.bat</b> to see a window with the error, take a screenshot and ask in <a href="https://github.com/Julianniu/hola-multi-ai/issues">Issues</a>.</dd>
+<dt>I want to try it without signing in to anything</dt>
+<dd>Double-click <b>START-DEMO.bat</b> and open <code>http://localhost:3457</code>. The teammates act out the whole flow from a script.</dd>
+</dl>
+</div>
+</div>
+<script>
+function setL(l){
+  document.documentElement.lang = l === 'en' ? 'en' : 'zh-CN';
+  document.title = l === 'en' ? 'Hola Guide' : 'Hola 使用说明';
+  document.getElementById('bZh').className = l === 'en' ? '' : 'on';
+  document.getElementById('bEn').className = l === 'en' ? 'on' : '';
+  try { localStorage.setItem('hola.lang', l); } catch (e) {}
+}
+(function(){
+  var l = location.hash === '#en' ? 'en' : location.hash === '#zh' ? 'zh' : null;
+  if (!l) { try { l = localStorage.getItem('hola.lang'); } catch (e) {} }
+  if (!l) l = /^zh/i.test(navigator.language || '') ? 'zh' : 'en';
+  setL(l);
+})();
+</script>
+</body>
 </html>

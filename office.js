@@ -1,6 +1,7 @@
 // 零依赖读取 Word / Excel / PowerPoint（.docx / .xlsx / .pptx）
 // 这三种文件本质上是 zip 压缩包里装着 XML，这里自己解压、取出文字和表格。
 'use strict';
+const tt = (zh, en) => (module.exports.lang === 'en' ? en : zh);
 const fs = require('fs');
 const zlib = require('zlib');
 
@@ -11,7 +12,7 @@ function readZip(buf) {
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 70000); i--) {
     if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
   }
-  if (eocd < 0) throw new Error('不是有效的 Office 文件（zip 结构损坏）');
+  if (eocd < 0) throw new Error(tt('不是有效的 Office 文件（zip 结构损坏）', 'Not a valid Office file (damaged zip structure)'));
   const count = buf.readUInt16LE(eocd + 10);
   let p = buf.readUInt32LE(eocd + 16);
   const files = new Map();
@@ -209,7 +210,7 @@ function readOffice(file, opts) {
   if (ext === 'docx') return readDocx(zip);
   if (ext === 'xlsx') return readXlsx(zip, opts);
   if (ext === 'pptx') return readPptx(zip);
-  throw new Error('不支持的格式');
+  throw new Error(tt('不支持的格式', 'Unsupported format'));
 }
 
 const mdCell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n+/g, ' ');
@@ -221,7 +222,7 @@ function mdTable(rows) {
 }
 
 function toMarkdown(doc, title) {
-  const out = [`# ${title}（自动转换的文字版）`, ''];
+  const out = [tt(`# ${title}（自动转换的文字版）`, `# ${title} (automatic text version)`), ''];
   if (doc.kind === 'docx') {
     for (const b of doc.blocks) {
       if (b.type === 'h') out.push('#'.repeat(b.level + 1) + ' ' + b.text, '');
@@ -231,13 +232,13 @@ function toMarkdown(doc, title) {
     }
   } else if (doc.kind === 'xlsx') {
     for (const s of doc.sheets) {
-      out.push(`## 工作表：${s.name}`, '', s.rows.length ? mdTable(s.rows) : '（空）', '');
-      if (s.truncated) out.push('（表格太大，只转换了前 500 行、前 40 列，完整数据请看原文件）', '');
+      out.push(tt(`## 工作表：${s.name}`, `## Sheet: ${s.name}`), '', s.rows.length ? mdTable(s.rows) : tt('（空）', '(empty)'), '');
+      if (s.truncated) out.push(tt('（表格太大，只转换了前 500 行、前 40 列，完整数据请看原文件）', '(Sheet too large: only the first 500 rows and 40 columns were converted. See the original file for everything.)'), '');
     }
   } else if (doc.kind === 'pptx') {
     for (const s of doc.slides) {
-      out.push(`## 第 ${s.n} 页${s.title ? '：' + s.title : ''}`, '', ...s.paras.slice(s.title ? 1 : 0).map((p) => '- ' + p), '');
-      if (s.notes) out.push(`备注：${s.notes}`, '');
+      out.push(tt(`## 第 ${s.n} 页${s.title ? '：' + s.title : ''}`, `## Slide ${s.n}${s.title ? ': ' + s.title : ''}`), '', ...s.paras.slice(s.title ? 1 : 0).map((p) => '- ' + p), '');
+      if (s.notes) out.push(tt(`备注：${s.notes}`, `Notes: ${s.notes}`), '');
     }
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
@@ -245,7 +246,7 @@ function toMarkdown(doc, title) {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function htmlTable(rows, header) {
-  if (!rows.length) return '<p class="muted">（空）</p>';
+  if (!rows.length) return `<p class="muted">${tt('（空）', '(empty)')}</p>`;
   const [h, ...rest] = header ? rows : [null, ...rows];
   return `<div class="tw"><table>${h ? `<thead><tr>${h.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>` : ''}<tbody>${rest.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
@@ -262,18 +263,18 @@ function toHtml(doc, title) {
       else body += `<p>${esc(b.text).replace(/\n/g, '<br>')}</p>`;
     }
     if (inList) body += '</ul>';
-    body = `<article class="doc">${body || '<p class="muted">文档里没有读到文字。</p>'}</article>`;
+    body = `<article class="doc">${body || `<p class="muted">${tt('文档里没有读到文字。', 'No text found in this document.')}</p>`}</article>`;
   } else if (doc.kind === 'xlsx') {
     body = `<nav>${doc.sheets.map((s, i) => `<a href="#s${i}">${esc(s.name)}</a>`).join('')}</nav>` +
-      doc.sheets.map((s, i) => `<section id="s${i}"><h2>${esc(s.name)}</h2>${htmlTable(s.rows, true)}${s.truncated ? '<p class="muted">表格太大，这里只显示前 500 行、前 40 列。</p>' : ''}</section>`).join('');
+      doc.sheets.map((s, i) => `<section id="s${i}"><h2>${esc(s.name)}</h2>${htmlTable(s.rows, true)}${s.truncated ? `<p class="muted">${tt('表格太大，这里只显示前 500 行、前 40 列。', 'Sheet too large: showing the first 500 rows and 40 columns.')}</p>` : ''}</section>`).join('');
   } else if (doc.kind === 'pptx') {
-    body = doc.slides.map((s) => `<section class="slide"><span class="no">${s.n}</span>${s.title ? `<h2>${esc(s.title)}</h2>` : ''}${s.paras.slice(s.title ? 1 : 0).map((p) => `<p>${esc(p)}</p>`).join('')}${s.notes ? `<div class="notes">备注：${esc(s.notes)}</div>` : ''}</section>`).join('') || '<p class="muted">没有读到幻灯片内容。</p>';
+    body = doc.slides.map((s) => `<section class="slide"><span class="no">${s.n}</span>${s.title ? `<h2>${esc(s.title)}</h2>` : ''}${s.paras.slice(s.title ? 1 : 0).map((p) => `<p>${esc(p)}</p>`).join('')}${s.notes ? `<div class="notes">${tt('备注：', 'Notes: ')}${esc(s.notes)}</div>` : ''}</section>`).join('') || `<p class="muted">${tt('没有读到幻灯片内容。', 'No slide content found.')}</p>`;
   }
-  return previewPage(title, `预览只显示文字和表格，图片、排版和图表请下载原文件查看。`, body);
+  return previewPage(title, tt('预览只显示文字和表格，图片、排版和图表请下载原文件查看。', 'The preview shows text and tables only. Download the original for images, layout and charts.'), body);
 }
 
 function previewPage(title, note, body) {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+  return `<!doctype html><html lang="${tt('zh-CN', 'en')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <style>
 :root{--ink:#1C1E33;--ink2:#575A75;--ink3:#9093AB;--line:#E4E5EE;--wash:#F0F1F6;--paper:#F8F8FB}
 @media (prefers-color-scheme:dark){:root{--ink:#E9E9F4;--ink2:#A9ACC8;--ink3:#71749A;--line:#2C2F55;--wash:#20234A;--paper:#12142A}}
@@ -297,4 +298,4 @@ pre{white-space:pre-wrap;word-break:break-word;font:13.5px/1.65 Consolas,Menlo,m
 </style></head><body><header><b>${esc(title)}</b><small>${esc(note)}</small></header><main>${body}</main></body></html>`;
 }
 
-module.exports = { OFFICE_EXT, readOffice, toMarkdown, toHtml, previewPage, htmlTable, esc };
+module.exports = { lang: 'zh', OFFICE_EXT, readOffice, toMarkdown, toHtml, previewPage, htmlTable, esc };

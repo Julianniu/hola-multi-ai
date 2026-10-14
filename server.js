@@ -40,9 +40,14 @@ process.on('uncaughtException', (e) => console.error('uncaught', e && e.stack ||
 
 // ---------------------------------------------------------------- 设置
 
-const DEFAULT_SETTINGS = { maxDiscussRounds: 3, conclusionBy: 'claude', maxAutoTurns: 10, autoMemory: true, strengths: {}, memberPrefs: {} };
+const DEFAULT_SETTINGS = { uiLang: '', maxDiscussRounds: 3, conclusionBy: 'claude', maxAutoTurns: 10, autoMemory: true, strengths: {}, memberPrefs: {} };
 let settings = { ...DEFAULT_SETTINGS };
 try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; } catch (_) {}
+// 界面语言：zh / en。T('中文', 'English') 按当前语言取一句
+const EN = () => settings.uiLang === 'en';
+const syncLang = () => { office.lang = EN() ? 'en' : 'zh'; };
+syncLang();
+const T = (zh, en) => (EN() ? en : zh);
 function saveSettings() { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2)); }
 
 // ---------------------------------------------------------------- 老板的个人资料
@@ -131,7 +136,12 @@ function buildMembers() {
   ORDER = Object.keys(members);
 }
 buildMembers();
-const strengthsOf = (m) => settings.strengths[m.id] || m.strengths || '';
+const STRENGTHS_EN = {
+  claude: 'Planning and breaking down work, writing and strategy, reasoning, quality review',
+  codex: 'Writing code, running scripts, spreadsheets and data, file conversion, small tools',
+  gemini: 'Reading and summarising long material, images and video, web research',
+};
+const strengthsOf = (m) => settings.strengths[m.id] || (EN() && m.builtin && STRENGTHS_EN[m.id]) || m.strengths || '';
 const enabledIds = () => ORDER.filter((id) => members[id].enabled);
 
 function fileExists(p) { try { return fs.statSync(p).isFile(); } catch (_) { return false; } }
@@ -210,34 +220,34 @@ function killTree(child) {
 async function checkMember(m) {
   m.online = false;
   m.changed = false;
-  if (!m.enabled) { m.problem = '已停用'; return; }
-  m.problem = '检查中…';
+  if (!m.enabled) { m.problem = T('已停用', 'Disabled'); return; }
+  m.problem = T('检查中…', 'Checking…');
   if (m.type === 'api') {
     const a = m.api || {};
     const local = /localhost|127\.0\.0\.1/.test(a.baseUrl || '');
-    if (!a.baseUrl || !a.model || (!a.apiKey && !local)) { m.problem = '还没填完整：需要接口地址、模型名和 API Key'; return; }
+    if (!a.baseUrl || !a.model || (!a.apiKey && !local)) { m.problem = T('还没填完整：需要接口地址、模型名和 API Key', 'Incomplete: needs an API address, model name and API key'); return; }
     m.online = true; m.problem = ''; m.version = a.model;
     return;
   }
-  if (!m.cmd) { m.problem = '还没填命令'; return; }
+  if (!m.cmd) { m.problem = T('还没填命令', 'No command set'); return; }
   const r = await resolveCmd(m.cmd);
-  if (!r) { m.problem = `没找到 ${m.cmd} 命令：还没安装，或装完后要重新打开 Hola`; return; }
+  if (!r) { m.problem = T(`没找到 ${m.cmd} 命令：还没安装，或装完后要重新打开 Hola`, `Can't find the ${m.cmd} command: not installed yet, or Hola needs a restart after installing`); return; }
   m.resolved = r;
   if (m.versionCheck === false) { m.online = true; m.problem = ''; m.version = path.basename(r.file); return; }
   await new Promise((resolve) => {
     const chunks = [];
     let child;
     try { child = spawnMember(m, ['--version'], { cwd: WORKSPACE, env: cleanEnv() }); }
-    catch (e) { m.problem = '无法启动：' + e.message; return resolve(); }
+    catch (e) { m.problem = T('无法启动：', 'Failed to start: ') + e.message; return resolve(); }
     const t = setTimeout(() => killTree(child), 30000);
     child.stdout.on('data', (d) => chunks.push(d));
     child.stderr.on('data', (d) => chunks.push(d));
-    child.on('error', (e) => { m.problem = '无法启动：' + e.message; });
+    child.on('error', (e) => { m.problem = T('无法启动：', 'Failed to start: ') + e.message; });
     child.on('close', (code) => {
       clearTimeout(t);
       const out = stripAnsi(decodeOut(Buffer.concat(chunks))).trim();
       if (code === 0) { m.online = true; m.problem = ''; m.version = out.split(/\r?\n/).pop().slice(0, 60); }
-      else if (m.problem === '检查中…') m.problem = `${m.cmd} --version 运行失败：` + out.slice(0, 200);
+      else if (/^(检查中…|Checking…)$/.test(m.problem)) m.problem = T(`${m.cmd} --version 运行失败：`, `${m.cmd} --version failed: `) + out.slice(0, 200);
       resolve();
     });
   });
@@ -333,10 +343,24 @@ const MEMORY_TEMPLATE = `# 对话记忆
 ## 重要文件
 `;
 
+const MEMORY_TEMPLATE_EN = `# Conversation memory
+
+## Goal and background
+
+## Boss's preferences and requirements
+
+## Decisions made
+
+## Progress and to-dos
+
+## Key files
+`;
+const memTemplate = () => (EN() ? MEMORY_TEMPLATE_EN : MEMORY_TEMPLATE);
+
 function createConv(title) {
-  const c = { id: newId(), title: title || '新对话', created: Date.now(), updated: Date.now(), messages: [], seq: 0, rt: null };
+  const c = { id: newId(), title: title || T('新对话', 'New chat'), created: Date.now(), updated: Date.now(), messages: [], seq: 0, rt: null };
   fs.mkdirSync(path.join(convDir(c), '.hola'), { recursive: true });
-  fs.writeFileSync(path.join(convDir(c), MEMORY_NAME), MEMORY_TEMPLATE);
+  fs.writeFileSync(path.join(convDir(c), MEMORY_NAME), memTemplate());
   convs.set(c.id, c);
   saveConv(c, true);
   broadcastConvList();
@@ -757,8 +781,8 @@ async function runApi(c, m, prompt, msg) {
       const raw = await res.text();
       let detail = raw.slice(0, 300);
       try { const j = JSON.parse(raw); detail = (j.error && (j.error.message || j.error)) || j.message || detail; } catch (_) {}
-      const hint = { 401: 'API Key 不对或已失效', 402: '账户余额不足', 403: '没有权限使用这个模型', 404: '接口地址或模型名不对', 429: '调用太频繁，或额度用完了' }[res.status];
-      err = `${hint ? hint + '。' : ''}接口返回 HTTP ${res.status}：${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
+      const hint = (EN() ? { 401: 'Invalid or expired API key', 402: 'Insufficient balance', 403: 'No permission to use this model', 404: 'Wrong API address or model name', 429: 'Rate limited, or out of quota' } : { 401: 'API Key 不对或已失效', 402: '账户余额不足', 403: '没有权限使用这个模型', 404: '接口地址或模型名不对', 429: '调用太频繁，或额度用完了' })[res.status];
+      err = `${hint ? hint + T('。', '. ') : ''}${T('接口返回', 'API returned')} HTTP ${res.status}${T('：', ': ')}${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
     } else if (!String(res.headers.get('content-type') || '').includes('event-stream')) {
       const o = await res.json();
       const mo = (o.choices && o.choices[0] && o.choices[0].message) || {};
@@ -786,9 +810,9 @@ async function runApi(c, m, prompt, msg) {
       }
       flushThink(true);
     }
-    if (!text && !err) err = '接口没有返回内容';
+    if (!text && !err) err = T('接口没有返回内容', 'The API returned nothing');
   } catch (e) {
-    err = e.name === 'AbortError' ? '已停止' : '连不上接口：' + ((e.cause && (e.cause.code || e.cause.message)) || e.message);
+    err = e.name === 'AbortError' ? T('已停止', 'Stopped') : T('连不上接口：', "Can't reach the API: ") + ((e.cause && (e.cause.code || e.cause.message)) || e.message);
   }
   clearTimeout(timer);
   if (r) r.children.delete(handle);
@@ -886,6 +910,20 @@ function phaseGuide(c, m, turn) {
   }
 }
 
+const LOGIN_BAT = { claude: 'Login-Claude.bat', codex: 'Login-Codex.bat', gemini: 'Login-Gemini.bat' };
+function loginHint(m) {
+  if (m.type === 'api') return T('\n\n常见原因：API Key 不对、余额不足，或模型名写错了。', '\n\nCommon causes: wrong API key, no balance left, or a wrong model name.');
+  const how = LOGIN_BAT[m.id] ? T(`双击 Hola 文件夹里的 ${LOGIN_BAT[m.id]} 重新登录`, `double-click ${LOGIN_BAT[m.id]} in the Hola folder to sign in again`)
+    : T(`在终端运行一次 ${m.cmd} 重新登录`, `run ${m.cmd} once in a terminal to sign in again`);
+  return T(`\n\n常见原因：登录过期（${how}），或订阅额度用完。`, `\n\nCommon causes: the sign-in expired (${how}), or the subscription quota ran out.`);
+}
+function replyLangRule() {
+  if (profile.language === 'en') return '用英文（English）回复。';
+  if (profile.language === 'zh') return '用中文回复。';
+  if (profile.language === 'follow') return '用老板最近一条消息所用的语言回复。';
+  return EN() ? '老板使用英文界面：用英文（English）回复，除非老板用中文跟你说话。' : '用中文回复，除非老板用其他语言跟你说话。';
+}
+
 function agentPrompt(c, m, turn) {
   curActive = c.active || null;
   const discussing = turn.reason === 'initial' || turn.reason === 'discuss';
@@ -899,7 +937,7 @@ ${rosterText(m.id)}
 2. ${discussing ? '讨论阶段提到队友时直接写名字就行，不要用 @（@ 表示正式交活）。' : '需要队友动手时，写"@名字 + 具体要做的事"，他会自动接手。只在真的需要对方动手时才 @，不要 @ 自己，也不要 @ 标着"这次没有参与"的队友。'}
 3. ${m.type === 'api' ? '你是通过 API 接入的，不能读写文件、不能联网：只根据群聊内容和附在最后的附件文字来思考和写作；需要做文件或查资料时，请能做的队友来做。' : `当前目录是这个对话的专属文件夹。交付物放在这里，取清楚的文件名，并在回复里写明。生成的图片、视频、音频也一定要保存到当前目录（不要只留在你自己的界面或临时目录里），老板才能在群里直接看到和下载。老板发来的附件在"${ATTACH_DIR}"文件夹里。Word、Excel、PPT 文件都有系统自动转好的文字版（在"${TEXT_DIR}"文件夹，文件列表里有标注），读不了原文件时就读文字版。`}
 4. "${MEMORY_NAME}"是本对话的记忆：系统会在每轮结束后自动整理，你不用改它，但要遵守里面记下的偏好和结论。
-5. 用中文，像在工作群里说话：先给结论，简洁具体。
+5. ${replyLangRule()}像在工作群里说话：先给结论，简洁具体。
 
 ${profileText()}【本对话记忆（${MEMORY_NAME}）】
 ${clip(readMemory(c), 6000) || '（空）'}
@@ -936,21 +974,21 @@ function activeIds(c) { return enabledIds().filter((id) => members[id].online &&
 
 function onBossMessage(c, text, attachments) {
   newMsg(c, 'boss', text, { attachments });
-  if (c.title === '新对话' && text) {
-    c.title = text.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim().slice(0, 20) || '新对话';
+  if ((c.title === '新对话' || c.title === 'New chat') && text) {
+    c.title = text.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim().slice(0, EN() ? 40 : 20) || T('新对话', 'New chat');
     saveConv(c);
   }
   broadcastConvList();
   const r = rt(c);
   const { ids, all } = mentionsIn(text, null);
-  if (!ids.length && !activeIds(c).length) { sys(c, '这次没有可以干活的队友：要么都没勾选参与，要么不在线。在输入框下方的"参与"里选几位，或者点右上角的光点看原因。'); return; }
+  if (!ids.length && !activeIds(c).length) { sys(c, T('这次没有可以干活的队友：要么都没勾选参与，要么不在线。在输入框下方的"参与"里选几位，或者点右上角的光点看原因。', 'No teammate can take this: none are selected, or none are online. Pick some under "Working" below the input box, or click the lights at the top right to see why.')); return; }
 
   if (ids.length && !all) {
     // 点了名：按 @ 的先后顺序依次来
     ids.forEach((id, i) => r.jobs.push({ type: 'turn', member: id, reason: 'mention', after: ids.slice(0, i) }));
     r.hops = 0;
   } else if (r.running && r.phase === 'discuss') {
-    sys(c, '大家会在下一轮讨论里看到老板这条消息。');
+    sys(c, T('大家会在下一轮讨论里看到老板这条消息。', 'The team will see this message in the next discussion round.'));
     return;
   } else {
     r.jobs.push({ type: 'discuss' });
@@ -971,7 +1009,7 @@ async function pump(c) {
       const job = r.jobs.shift();
       if (job.type === 'discuss') { await runDiscussion(c, myGen); continue; }
       const m = members[job.member];
-      if (!m || !m.online) { sys(c, `${m ? m.name : job.member} 不在线，跳过。`); continue; }
+      if (!m || !m.online) { sys(c, T(`${m ? m.name : job.member} 不在线，跳过。`, `${m ? m.name : job.member} is offline, skipped.`)); continue; }
       r.phase = job.reason;
       const before = listFiles(c);
       const msg = await agentTurn(c, m, job, myGen);
@@ -1016,7 +1054,7 @@ async function runDiscussion(c, myGen) {
   let consensus = false;
   let rounds = 0;
   for (let k = 1; k <= maxRounds; k++) {
-    sys(c, k === 1 ? `有值得讨论的地方，进入内部讨论 · 第 1 轮` : `还有分歧，继续讨论 · 第 ${k} 轮`, { divider: true });
+    sys(c, k === 1 ? T('有值得讨论的地方，进入内部讨论 · 第 1 轮', 'Worth discussing: internal discussion · round 1') : T(`还有分歧，继续讨论 · 第 ${k} 轮`, `Still disagreeing: discussion · round ${k}`), { divider: true });
     r.phase = 'discuss';
     broadcastState(c);
     const msgs = await parallelRound(c, ids, () => ({ reason: 'discuss', flow, round: k }), myGen);
@@ -1029,7 +1067,7 @@ async function runDiscussion(c, myGen) {
 
   const pref = settings.conclusionBy;
   const writer = (ids.includes(pref) && pref) || ids[0];
-  sys(c, consensus ? `达成共识，由 ${nameOf(writer)} 整理团队结论` : `讨论 ${rounds} 轮仍有分歧，由 ${nameOf(writer)} 整理结论并写明分歧`, { divider: true });
+  sys(c, consensus ? T(`达成共识，由 ${nameOf(writer)} 整理团队结论`, `Consensus reached, ${nameOf(writer)} writes the team conclusion`) : T(`讨论 ${rounds} 轮仍有分歧，由 ${nameOf(writer)} 整理结论并写明分歧`, `Still split after ${rounds} rounds, ${nameOf(writer)} writes the conclusion and notes the disagreement`), { divider: true });
   r.phase = 'conclusion';
   broadcastState(c);
   const before = listFiles(c);
@@ -1053,7 +1091,7 @@ function attachFiles(c, before, msgs) {
     mine.forEach((f) => left.delete(f));
     update(c, msg);
   }
-  if (left.size) sys(c, `这一轮新增或修改了：${[...left].slice(0, 12).join('、')}`);
+  if (left.size) sys(c, T(`这一轮新增或修改了：${[...left].slice(0, 12).join('、')}`, `Added or changed this round: ${[...left].slice(0, 12).join(', ')}`));
 }
 
 function queueHandoffs(c, m, msg) {
@@ -1063,9 +1101,9 @@ function queueHandoffs(c, m, msg) {
   const act = activeIds(c);
   for (const id of ids) {
     if (r.jobs.some((q) => q.type === 'turn' && q.member === id)) continue;
-    if (!act.includes(id)) { sys(c, `${nameOf(id)} 这次没有参与（或不在线），${nameOf(m.id)} 交给 Ta 的活没有派出去。需要的话，老板可以直接 @ Ta。`); continue; }
+    if (!act.includes(id)) { sys(c, T(`${nameOf(id)} 这次没有参与（或不在线），${nameOf(m.id)} 交给 Ta 的活没有派出去。需要的话，老板可以直接 @ Ta。`, `${nameOf(id)} isn't working on this (or is offline), so ${nameOf(m.id)}'s hand-off wasn't sent. @ them directly if you want them in.`)); continue; }
     if (r.hops >= settings.maxAutoTurns) {
-      sys(c, `队友之间已经自动接力 ${settings.maxAutoTurns} 次了，先停一下，等老板看一眼再继续。`);
+      sys(c, T(`队友之间已经自动接力 ${settings.maxAutoTurns} 次了，先停一下，等老板看一眼再继续。`, `Teammates have handed off ${settings.maxAutoTurns} times in a row. Pausing here so you can take a look.`));
       r.jobs = r.jobs.filter((q) => q.reason !== 'handoff');
       break;
     }
@@ -1110,6 +1148,7 @@ function memoryPrompt(c, fresh) {
 - 老板的个人资料和长期偏好另有地方保存，不用重复记；只记跟这个对话有关的。
 - 不要修改任何文件、不要运行命令，只输出文字。
 - 如果新增对话里没有任何值得记的内容，只输出一行：【无需更新】
+- ${EN() ? '记忆内容和【本次变化】那句话都用英文写，五个小标题沿用当前记忆里的英文标题。' : '记忆内容用中文写。'}
 
 输出格式（严格遵守）：
 第一行：【本次变化】用一句话说明这次记了什么
@@ -1130,7 +1169,7 @@ function memoryPrompt(c, fresh) {
 记忆>>>
 
 【当前记忆】
-${readMemory(c) || MEMORY_TEMPLATE}
+${readMemory(c) || memTemplate()}
 
 【新增对话】
 ${lines}`;
@@ -1157,7 +1196,7 @@ async function updateMemory(c, myGen) {
   const body = out.match(/<<<\s*记忆\s*\n([\s\S]*?)\n?\s*记忆\s*>>>/);
   const change = (out.match(/【本次变化】\s*(.+)/) || [])[1];
   if (/【无需更新】/.test(out) && !body) {
-    msg.text = '这一轮没有需要长期记住的新内容。';
+    msg.text = T('这一轮没有需要长期记住的新内容。', 'Nothing new worth remembering this round.');
     msg.status = 'done';
     msg.memoryChanged = false;
   } else if (body && body[1].trim().length > 20) {
@@ -1168,15 +1207,15 @@ async function updateMemory(c, myGen) {
       const old = readMemory(c);
       if (old) fs.writeFileSync(path.join(hist, `${new Date().toISOString().replace(/[:.]/g, '-')}.md`), old);
       fs.writeFileSync(file, body[1].trim() + '\n');
-      msg.text = change ? change.trim() : '已更新对话记忆。';
+      msg.text = change ? change.trim() : T('已更新对话记忆。', 'Conversation memory updated.');
       msg.status = 'done';
       msg.memoryChanged = true;
     } catch (e) {
-      msg.text = '写入对话记忆失败：' + e.message;
+      msg.text = T('写入对话记忆失败：', 'Failed to write memory: ') + e.message;
       msg.status = 'error';
     }
   } else {
-    msg.text = '整理记忆没成功，下一轮会再试。' + (res.err ? '\n' + clip(res.err, 300) : '');
+    msg.text = T('整理记忆没成功，下一轮会再试。', "Couldn't update memory, will retry next round.") + (res.err ? '\n' + clip(res.err, 300) : '');
     msg.status = 'error';
   }
   if (msg.status !== 'error') c.memMark = lastSeq;
@@ -1222,8 +1261,8 @@ async function agentTurn(c, m, turn, myGen) {
     msg.status = res.code === 0 ? 'done' : 'error';
   } else {
     msg.status = 'error';
-    msg.text = '没能完成，出错了。' + (res.err ? '\n\n错误信息：\n' + clip(res.err, 800) : '') +
-      `\n\n常见原因：登录过期（在终端运行一次 ${m.cmd} 重新登录），或订阅额度用完。`;
+    msg.text = T('没能完成，出错了。', "Couldn't finish, something went wrong.") + (res.err ? T('\n\n错误信息：\n', '\n\nError:\n') + clip(res.err, 800) : '') +
+      loginHint(m);
   }
   update(c, msg);
   broadcastState(c);
@@ -1314,7 +1353,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/' || url.pathname === '/index.html') return sendFile(res, path.join(ROOT, 'public', 'index.html'), false, true);
     if (url.pathname === '/api/ping') return json({ ok: true, app: 'hola' });
     if (url.pathname === '/avatar') { const f = avatarFile(); if (!f) { res.writeHead(404); return res.end(); } return sendFile(res, f, false, true); }
-    if (/^\/(logo\.svg|favicon\.png|icon-192\.png)$/.test(url.pathname)) return sendFile(res, path.join(ROOT, 'public', url.pathname.slice(1)), false, true);
+    if (/^\/(logo\.svg|favicon\.png|icon-192\.png|i18n\.js)$/.test(url.pathname)) return sendFile(res, path.join(ROOT, 'public', url.pathname.slice(1)), false, true);
     if (url.pathname === '/api/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       res.write('data: ' + JSON.stringify({ type: 'init', convs: convList(), members: publicMembers(), settings, profile: publicProfile(), workspace: WORKSPACE }) + '\n\n');
@@ -1344,10 +1383,10 @@ const server = http.createServer(async (req, res) => {
           const txt = fs.readFileSync(p, 'utf8').replace(/^\uFEFF/, '');
           const sep = /\.tsv$/i.test(p) ? '\t' : ',';
           const rows = txt.split(/\r?\n/).filter((l) => l.length).slice(0, 1000).map((l) => { const out = []; let cur = '', q = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === sep) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out; });
-          return page(office.previewPage(name, '表格预览（最多显示 1000 行）', office.htmlTable(rows, true)));
+          return page(office.previewPage(name, T('表格预览（最多显示 1000 行）', 'Table preview (up to 1000 rows)'), office.htmlTable(rows, true)));
         }
-        if (/\.(md|txt|json)$/i.test(p)) return page(office.previewPage(name, '文本预览', `<pre>${office.esc(fs.readFileSync(p, 'utf8').slice(0, 500000))}</pre>`));
-      } catch (e) { return page(office.previewPage(name, '没法预览这个文件', `<p>${office.esc(e.message)}。可以下载原文件查看。</p>`)); }
+        if (/\.(md|txt|json)$/i.test(p)) return page(office.previewPage(name, T('文本预览', 'Text preview'), `<pre>${office.esc(fs.readFileSync(p, 'utf8').slice(0, 500000))}</pre>`));
+      } catch (e) { return page(office.previewPage(name, T('没法预览这个文件', "Can't preview this file"), `<p>${office.esc(e.message)}${T('。可以下载原文件查看。', '. Download the original file to view it.')}</p>`)); }
       res.writeHead(302, { Location: `/files/${c.id}/${rel.split('/').map(encodeURIComponent).join('/')}` });
       return res.end();
     }
@@ -1517,6 +1556,7 @@ const server = http.createServer(async (req, res) => {
         if (body.maxDiscussRounds) settings.maxDiscussRounds = Math.max(1, Math.min(6, Number(body.maxDiscussRounds) || 3));
         if (body.conclusionBy && members[body.conclusionBy]) settings.conclusionBy = body.conclusionBy;
         if (typeof body.autoMemory === 'boolean') settings.autoMemory = body.autoMemory;
+        if (body.uiLang === 'zh' || body.uiLang === 'en') { settings.uiLang = body.uiLang; syncLang(); checkAll(); }
         if (body.maxAutoTurns) settings.maxAutoTurns = Math.max(0, Math.min(50, Number(body.maxAutoTurns) || 10));
         if (body.strengths && typeof body.strengths === 'object') {
           for (const [k, v] of Object.entries(body.strengths)) if (members[k]) settings.strengths[k] = String(v).slice(0, 300);

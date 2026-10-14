@@ -5,6 +5,10 @@
 <h1 align="center">Hola · 光辉联合</h1>
 
 <p align="center">
+  <a href="README.en.md">English</a> · <b>中文</b>
+</p>
+
+<p align="center">
   把 Claude、Codex（ChatGPT）、Gemini 拉进同一个群：<br>
   它们<b>同时独立作答</b>，再<b>自己讨论、互相挑刺</b>，达成共识后给你一份<b>团队结论</b>。<br>
   你只需要当包工头。
@@ -14,8 +18,7 @@
   <a href="#快速体验不需要任何账号">快速体验</a> ·
   <a href="#正式安装windows">安装</a> ·
   <a href="#怎么用">怎么用</a> ·
-  <a href="#接入更多-ai">接入 DeepSeek 等</a> ·
-  <a href="#english">English</a>
+  <a href="#接入更多-ai">接入 DeepSeek 等</a>
 </p>
 
 <p align="center"><img src="docs/screenshot-consensus.png" alt="三位 AI 讨论后达成共识，给出团队结论"></p>
@@ -44,6 +47,7 @@ Hola 换了个思路：**让它们自己讨论**。每个模型的训练数据�
 - **个人主页**：上传头像，填写你是谁、怎么称呼你、回答要多详细、什么语气、讨论要温和还是尖锐，以及其他长期要求。所有队友在所有对话里都会照着来。
 - **思考过程可见**：每条消息都能展开看它读了哪些文件、跑了什么命令、想了什么（取决于各家开放了多少）。
 - **选择谁参与**：输入框下方点一下名字，这次就不让 Ta 参与。
+- **中英文界面**：在 **设置 → 界面语言 / Language** 里切换。队友默认用界面语言回复，你用别的语言跟它们说话时会跟着你。
 - **跑在你自己电脑上**：用的是你已经付费的订阅（通过各家官方命令行工具），不经过任何第三方服务器。
 
 <table>
@@ -78,9 +82,11 @@ Hola 换了个思路：**让它们自己讨论**。每个模型的训练数据�
 2. 双击 `SETUP.bat`：它会安装三家的官方命令行工具，再带你依次在浏览器里登录，最后在桌面创建 **Hola** 图标。
 3. 以后双击桌面的 **Hola** 图标就能打开：后台静默启动，以独立窗口打开，不会留一个黑色命令行窗口。
 
-> **Claude 登录注意**：要选择用 **Claude 账号（subscription）** 登录。如果启动后显示 `API Usage Billing`，说明走的是 API 按量计费，可以双击 `登录Claude.bat` 重新登录。
+> **命令行队友都要先登录**：Claude、Codex、Gemini（以及你用"命令行"方式加的 AI）用的是各家官方命令行工具和你自己的订阅，每一位都要在这台电脑上登录一次，否则显示不在线。`SETUP.bat` 会带你登一遍；之后单独登录或重新登录，双击 `Login-Claude.bat`、`Login-Codex.bat`、`Login-Gemini.bat`。通过 API 接入的队友只要填 API Key，不需要登录。详见 [GUIDE.html](GUIDE.html)。
 >
-> **Gemini 说明**：Google 自 2026 年 6 月起不再让个人订阅使用 Gemini CLI，改为 [Antigravity CLI](https://antigravity.google/docs/cli/install/)（命令是 `agy`）。`SETUP.bat` 和 `登录Gemini.bat` 已经按新方式处理。
+> **Claude 登录注意**：要选择用 **Claude 账号（subscription）** 登录。如果启动后显示 `API Usage Billing`，说明走的是 API 按量计费，可以双击 `Login-Claude.bat` 重新登录。
+>
+> **Gemini 说明**：Google 自 2026 年 6 月起不再让个人订阅使用 Gemini CLI，改为 [Antigravity CLI](https://antigravity.google/docs/cli/install/)（命令是 `agy`）。`SETUP.bat` 和 `Login-Gemini.bat` 已经按新方式处理。
 
 macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` 后打开 <http://localhost:3456> 即可，但桌面启动器和安装脚本目前只有 Windows 版，也还没在这些系统上完整测试过，欢迎贡献。
 
@@ -95,7 +101,7 @@ macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` �
 | 给团队定规矩 | 右上角"对话记忆"里写上，比如品牌调性、禁用词 |
 | 中途叫停 | 点"叫停" |
 
-左下角 **设置** 里可以改：内部讨论最多几轮（默认 3）、团队结论由谁整理、队友之间最多自动接力几次、是否自动整理记忆。
+左下角 **设置** 里可以改：界面语言（中文 / English）、内部讨论最多几轮（默认 3）、团队结论由谁整理、队友之间最多自动接力几次、是否自动整理记忆。
 
 ## 接入更多 AI
 
@@ -143,7 +149,7 @@ macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` �
 
 ## 参与贡献
 
-欢迎提 Issue 和 Pull Request，尤其是这些方向：macOS / Linux 的启动器、更多 AI 的接入预设、界面英文化。
+欢迎提 Issue 和 Pull Request，尤其是这些方向：macOS / Linux 的启动器、更多 AI 的接入预设、更多界面语言（界面文字在 `public/i18n.js`）。
 
 想不登录账号调试界面和流程，可以用演示模式：`node server.js --demo`（队友剧本在 `demo/fake-ai.js`）。
 
@@ -155,16 +161,3 @@ macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` �
 
 [Apache License 2.0](LICENSE)
 
----
-
-## English
-
-**Hola** puts Claude, Codex (ChatGPT) and Gemini — plus any OpenAI-compatible model such as DeepSeek — into one group chat on your own computer. When you don't @ anyone, the teammates answer **independently and in parallel**, decide for themselves whether the question deserves a debate, discuss over several rounds (each declaring *agree* or *object*), and hand you a **team conclusion** once they reach consensus. @-mentions set who works and in what order; each conversation keeps its own automatically curated memory; images and files can be dropped in.
-
-It is a zero-dependency Node.js app that drives each vendor's **official CLI** with your existing subscriptions (or any OpenAI-compatible API), listens on `127.0.0.1` only, and keeps all data local.
-
-- Try without any account: `node server.js --demo`, then open <http://localhost:3457>.
-- Windows install: run `SETUP.bat`, then use the desktop **Hola** icon.
-- The UI is currently in Chinese; contributions for English localization are welcome.
-
-Not affiliated with Anthropic, OpenAI, Google or DeepSeek. Licensed under Apache 2.0.

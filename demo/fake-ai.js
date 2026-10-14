@@ -27,6 +27,7 @@ const VIEWS = {
 };
 
 function reply(p) {
+  if (/用英文（English）|英文界面/.test(p)) return replyEn(p);
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 40) || '这个问题';
 
   if (p.includes('记忆整理员')) {
@@ -83,4 +84,60 @@ function reply(p) {
   }
 
   return `收到，${name} 来处理。（演示模式：这是示范回复，接入真实 AI 后就是真正的工作结果。）`;
+}
+
+// ---------------------------------------------------------------- English script
+const VIEWS_EN = {
+  Claude: (q) => `Let me frame it first. For "${q}", the key is to pin down the target audience and the outcome we want, then work backwards to the plan. If the goal is fuzzy, every option will wobble.`,
+  Codex: (q) => `Looking at "${q}" from the execution side: estimate cost and effort first. Anything that looks great but can't be built, or doesn't add up financially, should go.`,
+  Gemini: (q) => `Some outside perspective: before doing "${q}", look at how others have done it and what real users say. Don't rely only on internal judgement.`,
+};
+
+function replyEn(p) {
+  const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 60) || 'this';
+  if (p.includes('记忆整理员')) {
+    if (/^(hi|hello|hey)\b/i.test(q)) return '【无需更新】';
+    return `【本次变化】Recorded the team conclusion on "${q}" and the follow-up task
+<<<记忆
+# Conversation memory
+
+## Goal and background
+- The boss asked: ${q}
+## Boss's preferences and requirements
+- (Demo mode: requirements the boss states would be recorded here)
+## Decisions made
+- Define the audience and outcome first, then choose a plan within a cost ceiling
+## Progress and to-dos
+- Codex: turn the key points into a table
+## Key files
+- key-points.csv: the conclusion's key points
+记忆>>>`;
+  }
+  if (p.includes('同时、独立作答')) {
+    if (/^(hi|hello|hey)\b/i.test(q)) return `Hi boss, ${name} is online and ready.\n\n【需要讨论】否`;
+    return `${(VIEWS_EN[name] || VIEWS_EN.Claude)(q)}\n\n(Demo mode: this is a scripted answer. With real AIs connected, you'd see their actual thinking here.)\n\n【需要讨论】是`;
+  }
+  const round = (p.match(/内部讨论第 (\d+) 轮/) || [])[1];
+  if (round) {
+    if (name === 'Codex' && round === '1') return `I agree with Claude's framing, and Gemini's point about checking outside feedback is important.\n\nBut I have a real disagreement: nobody has costed this. If execution is too expensive, even the right direction won't land. I suggest we make a cost ceiling a precondition in the conclusion.\n\n【立场】有异议`;
+    if (round === '1') return name === 'Claude'
+      ? `Gemini's "check outside feedback first" fills a gap in my framework, so I'm adopting it: research first, then define the audience and plan. I also agree with Codex's execution angle.\n\n【立场】同意`
+      : `Claude's framework is clear and I have no objection. One addition: when researching, read the real complaints in the comments. They tell you more than like counts.\n\n【立场】同意`;
+    if (name === 'Codex') return `I see the team has added "research first". As long as the cost ceiling is in the conclusion too, I agree.\n\n【立场】同意`;
+    return `I missed the cost question Codex raised. Agreed: make a cost ceiling a precondition in the conclusion.\n\n【立场】同意`;
+  }
+  if (p.includes('给老板写最终结论')) {
+    return `**Conclusion: define the target audience and the outcome first, then pick the easiest plan to execute within a cost ceiling.**
+
+The key trade-off in the discussion: Gemini insisted on checking outside feedback first, and Codex insisted on cost as a precondition. Both are in the conclusion.
+
+(Demo mode: with real AIs connected, this would be a specific answer to your question.)
+
+@Codex turn the key points into a table.`;
+  }
+  if (p.includes('@ 了你')) {
+    fs.writeFileSync('key-points.csv', 'Point,Owner\nDefine the target audience,Team\nSet a cost ceiling,Codex\nCheck outside feedback,Gemini\n');
+    return 'Table done: **key-points.csv**, with the three points and their owners.';
+  }
+  return `Got it, ${name} is on it. (Demo mode: this is a scripted reply. With real AIs connected, you'd get the actual work here.)`;
 }
