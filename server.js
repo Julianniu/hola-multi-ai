@@ -915,8 +915,9 @@ function rosterText(selfId) {
 function msgLine(m) {
   const files = (m.attachments || []).concat(m.files || []);
   const att = files.length ? `\n（${m.from === 'boss' ? '附件' : '产出文件'}：${files.map((f) => f.path + (f.textVersion ? `，文字版 ${f.textVersion}` : '')).join('；')}）` : '';
-  const ph = m.reason === 'initial' ? ' · 独立作答' : m.reason === 'discuss' ? ` · 讨论第${m.round}轮${m.stance === 'object' ? ' · 有异议' : m.stance === 'agree' ? ' · 同意' : ''}` : m.reason === 'conclusion' ? ' · 团队结论' : '';
-  return `[${nameOf(m.from)}${ph}] ${clip(m.text, 4000)}${att}`;
+  const ph = m.reason === 'initial' ? ' · 独立作答' : m.reason === 'discuss' ? ` · 讨论第${m.round}轮${m.stance === 'object' ? ' · 有异议' : m.stance === 'agree' ? ' · 同意' : ''}` : m.reason === 'conclusion' ? (m.awaitDecision ? ' · 团队结论（有分歧，请老板拍板）' : ' · 团队结论') : m.reason === 'decided' ? ' · 按老板拍板执行' : m.reason === 'decision' ? ' · 拍板' : '';
+  const opts = (m.options || []).length ? '\n' + m.options.map((o) => `【方案${o.key}】${o.text}`).join('\n') : '';
+  return `[${nameOf(m.from)}${ph}] ${clip(m.text, 4000)}${opts}${att}`;
 }
 
 function transcript(c) {
@@ -930,11 +931,25 @@ function transcript(c) {
 function transcriptMd(c) {
   return `# ${c.title}\n\n` + c.messages.filter((m) => m.text || (m.attachments || []).length).map((m) =>
     `### ${nameOf(m.from)} · ${new Date(m.ts).toLocaleString('zh-CN', { hour12: false })}\n\n${m.text}\n` +
+    (m.options || []).map((o) => `- **方案${o.key}**${m.decided === o.key ? '（老板选了这个）' : ''}：${o.text}\n`).join('') +
     [...(m.attachments || []), ...(m.files || [])].map((f) => `- 📎 ${f.path}`).join('\n')).join('\n');
 }
 
 const TAG_NEED = /^[ \t>*_]*【?\s*需要讨论\s*】?\s*[:：]?\s*(是|否)\s*[*_]*\s*$/m;
 const TAG_STANCE = /^[ \t>*_]*【?\s*立场\s*】?\s*[:：]?\s*(同意|有异议)\s*[*_]*\s*$/m;
+const TAG_OPTION = /^[ \t>*_#-]*(?:\d+[.、)）]\s*)?[ \t*_]*【\s*方案\s*([A-Da-dＡ-Ｄａ-ｄ1-4１-４])\s*】\s*[:：]?\s*(.+?)\s*[*_]*\s*$/gm;
+
+// 没谈拢时，结论里的【方案A】… 行拆出来做成按钮
+function extractOptions(text) {
+  const options = [];
+  const out = text.replace(TAG_OPTION, (_, k, t) => {
+    let key = k.replace(/[Ａ-Ｚａ-ｚ１-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0)).toUpperCase();
+    if (/\d/.test(key)) key = 'ABCD'[Number(key) - 1];
+    if (!options.some((o) => o.key === key)) options.push({ key, text: t.replace(/^\*+|\*+$/g, '').trim().slice(0, 300) });
+    return '';
+  });
+  return { text: out.replace(/\n{3,}/g, '\n\n').trim(), options };
+}
 
 function phaseGuide(c, m, turn) {
   const names = (ids) => ids.map(nameOf).join('、');
@@ -958,10 +973,22 @@ function phaseGuide(c, m, turn) {
 【立场】同意　——你认为团队已经可以形成一致结论（哪怕措辞细节不同）
 【立场】有异议　——还有值得继续讨论的实质分歧`;
     case 'conclusion':
-      return `团队讨论结束：${turn.consensus ? '大家已经达成共识' : `讨论了 ${turn.rounds} 轮，仍有分歧`}。由你代表团队，给老板写最终结论。
+      if (!turn.consensus) return `团队讨论结束：讨论了 ${turn.rounds} 轮，仍有分歧。由你代表团队给老板写结论，请老板拍板。
+- 开头用一两句话说清楚大家在哪些地方已经一致、卡在哪个分歧上，不要复述过程。
+- 把可选的做法整理成 2～3 个方案，每个方案单独一行，严格用这个格式（标签保持中文，哪怕你用英文回复）：
+【方案A】一句话说清这个方案（支持：名字、名字）
+【方案B】……
+- 方案行之后，简要写各方的理由，再写一句你建议老板选哪个、为什么。
+- 老板拍板之前谁都不动手：这次不要 @ 任何人，也不要生成正式交付文件。`;
+      return `团队讨论结束：大家已经达成共识。由你代表团队，给老板写最终结论。
 - 开头直接给出答案、方案或决定，吸收讨论中有价值的部分，不要复述过程。
-- ${turn.consensus ? '可以用一两句话点出讨论中最关键的取舍。' : '简要列出没谈拢的分歧和各方理由，再给出你建议老板怎么选。'}
+- 可以用一两句话点出讨论中最关键的取舍。
 - 如果结论需要动手执行（做文件、写代码、出图等），在最后按分工写"@名字 + 具体任务"，队友会自动接手；你也可以自己做你那部分。`;
+    case 'decided':
+      return `团队讨论没谈拢，老板已经拍板（见群聊最后一条老板的消息）。不要再讨论，照老板的决定执行：
+- 开头一句话复述老板的决定。
+- 需要动手的部分按分工写"@名字 + 具体任务"，队友会自动接手；你也可以自己做你那部分。
+- 如果老板这条消息其实还没做决定（只是追问、或者补充了要求），就直接回答他，这次不要 @ 任何人，也不要开始做交付文件。`;
     case 'mention':
       return turn.after && turn.after.length
         ? `老板按顺序点名，你排在 ${names(turn.after)} 之后：先看他们刚做完的部分，再接着做你的。`
@@ -989,7 +1016,7 @@ function replyLangRule() {
 
 function agentPrompt(c, m, turn) {
   curActive = c.active || null;
-  const discussing = turn.reason === 'initial' || turn.reason === 'discuss';
+  const discussing = turn.reason === 'initial' || turn.reason === 'discuss' || (turn.reason === 'conclusion' && !turn.consensus);
   return `你是 Hola 团队里的 ${m.name}。Hola 是几位 AI 平等协作的团队，老板（用户）是包工头：他用 @ 指定谁来做、按什么顺序做；没点名时，参与的队友先各自思考，再自己讨论出结论。
 
 团队成员：
@@ -1037,14 +1064,19 @@ function mentionsIn(text, selfId) {
 function activeIds(c) { return enabledIds().filter((id) => members[id].online && (!c.active || c.active.includes(id))); }
 
 function onBossMessage(c, text, attachments) {
-  newMsg(c, 'boss', text, { attachments });
+  const pending = pendingDecision(c);
+  const { ids, all } = mentionsIn(text, null);
+  // 有一条结论在等老板拍板时，没 @ 人的回复就当作拍板
+  const isDecision = !!(pending && text && !ids.length && !all);
+  newMsg(c, 'boss', text, { attachments, ...(isDecision ? { reason: 'decision' } : {}) });
   if ((c.title === '新对话' || c.title === 'New chat') && text) {
     c.title = text.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim().slice(0, EN() ? 40 : 20) || T('新对话', 'New chat');
     saveConv(c);
   }
   broadcastConvList();
   const r = rt(c);
-  const { ids, all } = mentionsIn(text, null);
+  if (isDecision) { decide(c, pending); return; }
+  if (pending) { pending.decided = 'other'; update(c, pending); }
   if (!ids.length && !activeIds(c).length) { sys(c, T('这次没有可以干活的队友：要么都没勾选参与，要么不在线。在输入框下方的"参与"里选几位，或者点右上角的光点看原因。', 'No teammate can take this: none are selected, or none are online. Pick some under "Working" below the input box, or click the lights at the top right to see why.')); return; }
 
   if (ids.length && !all) {
@@ -1139,7 +1171,33 @@ async function runDiscussion(c, myGen) {
   const msg = await agentTurn(c, members[writer], { reason: 'conclusion', flow, consensus, rounds }, myGen);
   if (!msg || myGen !== r.gen) return;
   attachFiles(c, before, [msg]);
-  queueHandoffs(c, members[writer], msg);
+  if (consensus) { queueHandoffs(c, members[writer], msg); return; }
+  // 没谈拢：先停下等老板拍板，哪怕结论里 @ 了人也不派活
+  if (msg.status !== 'done') return;
+  msg.awaitDecision = true;
+  update(c, msg);
+}
+
+// 等老板拍板的那条结论（之后老板还没说过话）
+function pendingDecision(c) {
+  for (let i = c.messages.length - 1; i >= 0; i--) {
+    const m = c.messages[i];
+    if (m.from === 'boss') return null;
+    if (m.reason === 'conclusion') return m.awaitDecision && !m.decided ? m : null;
+  }
+  return null;
+}
+
+// 老板拍板：记下决定，交给写结论的那位按决定分工
+function decide(c, concl, key) {
+  concl.decided = key || 'custom';
+  update(c, concl);
+  const writer = members[concl.from] && members[concl.from].online && activeIds(c).includes(concl.from) ? concl.from : activeIds(c)[0];
+  if (!writer) { sys(c, T('现在没有在线的队友可以执行。', 'No teammate is online to carry this out.')); return; }
+  const r = rt(c);
+  r.jobs.push({ type: 'turn', member: writer, reason: 'decided' });
+  r.hops = 0;
+  if (!r.running) pump(c); else broadcastState(c);
 }
 
 function attachFiles(c, before, msgs) {
@@ -1539,6 +1597,7 @@ async function agentTurn(c, m, turn, myGen) {
     let text = noteSkillUse(tags.text, msg);
     if (turn.reason === 'initial') msg.needDiscuss = tags.need === true;
     if (turn.reason === 'discuss') msg.stance = tags.stance || 'agree';
+    if (turn.reason === 'conclusion' && !turn.consensus) { const o = extractOptions(text); text = o.text || text; msg.options = o.options; }
     if (m.readOnly) {
       const mem = text.match(/(^|\n)\s*记忆[:：]\s*(.+)\s*$/);
       if (mem) {
@@ -1787,6 +1846,17 @@ const server = http.createServer(async (req, res) => {
         const atts = (Array.isArray(body.attachments) ? body.attachments : [])
           .filter((a) => a && a.path && safeJoin(convDir(c), a.path)).map((a) => fileInfo(c, a.path));
         if (text || atts.length) onBossMessage(c, text, atts);
+        return json({ ok: true });
+      }
+      case '/api/decide': {
+        if (!c) return json({ error: 'no conv' }, 404);
+        const concl = c.messages.find((m) => m.id === body.msg);
+        if (!concl || concl !== pendingDecision(c)) return json({ error: T('这条结论已经拍过板了', 'This has already been decided') }, 400);
+        const opt = (concl.options || []).find((o) => o.key === body.option);
+        if (!opt) return json({ error: 'no option' }, 400);
+        const what = opt.text.replace(/\s*[（(]\s*(支持|support)[^）)]*[）)]\s*$/i, '') || opt.text;
+        newMsg(c, 'boss', T(`拍板：选方案${opt.key}（${what}）`, `Decision: option ${opt.key} (${what})`), { reason: 'decision' });
+        decide(c, concl, opt.key);
         return json({ ok: true });
       }
       case '/api/stop':

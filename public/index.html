@@ -369,6 +369,16 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
 .concl-head .save-skill{margin-left:auto;display:flex;align-items:center;gap:5px;font-weight:500;font-size:12.5px;color:var(--ink2);padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface)}
 .concl-head .save-skill:hover{color:var(--ink);border-color:var(--ink3)}
 .concl-head .save-skill svg{width:14px;height:14px}
+.decide{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:7px}
+.decide-h{font-weight:600;font-size:13px;color:var(--ink)}
+.decide-h.done{font-weight:500;color:var(--ink3)}
+.decide .opt{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:8px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13.5px;line-height:1.5;cursor:pointer}
+.decide .opt b{flex:none;width:20px;height:20px;border-radius:6px;background:var(--wash);display:grid;place-items:center;font-size:12px}
+.decide.open .opt:hover{border-color:var(--mc,var(--ink3))}
+.decide .opt:disabled{cursor:default;opacity:.55}
+.decide .opt.on{opacity:1;border-color:var(--mc,var(--ink3))}
+.decide .opt.on b{background:var(--mc,var(--ink3));color:#fff}
+.decide small{color:var(--ink3);font-size:12px}
 .skilltag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--wash);color:var(--ink2);cursor:pointer}
 .skilltag svg{width:12px;height:12px}
 .skilltag:hover{color:var(--ink)}
@@ -824,7 +834,7 @@ function renderLights(){
     return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${m.color}" style="color:${m.color}" class="${cls}"/>`;
   }).join('');
   const on=list.filter(m=>m.online).length;
-  const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',memory:'整理记忆中',skill:'整理技能中'};
+  const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',decided:'按你的拍板分工中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
     : list.some(m=>m.problem==='检查中…') ? '检查中' : `${on}/${n} 在线`;
   $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}</p></div></div>`).join('') +
@@ -927,6 +937,15 @@ function filesHTML(list, boss){
     ? `<div class="audiobox"><audio controls preload="metadata" src="${fileUrl(f.path)}"></audio><div class="cap"><span title="${esc(f.path)}">${esc(f.name)} · ${size(f.size||0)}</span>${dl(f)}<button data-reveal="${esc(f.path)}" title="在文件夹中显示"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg></button></div></div>`
     : `<div class="chip"><svg class="i" style="width:16px;height:16px;color:var(--ink3)"><use href="#i-file"/></svg><span class="n" data-raw title="${esc(f.path)}">${esc(f.name)}</span><small>${size(f.size||0)}</small>${f.preview?`<button class="pv" data-preview="${esc(f.path)}">预览</button>`:''}<a href="${fileUrl(f.path)}" target="_blank" title="打开"><svg class="i" style="width:15px;height:15px"><use href="#i-open"/></svg></a>${dl(f)}<button data-reveal="${esc(f.path)}" title="在文件夹中显示"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg></button></div>`).join('')}</div>`;
 }
+// 讨论没谈拢时，结论下面列出方案让老板拍板
+function decideHTML(m){
+  if(!m.awaitDecision) return '';
+  const open=!m.decided, opts=m.options||[];
+  const head = open ? `<div class="decide-h">请你拍板</div>` : m.decided==='other' ? '' : `<div class="decide-h done">${m.decided==='custom'?'你已拍板，队友按你的话执行':'你已拍板，队友按这个方案执行'}</div>`;
+  const list = opts.map(o=>`<button class="opt${m.decided===o.key?' on':''}" ${open?`data-decide="${m.id}" data-key="${esc(o.key)}"`:'disabled'}><b>${esc(o.key)}</b><span data-raw>${esc(o.text)}</span></button>`).join('');
+  const hint = open ? `<small>${opts.length?'点一个方案，或者直接在下面输入框里说你的决定（不用 @）。':'直接在下面输入框里说你的决定（不用 @）。'}</small>` : '';
+  return `<div class="decide${open?' open':''}">${head}${list}${hint}</div>`;
+}
 function msgHTML(m){
   const running=m.status==='running';
   if(m.from==='system'&&!m.divider) return `<div class="sys">${esc(m.text)}</div>`;
@@ -940,16 +959,16 @@ function msgHTML(m){
     return `<div class="memline" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-book"/></svg><span><b>${m.skillUpdated?'技能已更新':'已存为技能'}</b>${window.HOLA_LANG==='en'?': ':'：'}<b data-raw>${esc(m.skillName||'')}</b>${m.text?` · <span data-raw>${esc(m.text)}</span>`:''}</span><span class="link" data-openskill="${esc(m.skillId||'')}">查看</span></div>`;
   }
   if(m.from==='system'&&m.divider) return `<div class="divider"><span><i></i>${esc(m.text)}</span></div>`;
-  const tag = m.from==='boss' ? '' : ({mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',all:'依次发言'})[m.reason]||'';
+  const tag = m.from==='boss' ? '' : ({mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言'})[m.reason]||'';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
-  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
+  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
-  const WK={handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论'};
+  const WK={handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
   const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
   if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
-  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`;
+  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m);
   const last=m.process.length?m.process[m.process.length-1]:null;
   const latest = !running ? '' : sp ? (last?`<div class="latest" data-raw>${esc(t(KIND[last.k]||''))}　${esc(last.t.split('\n')[0])}</div>`:'') : (m.text?`<div class="latest" data-raw data-fun="${m.id}">${esc(funLabel(m))}</div>`:'');
   const steps=m.process.filter(it=>it.k!=='say');
@@ -997,6 +1016,11 @@ function addStep(id,item){
 function bindFiles(el){
   el.querySelectorAll('[data-openskill]').forEach(b=>b.onclick=()=>{ const k=S.skills.find(x=>x.id===b.dataset.openskill); if(k) openSkill(k); else toast('这个技能已经不在技能库里了') });
   el.querySelectorAll('[data-saveskill]').forEach(b=>b.onclick=()=>distillSkill(b.dataset.saveskill));
+  el.querySelectorAll('[data-decide]').forEach(b=>b.onclick=async()=>{
+    el.querySelectorAll('[data-decide]').forEach(x=>x.disabled=true);
+    const j=await api('decide',{conv:S.cur,msg:b.dataset.decide,option:b.dataset.key}).catch(e=>({error:e.message}));
+    if(j.error){ toast(j.error); el.querySelectorAll('[data-decide]').forEach(x=>x.disabled=false); }
+  });
   el.querySelectorAll('[data-openmem]').forEach(b=>b.onclick=()=>{ if(!$('#drawer').classList.contains('show')) $('#memBtn').click() });
   el.querySelectorAll('[data-img]').forEach(a=>a.onclick=e=>{e.preventDefault();const lb=$('#lightbox');lb.querySelector('img').src=a.dataset.img;lb.classList.add('show')});
   el.querySelectorAll('[data-reveal]').forEach(b=>b.onclick=()=>api('open',{conv:S.cur,file:b.dataset.reveal}));

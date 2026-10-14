@@ -37,7 +37,7 @@ The name means *union of light*: red, green and blue light combined make white l
 
 - **One group, several AIs**: Claude, Codex and Gemini are there by default, and you can add DeepSeek, Qwen, Kimi, local models or any other AI.
 - **Independent, parallel answers**: when you don't @ anyone, the working teammates answer at the same time without seeing each other's answers for that round, so nobody anchors anybody.
-- **Autonomous discussion and consensus**: each teammate decides whether the question is worth discussing. If so, they discuss for several rounds, each declaring a position (*agree* / *object*), until everyone agrees or the round limit is reached. Then one teammate writes the **team conclusion**. You don't have to step in, but you can watch all of it.
+- **Autonomous discussion and consensus**: each teammate decides whether the question is worth discussing. If so, they discuss for several rounds, each declaring a position (*agree* / *object*), until everyone agrees or the round limit is reached. Then one teammate writes the **team conclusion**. If they agree, work is handed out straight away without you. If they're still split at the round limit, the disagreement is laid out as options and **you make the call**: pick an option or just type your decision, and the team divides the work accordingly.
 - **@ to assign work and set the order**: `@Gemini research competitors first, @Claude then write the copy, @Codex put it in Excel` runs as a relay in @ order.
 - **Automatic hand-offs**: if a conclusion needs hands-on work, a teammate @s the right person and they pick it up.
 - **Separate memory for each conversation**: after each round Hola curates the conversation memory (goal, your preferences, decisions, progress, key files), so long chats don't lose the thread. Conversations don't share memory, and you can edit it any time.
@@ -126,7 +126,8 @@ You send a message
   └─ no @   ──→ working teammates answer independently (each decides: worth discussing?)
                   ├─ nobody thinks so ──→ done
                   └─ someone does ──→ internal discussion (each round: agree / object)
-                                         └─ all agree or limit reached ──→ team conclusion ──→ @ teammates for hands-on work
+                                         ├─ all agree ──→ team conclusion ──→ @ teammates for hands-on work
+                                         └─ still split at the limit ──→ options ──→ boss decides ──→ @ teammates per the decision
 After each round ──→ the conversation memory is updated automatically
 ```
 

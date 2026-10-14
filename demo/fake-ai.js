@@ -17,8 +17,8 @@ process.stdin.on('end', async () => {
 });
 
 function lastBoss(p) {
-  const all = p.match(/\[老板\] ([^\n]*)/g) || [];
-  return (all.pop() || '').replace('[老板] ', '').trim();
+  const all = p.match(/\[老板[^\]\n]*\] ([^\n]*)/g) || [];
+  return (all.pop() || '').replace(/^\[老板[^\]\n]*\] /, '').trim();
 }
 
 const VIEWS = {
@@ -82,6 +82,22 @@ description: 需要在几个方向里选一个方案（渠道、定价、选题�
 记忆>>>`;
   }
 
+  // 问题里带"分歧"或"拍板"时演示没谈拢：Codex 每轮都有异议，结论列出方案等老板拍板
+  const split = /分歧|拍板/.test(q);
+  if (p.includes('不要再讨论，照老板的决定执行')) {
+    return `按老板的决定执行：先把成本上限定下来，再选具体方案。\n\n@Codex 把结论要点整理成一张表格。`;
+  }
+  if (p.includes('由你代表团队给老板写结论，请老板拍板')) {
+    return `大家都同意先明确目标人群和结果，分歧卡在**先调研还是先算成本**上。
+
+【方案A】先做外部调研，再按调研结果定方案（支持：Gemini、Claude）
+【方案B】先定成本上限，只在上限内调研和选方案（支持：Codex）
+
+Gemini 和 Claude 认为不先看真实反馈，成本也估不准；Codex 认为不先定上限，调研范围会失控。我建议选 B：调研可以在上限内做，反过来却容易超支。
+
+（演示模式：接入真实 AI 后，这里会是针对你问题的具体方案。）`;
+  }
+
   if (p.includes('同时、独立作答')) {
     if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return `老板好，${name} 在线，随时可以开工。\n\n【需要讨论】否`;
     return `${(VIEWS[name] || VIEWS.Claude)(q)}\n\n（演示模式：这是预设的示范回答。接入真实 AI 后，这里是它真正的思考。）\n\n【需要讨论】是`;
@@ -89,6 +105,9 @@ description: 需要在几个方向里选一个方案（渠道、定价、选题�
 
   const round = (p.match(/内部讨论第 (\d+) 轮/) || [])[1];
   if (round) {
+    if (split && name === 'Codex' && round !== '1') {
+      return `我还是坚持：不先定成本上限，调研范围会越来越大。这一点大家没有说服我。\n\n【立场】有异议`;
+    }
     if (name === 'Codex' && round === '1') {
       return `Claude 的框架我认同，Gemini 说的先看外部反馈也很有必要。\n\n但我有一个实质分歧：大家都没算成本。如果方案执行成本过高，再好的方向也落不了地，建议把"成本上限"作为前提写进结论。\n\n【立场】有异议`;
     }
@@ -128,6 +147,20 @@ const VIEWS_EN = {
 
 function replyEn(p) {
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 60) || 'this';
+  const split = /split|disagree/i.test(q);
+  if (p.includes('不要再讨论，照老板的决定执行')) {
+    return `Following the boss's decision: set the cost ceiling first, then pick the plan.\n\n@Codex turn the key points into a table.`;
+  }
+  if (p.includes('由你代表团队给老板写结论，请老板拍板')) {
+    return `We all agree on defining the audience and outcome first. We're split on **research first or cost first**.
+
+【方案A】Do outside research first, then decide the plan from what we learn (support: Gemini, Claude)
+【方案B】Set a cost ceiling first, and research and choose only within it (support: Codex)
+
+Gemini and Claude think costs can't be estimated well without real feedback; Codex thinks research will sprawl without a ceiling. I'd pick B: research fits inside a ceiling, but the reverse tends to overspend.
+
+(Demo mode: with real AIs connected, these would be options specific to your question.)`;
+  }
   if (p.includes('技能整理员')) {
     return `【本次变化】Saved the "audience and outcome first, then choose within a cost ceiling" decision method as a skill
 <<<技能
@@ -173,6 +206,7 @@ description: Use when choosing between several directions (channel, pricing, top
   }
   const round = (p.match(/内部讨论第 (\d+) 轮/) || [])[1];
   if (round) {
+    if (split && name === 'Codex' && round !== '1') return `I still hold my ground: without a cost ceiling first, the research will keep growing. Nobody has convinced me otherwise.\n\n【立场】有异议`;
     if (name === 'Codex' && round === '1') return `I agree with Claude's framing, and Gemini's point about checking outside feedback is important.\n\nBut I have a real disagreement: nobody has costed this. If execution is too expensive, even the right direction won't land. I suggest we make a cost ceiling a precondition in the conclusion.\n\n【立场】有异议`;
     if (round === '1') return name === 'Claude'
       ? `Gemini's "check outside feedback first" fills a gap in my framework, so I'm adopting it: research first, then define the audience and plan. I also agree with Codex's execution angle.\n\n【立场】同意`
