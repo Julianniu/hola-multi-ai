@@ -40,7 +40,7 @@ process.on('uncaughtException', (e) => console.error('uncaught', e && e.stack ||
 
 // ---------------------------------------------------------------- 设置
 
-const DEFAULT_SETTINGS = { uiLang: '', maxDiscussRounds: 3, conclusionBy: 'claude', maxAutoTurns: 10, autoMemory: true, strengths: {}, memberPrefs: {} };
+const DEFAULT_SETTINGS = { uiLang: '', maxDiscussRounds: 3, conclusionBy: 'claude', maxAutoTurns: 10, autoMemory: true, showProcess: false, strengths: {}, memberPrefs: {} };
 let settings = { ...DEFAULT_SETTINGS };
 try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; } catch (_) {}
 // 界面语言：zh / en。T('中文', 'English') 按当前语言取一句
@@ -111,6 +111,35 @@ let customMembers = [];
 try { customMembers = JSON.parse(fs.readFileSync(MEMBERS_FILE, 'utf8')); } catch (_) {}
 function saveCustomMembers() { fs.writeFileSync(MEMBERS_FILE, JSON.stringify(customMembers, null, 2)); }
 
+// 权限：认得的三种命令行（Claude / Codex / Antigravity）可以在界面上一键切换"安全"和"完全权限"，
+// 不用再手改 config.json。老板没切换过时，按 config.json 里写的参数判断当前是哪种。
+const FULL_FLAG = { 'claude-stream': '--dangerously-skip-permissions', 'codex-json': '--dangerously-bypass-approvals-and-sandbox', 'agy-json': '--dangerously-skip-permissions' };
+const SAFE_ARGS = { 'claude-stream': ['--permission-mode', 'acceptEdits', '--allowedTools', 'Read,Write,Edit,Glob,Grep,WebSearch,WebFetch'], 'codex-json': ['--sandbox', 'workspace-write'], 'agy-json': [] };
+const ACCESS_FLAGS = { 'claude-stream': ['--permission-mode', '--allowedTools', '--allowed-tools'], 'codex-json': ['--sandbox', '-s'], 'agy-json': [] };
+function accessOf(def) {
+  if (def.type === 'api' || !FULL_FLAG[def.parser]) return null;
+  const a = def.args || [];
+  const val = (f) => { const i = a.indexOf(f); return i >= 0 ? a[i + 1] : ''; };
+  const full = a.includes(FULL_FLAG[def.parser]) || (def.parser === 'claude-stream' && val('--permission-mode') === 'bypassPermissions') ||
+    (def.parser === 'codex-json' && /danger-full-access/.test(val('--sandbox') + val('-s')));
+  return full ? 'full' : 'safe';
+}
+function withAccess(def, want) {
+  const p = def.parser;
+  let args = [];
+  const src = def.args || [];
+  for (let i = 0; i < src.length; i++) {
+    if (src[i] === FULL_FLAG[p] || (p === 'codex-json' && src[i] === '--full-auto')) continue;
+    if (ACCESS_FLAGS[p].includes(src[i])) { i++; continue; }
+    args.push(src[i]);
+  }
+  const add = want === 'full' ? [FULL_FLAG[p]] : SAFE_ARGS[p];
+  const at = p === 'codex-json' && args.includes('exec') ? args.indexOf('exec') + 1 : p === 'claude-stream' && args.includes('-p') ? args.indexOf('-p') + 1 : args.length;
+  args = [...args.slice(0, at), ...add, ...args.slice(at)];
+  // Antigravity 不加完全权限时没法在后台确认写文件，只能当只读队友
+  return { args, readOnly: p === 'agy-json' ? want !== 'full' : want === 'full' ? false : !!def.readOnly };
+}
+
 const members = {};
 let ORDER = [];
 function buildMembers() {
@@ -128,6 +157,11 @@ function buildMembers() {
       resolved: same ? old.resolved : null, changed: !same || (old && old.enabled !== (builtin ? pref.enabled !== false && def.enabled !== false : def.enabled !== false)),
     };
     if (m.type === 'api') m.readOnly = true;
+    m.access = accessOf(def);
+    if (m.access && (pref.access === 'full' || pref.access === 'safe') && pref.access !== m.access) {
+      Object.assign(m, withAccess(def, pref.access));
+      m.access = pref.access;
+    }
     // Codex 能直接看图片：用 --image= 把老板发的图片交给它
     if (m.cmd === 'codex' && !m.imageFlag) Object.assign(m, { imageFlag: '--image=', imageFlagAfter: 'exec' });
   };
@@ -277,7 +311,7 @@ function keyHint(k) { return k ? (k.length > 10 ? k.slice(0, 3) + '…' + k.slic
 function publicMembers() {
   return ORDER.map((id) => members[id]).map((m) => ({
     id: m.id, name: m.name, color: m.color, strengths: strengthsOf(m), readOnly: !!m.readOnly,
-    online: m.online, version: m.version, problem: m.problem, type: m.type, builtin: !!m.builtin, enabled: m.enabled,
+    online: m.online, version: m.version, problem: m.problem, type: m.type, builtin: !!m.builtin, enabled: m.enabled, access: m.access,
     edit: m.type === 'api'
       ? { baseUrl: (m.api || {}).baseUrl || '', model: (m.api || {}).model || '', keyHint: keyHint((m.api || {}).apiKey), temperature: (m.api || {}).temperature ?? '' }
       : { cmd: m.cmd || '', argsText: joinArgs(m.args), parser: m.parser || 'plain', readOnly: !!m.readOnly, versionCheck: m.versionCheck !== false },
@@ -357,8 +391,37 @@ const MEMORY_TEMPLATE_EN = `# Conversation memory
 `;
 const memTemplate = () => (EN() ? MEMORY_TEMPLATE_EN : MEMORY_TEMPLATE);
 
-function createConv(title) {
-  const c = { id: newId(), title: title || T('新对话', 'New chat'), created: Date.now(), updated: Date.now(), messages: [], seq: 0, rt: null };
+// ---------------------------------------------------------------- 项目（把相关的对话 / 任务归到一起）
+
+const PROJECTS_FILE = path.join(DATA_DIR, 'projects.json');
+let projects = [];
+try { projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+function saveProjects() { fs.writeFileSync(PROJECTS_FILE, JSON.stringify(projects, null, 2)); }
+function broadcastProjects() { broadcast({ type: 'projects', projects }); }
+const projectOf = (c) => (c && c.project ? projects.find((p) => p.id === c.project) : null);
+
+// 同一项目里的其他任务各自定下了什么，节选它们对话记忆里的"已定结论"和"进度"
+function memSection(text, names) {
+  const parts = String(text || '').split(/\n(?=## )/);
+  return parts.filter((x) => names.some((n) => x.startsWith('## ' + n))).map((x) => x.replace(/^## [^\n]*\n/, '').trim()).filter((x) => x && !/^…+$/.test(x)).join('\n');
+}
+function projectText(c) {
+  const p = projectOf(c);
+  if (!p) return '';
+  const sibs = [...convs.values()].filter((x) => x.project === p.id && x.id !== c.id).sort((a, b) => b.updated - a.updated).slice(0, 12);
+  const lines = sibs.map((x) => {
+    const got = memSection(readMemory(x), ['已经定下的结论', '进度与待办', 'Decisions made', 'Progress and to-dos']);
+    return `- 「${x.title}」（${x.status === 'done' ? '已完成' : '进行中'}，文件夹 ../${x.id}/）${got ? '：' + clip(got.replace(/\n+/g, '；'), 400) : ''}`;
+  });
+  return `【所属项目：${p.name}】这个对话是项目里的一个任务。做事要服务于项目目标，和同项目其他任务的结论保持一致；需要时可以读它们文件夹里的文件。
+项目说明：${p.brief || '（老板还没写）'}
+${lines.length ? '同项目的其他任务：\n' + lines.join('\n') : '这是项目里的第一个任务。'}
+
+`;
+}
+
+function createConv(title, project) {
+  const c = { id: newId(), title: title || T('新对话', 'New chat'), created: Date.now(), updated: Date.now(), messages: [], seq: 0, rt: null, project: project && projects.some((p) => p.id === project) ? project : null, status: 'doing' };
   fs.mkdirSync(path.join(convDir(c), '.hola'), { recursive: true });
   fs.writeFileSync(path.join(convDir(c), MEMORY_NAME), memTemplate());
   convs.set(c.id, c);
@@ -385,7 +448,7 @@ function saveConv(c, now) {
 function convSummary(c) {
   const r = c.rt;
   return {
-    id: c.id, title: c.title, updated: c.updated, created: c.created,
+    id: c.id, title: c.title, updated: c.updated, created: c.created, project: c.project || null, status: c.status || 'doing',
     running: !!(r && r.running), working: r ? [...r.working] : [], phase: r ? r.phase : '', active: c.active || null,
   };
 }
@@ -421,7 +484,7 @@ function clip(s, n) {
 function addProc(c, msg, kind, text) {
   text = String(text || '').trim();
   if (!text) return;
-  const item = { k: kind, t: clip(text, 3000) };
+  const item = { k: kind, t: clip(text, 3000), ts: Date.now() };
   msg.process.push(item);
   if (msg.process.length > 500) msg.process.splice(0, msg.process.length - 500);
   broadcast({ type: 'proc', conv: c.id, id: msg.id, item });
@@ -857,7 +920,7 @@ function msgLine(m) {
 }
 
 function transcript(c) {
-  const msgs = c.messages.filter((m) => (m.text || (m.attachments || []).length) && m.status !== 'running' && m.reason !== 'memory');
+  const msgs = c.messages.filter((m) => (m.text || (m.attachments || []).length) && m.status !== 'running' && m.reason !== 'memory' && m.reason !== 'skill');
   let pick = msgs.slice(-50);
   const firstBoss = msgs.find((m) => m.from === 'boss');
   if (firstBoss && !pick.includes(firstBoss)) pick = [firstBoss, { from: 'system', text: '（中间较早的记录已省略，要点见对话记忆）' }, ...pick];
@@ -938,8 +1001,9 @@ ${rosterText(m.id)}
 3. ${m.type === 'api' ? '你是通过 API 接入的，不能读写文件、不能联网：只根据群聊内容和附在最后的附件文字来思考和写作；需要做文件或查资料时，请能做的队友来做。' : `当前目录是这个对话的专属文件夹。交付物放在这里，取清楚的文件名，并在回复里写明。生成的图片、视频、音频也一定要保存到当前目录（不要只留在你自己的界面或临时目录里），老板才能在群里直接看到和下载。老板发来的附件在"${ATTACH_DIR}"文件夹里。Word、Excel、PPT 文件都有系统自动转好的文字版（在"${TEXT_DIR}"文件夹，文件列表里有标注），读不了原文件时就读文字版。`}
 4. "${MEMORY_NAME}"是本对话的记忆：系统会在每轮结束后自动整理，你不用改它，但要遵守里面记下的偏好和结论。
 5. ${replyLangRule()}像在工作群里说话：先给结论，简洁具体。
+6. 下面有【Hola 技能库】时：动手前看一眼，任务符合某个技能就照着做；用了的话，在回复第一行单独写"【技能】技能名"。
 
-${profileText()}【本对话记忆（${MEMORY_NAME}）】
+${profileText()}${projectText(c)}${skillsPromptText(c, m)}【本对话记忆（${MEMORY_NAME}）】
 ${clip(readMemory(c), 6000) || '（空）'}
 
 【当前文件夹里的文件】
@@ -1008,6 +1072,7 @@ async function pump(c) {
     while (r.jobs.length && myGen === r.gen) {
       const job = r.jobs.shift();
       if (job.type === 'discuss') { await runDiscussion(c, myGen); continue; }
+      if (job.type === 'skill') { await distillSkill(c, myGen, job); continue; }
       const m = members[job.member];
       if (!m || !m.online) { sys(c, T(`${m ? m.name : job.member} 不在线，跳过。`, `${m ? m.name : job.member} is offline, skipped.`)); continue; }
       r.phase = job.reason;
@@ -1118,7 +1183,7 @@ function seqOf(m) { return Number(String(m.id).split('-')[1]) || 0; }
 
 function newSinceMemory(c) {
   const mark = c.memMark || 0;
-  return c.messages.filter((m) => seqOf(m) > mark && m.reason !== 'memory' && m.status !== 'running' &&
+  return c.messages.filter((m) => seqOf(m) > mark && m.reason !== 'memory' && m.reason !== 'skill' && m.status !== 'running' &&
     (m.from === 'boss' || (members[m.from] && m.status === 'done'))).slice(-60);
 }
 
@@ -1224,6 +1289,230 @@ async function updateMemory(c, myGen) {
   broadcastState(c);
 }
 
+// ---------------------------------------------------------------- 技能库（所有对话、所有队友共用）
+// 每个技能是 data/skills/<id>/SKILL.md（和 Claude Skills 一样的格式：开头 name / description，后面是做法），
+// 同一文件夹里还可以放模板、脚本等文件。队友干活前会看技能索引，用到时读 SKILL.md。
+
+const SKILLS_DIR = path.join(DATA_DIR, 'skills');
+const SKILLS_META = path.join(DATA_DIR, 'skills-meta.json');
+let skillMeta = {};
+try { skillMeta = JSON.parse(fs.readFileSync(SKILLS_META, 'utf8')); } catch (_) {}
+function saveSkillMeta() { fs.writeFileSync(SKILLS_META, JSON.stringify(skillMeta, null, 2)); }
+
+function parseSkill(text) {
+  text = String(text || '').replace(/^﻿/, '').replace(/\r\n/g, '\n');
+  const fm = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const out = { name: '', description: '', body: fm ? fm[2] : text };
+  if (fm) {
+    let key = null;
+    for (const line of fm[1].split('\n')) {
+      const kv = line.match(/^([A-Za-z_-]+)\s*:\s*(.*)$/);
+      if (kv) { key = kv[1].toLowerCase(); const v = kv[2].trim().replace(/^["']|["']$/g, ''); if (key === 'name') out.name = v; else if (key === 'description') out.description = v === '|' || v === '>' ? '' : v; }
+      else if (key === 'description' && line.trim()) out.description += (out.description ? ' ' : '') + line.trim();
+    }
+  }
+  if (!out.name) { const h = out.body.match(/^#\s+(.+)$/m); if (h) out.name = h[1].trim(); }
+  out.body = out.body.trim();
+  return out;
+}
+const yamlStr = (s) => (/^[\w一-鿿][^:#\n]*$/.test(s) && !/\s$/.test(s) ? s : JSON.stringify(s));
+function skillText(sk) { return `---\nname: ${yamlStr(sk.name)}\ndescription: ${yamlStr(sk.description.replace(/\s*\n\s*/g, ' '))}\n---\n\n${sk.body.trim()}\n`; }
+
+function skillSlug(name) {
+  const base = String(name).toLowerCase().replace(/[^a-z0-9一-鿿]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'skill';
+  let id = base, n = 2;
+  while (fs.existsSync(path.join(SKILLS_DIR, id))) id = `${base}-${n++}`;
+  return id;
+}
+function skillFiles(dir) {
+  const out = [];
+  const walk = (d, rel) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (e.name.startsWith('.')) continue; const r = rel ? rel + '/' + e.name : e.name; if (e.isDirectory()) walk(path.join(d, e.name), r); else if (r !== 'SKILL.md') out.push(r); } };
+  try { walk(dir, ''); } catch (_) {}
+  return out.slice(0, 50);
+}
+function listSkills() {
+  let dirs = [];
+  try { dirs = fs.readdirSync(SKILLS_DIR, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name); } catch (_) {}
+  return dirs.map((id) => {
+    const f = path.join(SKILLS_DIR, id, 'SKILL.md');
+    let txt; try { txt = fs.readFileSync(f, 'utf8'); } catch (_) { return null; }
+    const sk = parseSkill(txt);
+    const meta = skillMeta[id] || {};
+    return { id, name: sk.name || id, description: sk.description, body: sk.body, enabled: meta.enabled !== false, uses: meta.uses || 0, lastUsed: meta.lastUsed || 0, source: meta.source || '', fromConv: meta.fromConv || '', updatedAt: fs.statSync(f).mtimeMs, files: skillFiles(path.join(SKILLS_DIR, id)) };
+  }).filter(Boolean).sort((a, b) => (b.lastUsed || b.updatedAt) - (a.lastUsed || a.updatedAt));
+}
+function broadcastSkills() { broadcast({ type: 'skills', skills: listSkills() }); }
+
+function writeSkill(sk, meta = {}) {
+  const name = String(sk.name || '').trim().slice(0, 60);
+  if (!name) throw new Error(T('请填写技能名称', 'Please enter a skill name'));
+  const description = String(sk.description || '').trim().slice(0, 600);
+  const body = String(sk.body || '').trim().slice(0, 60000);
+  if (!body) throw new Error(T('请填写技能的具体做法', 'Please write the instructions'));
+  fs.mkdirSync(SKILLS_DIR, { recursive: true });
+  let id = sk.id && /^[\w一-鿿.-]+$/.test(sk.id) && fs.existsSync(path.join(SKILLS_DIR, sk.id)) ? sk.id : null;
+  if (!id) { const same = listSkills().find((x) => x.name.toLowerCase() === name.toLowerCase()); id = same ? same.id : skillSlug(name); }
+  const dir = path.join(SKILLS_DIR, id);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'SKILL.md');
+  try {
+    const old = fs.readFileSync(file, 'utf8');
+    const hist = path.join(SKILLS_DIR, '.history', id);
+    fs.mkdirSync(hist, { recursive: true });
+    fs.writeFileSync(path.join(hist, `${new Date().toISOString().replace(/[:.]/g, '-')}.md`), old);
+  } catch (_) {}
+  fs.writeFileSync(file, skillText({ name, description, body }));
+  skillMeta[id] = { ...(skillMeta[id] || {}), ...meta };
+  if (typeof sk.enabled === 'boolean') skillMeta[id].enabled = sk.enabled;
+  saveSkillMeta();
+  return id;
+}
+
+function importSkill(buf, filename) {
+  if (/\.zip$/i.test(filename)) {
+    const zip = office.readZip(buf);
+    const mdName = zip.names().filter((n) => /(^|\/)SKILL\.md$/i.test(n)).sort((a, b) => a.length - b.length)[0];
+    if (!mdName) throw new Error(T('压缩包里没找到 SKILL.md', 'No SKILL.md found in the zip'));
+    const prefix = mdName.slice(0, mdName.length - 'SKILL.md'.length);
+    const sk = parseSkill(zip.text(mdName));
+    if (!sk.name) sk.name = prefix.split('/').filter(Boolean).pop() || filename.replace(/\.zip$/i, '');
+    const id = writeSkill(sk, { source: 'import' });
+    const dir = path.join(SKILLS_DIR, id);
+    for (const n of zip.names()) {
+      if (!n.startsWith(prefix) || n.endsWith('/') || n === mdName) continue;
+      const rel = n.slice(prefix.length);
+      const dest = safeJoin(dir, rel);
+      if (!dest || rel.split('/').some((p) => p.startsWith('.'))) continue;
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, zip.bytes(n));
+    }
+    return id;
+  }
+  const sk = parseSkill(buf.toString('utf8'));
+  if (!sk.name) sk.name = filename.replace(/\.(md|markdown|txt)$/i, '').replace(/^SKILL$/i, 'skill');
+  return writeSkill(sk, { source: 'import' });
+}
+
+// 每次干活前，把启用的技能同步到对话文件夹的 .hola/skills 里，所有命令行队友都能用相对路径读到
+function syncSkillsTo(c) {
+  const dest = path.join(convDir(c), '.hola', 'skills');
+  try { fs.rmSync(dest, { recursive: true, force: true }); } catch (_) {}
+  const list = listSkills().filter((s) => s.enabled);
+  for (const s of list) { try { fs.cpSync(path.join(SKILLS_DIR, s.id), path.join(dest, s.id), { recursive: true }); } catch (_) {} }
+  return list;
+}
+
+function skillsPromptText(c, m) {
+  const list = listSkills().filter((s) => s.enabled);
+  if (!list.length) return '';
+  if (m.type === 'api') {
+    let budget = 24000;
+    const parts = [];
+    for (const s of list) {
+      const txt = `### ${s.name}\n适用：${s.description || '（未写）'}\n${s.body}`;
+      if (txt.length > budget) { parts.push(`### ${s.name}\n适用：${s.description}\n（内容太长，没有附上）`); continue; }
+      budget -= txt.length; parts.push(txt);
+    }
+    return `【Hola 技能库】团队共用的做事方法。任务符合某个技能的"适用"说明时，就按它的做法来：\n${parts.join('\n\n')}\n\n`;
+  }
+  return `【Hola 技能库】团队共用的做事方法（老板和队友沉淀下来的）。任务符合某个技能的说明时，先读它的 SKILL.md 再动手，同一文件夹里的模板、脚本按 SKILL.md 说的用：\n` +
+    list.map((s) => `- ${s.name}：${s.description || '（没写适用场景，读 SKILL.md 判断）'}（.hola/skills/${s.id}/SKILL.md）`).join('\n') + '\n\n';
+}
+
+const TAG_SKILL = /^[ \t>*_]*【\s*(?:技能|用了技能|Skill)\s*】\s*[:：]?\s*(.+?)\s*[*_]*\s*$/m;
+function noteSkillUse(text, msg) {
+  const mt = text.match(TAG_SKILL);
+  if (!mt) return text;
+  const all = listSkills();
+  const names = mt[1].split(/[、,，;；]/).map((x) => x.trim().replace(/^[「"']|[」"']$/g, '')).filter(Boolean);
+  const used = [];
+  for (const n of names) {
+    const s = all.find((x) => x.name.toLowerCase() === n.toLowerCase() || x.id === n);
+    if (s) { used.push({ id: s.id, name: s.name }); skillMeta[s.id] = { ...(skillMeta[s.id] || {}), uses: (skillMeta[s.id]?.uses || 0) + 1, lastUsed: Date.now() }; }
+  }
+  if (used.length) { msg.skills = used; saveSkillMeta(); broadcastSkills(); }
+  return text.replace(TAG_SKILL, '').trim();
+}
+
+function distillPrompt(c, fromMsg) {
+  const existing = listSkills().map((s) => `- ${s.name}：${s.description}`).join('\n') || '（还没有）';
+  const focus = fromMsg ? `\n【老板想沉淀的这条结论】\n[${nameOf(fromMsg.from)}] ${clip(fromMsg.text, 6000)}\n` : '';
+  return `你是 Hola 团队的"技能整理员"。Hola 有一个所有对话、所有队友共用的技能库：每个技能是一份可以反复使用的做事方法，下次遇到同类任务，队友会先读它再动手。
+老板希望把这个对话里的做法沉淀成一个技能。请从下面的对话记忆和群聊记录里提炼：
+
+- 这是哪一类任务（写清楚什么时候该用这个技能，方便队友判断）；
+- 做这类任务的步骤和分工（谁擅长哪一步）；
+- 质量标准、老板明确提过的偏好和禁忌；
+- 这次踩过的坑、讨论中得出的关键判断；
+- 需要的话，给出输出模板或检查清单。
+
+规则：
+- 写成通用的方法，不要写成这一次的流水账；这次特有的具体数字、名字只作为例子出现。
+- 只写老板说过的偏好，不要替他推断。
+- 如果技能库里已经有同一类技能，就用完全相同的名称，把新经验合并进去，输出合并后的完整版本。
+- 不要修改任何文件、不要运行命令，只输出文字。${EN() ? '\n- 技能内容用英文写。' : '\n- 技能内容用中文写。'}
+
+输出格式（严格遵守）：
+第一行：【本次变化】用一句话说明这个技能是什么
+然后：
+<<<技能
+name: 技能名称（简短，10 个字以内）
+description: 一句话说明什么时候用它
+---
+# 技能名称
+（具体做法，Markdown）
+技能>>>
+
+【技能库里已有的技能】
+${existing}
+${focus}
+【本对话记忆】
+${clip(readMemory(c), 6000) || '（空）'}
+
+【群聊记录】
+${transcript(c)}`;
+}
+
+async function distillSkill(c, myGen, job) {
+  const r = rt(c);
+  const act = activeIds(c);
+  const pref = settings.conclusionBy;
+  const keeperId = (act.includes(pref) && pref) || act[0];
+  if (!keeperId) { sys(c, T('没有在线的队友，没法整理技能。', 'No teammate is online to write the skill.')); return; }
+  const m = members[keeperId];
+  const fromMsg = job.fromMsg ? c.messages.find((x) => x.id === job.fromMsg) : null;
+  r.phase = 'skill';
+  const msg = newMsg(c, m.id, '', { status: 'running', startedAt: Date.now(), reason: 'skill' });
+  r.working.add(m.id);
+  broadcastState(c);
+  const res = await runMember(c, m, distillPrompt(c, fromMsg), msg, []);
+  r.working.delete(m.id);
+  if (myGen !== r.gen) return;
+  msg.endedAt = Date.now();
+  const out = res.text || '';
+  const block = out.match(/<<<\s*技能\s*\n([\s\S]*?)\n?\s*技能\s*>>>/);
+  const change = (out.match(/【本次变化】\s*(.+)/) || [])[1];
+  if (block) {
+    const raw = block[1].trim();
+    const sk = parseSkill(raw.startsWith('---') ? raw : '---\n' + raw.replace(/\n---\n/, '\n---\n'));
+    try {
+      const existed = listSkills().find((x) => x.name.toLowerCase() === (sk.name || '').toLowerCase());
+      const id = writeSkill(sk, { source: 'conversation', fromConv: c.title });
+      msg.skillId = id;
+      msg.skillName = sk.name;
+      msg.skillUpdated = !!existed;
+      msg.text = change ? change.trim() : sk.description;
+      msg.status = 'done';
+      broadcastSkills();
+    } catch (e) { msg.text = T('保存技能失败：', 'Failed to save the skill: ') + e.message; msg.status = 'error'; }
+  } else {
+    msg.text = T('整理技能没成功，可以再试一次。', "Couldn't write the skill, please try again.") + (res.err ? '\n' + clip(res.err, 300) : '');
+    msg.status = 'error';
+  }
+  update(c, msg);
+  broadcastState(c);
+}
+
 function extractTags(text) {
   let need = null, stance = null;
   const n = text.match(TAG_NEED);
@@ -1240,13 +1529,14 @@ async function agentTurn(c, m, turn, myGen) {
   broadcastState(c);
   const lastBoss = [...c.messages].reverse().find((x) => x.from === 'boss');
   const images = (lastBoss && lastBoss.attachments || []).filter((a) => a.image).map((a) => path.join(convDir(c), a.path));
+  if (m.type !== 'api') syncSkillsTo(c);
   const res = await runMember(c, m, agentPrompt(c, m, turn), msg, images);
   r.working.delete(m.id);
   if (myGen !== r.gen) return null;
   msg.endedAt = Date.now();
   if (res.text) {
     const tags = extractTags(res.text);
-    let text = tags.text;
+    let text = noteSkillUse(tags.text, msg);
     if (turn.reason === 'initial') msg.needDiscuss = tags.need === true;
     if (turn.reason === 'discuss') msg.stance = tags.stance || 'agree';
     if (m.readOnly) {
@@ -1356,7 +1646,7 @@ const server = http.createServer(async (req, res) => {
     if (/^\/(logo\.svg|favicon\.png|icon-192\.png|i18n\.js)$/.test(url.pathname)) return sendFile(res, path.join(ROOT, 'public', url.pathname.slice(1)), false, true);
     if (url.pathname === '/api/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-      res.write('data: ' + JSON.stringify({ type: 'init', convs: convList(), members: publicMembers(), settings, profile: publicProfile(), workspace: WORKSPACE }) + '\n\n');
+      res.write('data: ' + JSON.stringify({ type: 'init', convs: convList(), members: publicMembers(), settings, profile: publicProfile(), skills: listSkills(), projects, workspace: WORKSPACE }) + '\n\n');
       clients.add(res);
       lastClientAt = Date.now();
       const ping = setInterval(() => res.write(': ping\n\n'), 20000);
@@ -1421,6 +1711,16 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === '/api/skills/import') {
+      const chunks = []; let size = 0;
+      req.on('data', (d) => { size += d.length; if (size > 20e6) req.destroy(); else chunks.push(d); });
+      req.on('end', () => {
+        try { const id = importSkill(Buffer.concat(chunks), url.searchParams.get('name') || 'SKILL.md'); broadcastSkills(); json({ ok: true, id }); }
+        catch (e) { json({ error: e.message }, 400); }
+      });
+      return;
+    }
+
     if (url.pathname === '/api/upload') {
       const c = convs.get(url.searchParams.get('conv'));
       if (!c) return json({ error: 'no conv' }, 404);
@@ -1440,7 +1740,33 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     const c = body.conv ? convs.get(body.conv) : null;
     switch (url.pathname) {
-      case '/api/conv/new': return json({ id: createConv().id });
+      case '/api/conv/new': return json({ id: createConv(null, body.project).id });
+      case '/api/conv/project':
+        if (c) { c.project = body.project && projects.some((p) => p.id === body.project) ? body.project : null; saveConv(c); broadcastConvList(); }
+        return json({ ok: true });
+      case '/api/conv/status':
+        if (c && (body.status === 'done' || body.status === 'doing')) { c.status = body.status; saveConv(c); broadcastConvList(); }
+        return json({ ok: true });
+      case '/api/projects/save': {
+        const d = body.project || {};
+        const name = String(d.name || '').trim().slice(0, 40);
+        if (!name) return json({ error: T('请填写项目名称', 'Please enter a project name') }, 400);
+        let p = projects.find((x) => x.id === d.id);
+        if (!p) { p = { id: 'p' + crypto.randomBytes(4).toString('hex'), createdAt: Date.now() }; projects.push(p); }
+        p.name = name;
+        p.brief = String(d.brief || '').trim().slice(0, 3000);
+        saveProjects(); broadcastProjects();
+        return json({ ok: true, id: p.id });
+      }
+      case '/api/projects/delete': {
+        const i = projects.findIndex((x) => x.id === body.id);
+        if (i >= 0) {
+          projects.splice(i, 1); saveProjects();
+          for (const x of convs.values()) if (x.project === body.id) { x.project = null; saveConv(x); }
+          broadcastProjects(); broadcastConvList();
+        }
+        return json({ ok: true });
+      }
       case '/api/conv/rename':
         if (c && body.title) { c.title = String(body.title).slice(0, 60); saveConv(c); broadcastConvList(); }
         return json({ ok: true });
@@ -1500,8 +1826,9 @@ const server = http.createServer(async (req, res) => {
         if (ORDER.some((id) => id !== d.id && members[id].name.toLowerCase() === name.toLowerCase())) return json({ error: '已经有同名的队友了' }, 400);
         const color = /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : null;
         let savedId = d.id;
+        const access = d.access === 'full' || d.access === 'safe' ? d.access : null;
         if (d.id && members[d.id] && members[d.id].builtin) {
-          settings.memberPrefs[d.id] = { ...(settings.memberPrefs[d.id] || {}), ...(color ? { color } : {}), ...(typeof d.enabled === 'boolean' ? { enabled: d.enabled } : {}) };
+          settings.memberPrefs[d.id] = { ...(settings.memberPrefs[d.id] || {}), ...(color ? { color } : {}), ...(typeof d.enabled === 'boolean' ? { enabled: d.enabled } : {}), ...(access ? { access } : {}) };
           if (typeof d.strengths === 'string') settings.strengths[d.id] = d.strengths.slice(0, 300);
           saveSettings();
         } else {
@@ -1532,6 +1859,7 @@ const server = http.createServer(async (req, res) => {
             delete cm.api;
           }
           saveCustomMembers();
+          if (access) { settings.memberPrefs[cm.id] = { ...(settings.memberPrefs[cm.id] || {}), access }; saveSettings(); }
         }
         buildMembers();
         checkChanged();
@@ -1556,6 +1884,7 @@ const server = http.createServer(async (req, res) => {
         if (body.maxDiscussRounds) settings.maxDiscussRounds = Math.max(1, Math.min(6, Number(body.maxDiscussRounds) || 3));
         if (body.conclusionBy && members[body.conclusionBy]) settings.conclusionBy = body.conclusionBy;
         if (typeof body.autoMemory === 'boolean') settings.autoMemory = body.autoMemory;
+        if (typeof body.showProcess === 'boolean') settings.showProcess = body.showProcess;
         if (body.uiLang === 'zh' || body.uiLang === 'en') { settings.uiLang = body.uiLang; syncLang(); checkAll(); }
         if (body.maxAutoTurns) settings.maxAutoTurns = Math.max(0, Math.min(50, Number(body.maxAutoTurns) || 10));
         if (body.strengths && typeof body.strengths === 'object') {
@@ -1563,6 +1892,28 @@ const server = http.createServer(async (req, res) => {
         }
         saveSettings();
         broadcast({ type: 'settings', settings, members: publicMembers() });
+        return json({ ok: true });
+      case '/api/skills/save':
+        try { const id = writeSkill(body.skill || {}, (body.skill || {}).id ? {} : { source: 'manual' }); broadcastSkills(); return json({ ok: true, id }); }
+        catch (e) { return json({ error: e.message }, 400); }
+      case '/api/skills/toggle':
+        if (body.id && fs.existsSync(path.join(SKILLS_DIR, String(body.id)))) { skillMeta[body.id] = { ...(skillMeta[body.id] || {}), enabled: !!body.enabled }; saveSkillMeta(); broadcastSkills(); }
+        return json({ ok: true });
+      case '/api/skills/delete': {
+        const dir = body.id && safeJoin(SKILLS_DIR, String(body.id));
+        if (dir && dir !== SKILLS_DIR && !String(body.id).startsWith('.')) { fs.rmSync(dir, { recursive: true, force: true }); delete skillMeta[body.id]; saveSkillMeta(); broadcastSkills(); }
+        return json({ ok: true });
+      }
+      case '/api/skills/open': {
+        const dir = body.id ? safeJoin(SKILLS_DIR, String(body.id)) : SKILLS_DIR;
+        fs.mkdirSync(dir || SKILLS_DIR, { recursive: true });
+        openPath(dir || SKILLS_DIR);
+        return json({ ok: true });
+      }
+      case '/api/skills/distill':
+        if (!c) return json({ error: 'no conv' }, 404);
+        rt(c).jobs.push({ type: 'skill', fromMsg: body.msg || null });
+        pump(c);
         return json({ ok: true });
       case '/api/quit':
         json({ ok: true });

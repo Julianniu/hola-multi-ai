@@ -76,6 +76,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   </ul></li>
 <li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，你发的文字类附件会直接附给它看。</li>
 <li>每位队友擅长什么、用什么颜色，在 <b>队友</b> 里点"编辑"修改，大家会按这个分工。</li>
+<li><b>权限</b>：默认是安全模式，Claude、Codex 只在对话文件夹里干活，Gemini 只能读不能写。想让某位队友能运行命令、改动电脑上任何地方的文件，在 <b>队友</b> → "编辑" 里勾上<b>完全权限</b>，队友列表里会标出来。只给你信任的 AI 打开，重要文件记得备份。</li>
 <li>输入框下面的 <b>参与</b>：点一下名字，这次就不让 Ta 参与，再点一下恢复。每个对话分开记。你直接 @ Ta 时仍然会来。</li>
 </ul>
 
@@ -84,6 +85,22 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>点输入框左边的回形针、直接拖进窗口，或者 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图，都可以添加附件。</li>
 <li>Word、Excel、PPT 会自动转一份文字版，所有队友都能读；点"预览"可以直接看，PDF 也可以。</li>
 <li>队友做出来的图片、视频、文件会显示在他的消息下面，可以放大、播放、下载，或者在文件夹里找到它。</li>
+</ul>
+
+<h2>项目</h2>
+<ul>
+<li>左侧"项目"旁的 <b>+</b> 新建项目，写上项目说明（目标、背景、时间节点、要求）。项目里所有任务的队友都会看到它，还会参考同项目其他任务定下的结论。</li>
+<li>项目名旁的 <b>+</b> 在项目里新建任务；也可以把左侧的对话拖进项目，或点对话旁的 <b>⋯</b> → 移到项目。</li>
+<li>点任务前面的小圆圈标为完成，项目旁会显示完成进度。删除项目不会删除里面的对话。</li>
+</ul>
+
+<h2>技能库</h2>
+<ul>
+<li>技能是可以反复用的做事方法：步骤、分工、标准、模板和踩过的坑。<b>所有对话、所有队友共用</b>，存在 Hola 文件夹的 <code>data\skills</code> 里。</li>
+<li><b>存为技能</b>：团队结论右上角点"存为技能"，队友会把这次的做法提炼成一个技能；同类技能已经有的话，会合并成新版本。没有团队结论时，在右上角"技能库"里点"从当前对话整理"。</li>
+<li><b>自动用上</b>：队友动手前会先看技能库，任务对得上就照着做，消息上会出现技能名，点一下能看内容。</li>
+<li>也可以自己<b>新建</b>，或<b>导入</b>现成的 SKILL.md 或技能压缩包（和 Claude Skills 格式一样）。不想让队友用某个技能时点"停用"。</li>
+<li>只导入你信得过的技能，导入后先点"编辑"看一遍。</li>
 </ul>
 
 <h2>对话、记忆和个人主页</h2>
@@ -150,6 +167,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   </ul></li>
 <li>API teammates can't read or write files or go online; they think and write, and text attachments you send are included for them.</li>
 <li>Edit what each teammate is good at, and its colour, under <b>Teammates</b> → "Edit". The team divides work accordingly.</li>
+<li><b>Permissions</b>: teammates start in safe mode. Claude and Codex work only inside the chat folder, and Gemini can read but not write. To let a teammate run commands and change files anywhere on the PC, tick <b>Full access</b> under <b>Teammates</b> → "Edit"; the teammate list marks it. Only turn it on for AIs you trust, and keep backups of important files.</li>
 <li><b>Working</b> under the input box: click a name to leave that teammate out this time, click again to bring them back. Remembered per conversation. @-ing them directly still brings them in.</li>
 </ul>
 
@@ -158,6 +176,22 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>Use the paperclip, drag files into the window, or paste a screenshot with <kbd>Ctrl</kbd>+<kbd>V</kbd>.</li>
 <li>Word, Excel and PowerPoint files get an automatic text version every teammate can read. Click "Preview" to view them, and PDFs too.</li>
 <li>Images, videos and files your teammates make appear under their message: enlarge, play, download, or show them in the folder.</li>
+</ul>
+
+<h2>Projects</h2>
+<ul>
+<li>Click <b>+</b> next to "Projects" on the left to create one, and write a brief (goal, background, deadlines, requirements). Teammates on every task in the project see it, and take into account what the project's other tasks decided.</li>
+<li>The <b>+</b> next to a project name adds a task to it. You can also drag a chat into a project, or use <b>⋯</b> → Move to project.</li>
+<li>Click the circle in front of a task to mark it done; the project shows its progress. Deleting a project doesn't delete its chats.</li>
+</ul>
+
+<h2>Skill library</h2>
+<ul>
+<li>A skill is a reusable way of getting something done: steps, who does what, standards, templates and lessons learned. <b>Every chat and every teammate shares the library</b>, stored in <code>data\skills</code> in the Hola folder.</li>
+<li><b>Save as skill</b>: click "Save as skill" at the top right of a team conclusion and a teammate writes up how the team did it. If a similar skill already exists, it's merged into a new version. Without a team conclusion, open "Skills" at the top right and click "From this chat".</li>
+<li><b>Used automatically</b>: before starting, teammates check the library and follow any skill that fits. The message shows the skill's name; click it to read it.</li>
+<li>You can also write one with <b>New skill</b>, or <b>Import</b> an existing SKILL.md or skill zip (same format as Claude Skills). Click "Disable" to keep teammates from using a skill.</li>
+<li>Only import skills you trust, and click "Edit" to read one after importing.</li>
 </ul>
 
 <h2>Conversations, memory and your profile</h2>

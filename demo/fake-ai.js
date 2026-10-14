@@ -10,6 +10,7 @@ let prompt = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (prompt += d));
 process.stdin.on('end', async () => {
+  if (process.env.HOLA_DEMO_DUMP) { try { fs.writeFileSync(`.hola/prompt-${name}.txt`, prompt); } catch (_) {} }
   await sleep(900 + Math.random() * 1400);
   process.stderr.write(`（演示模式）${name} 在按剧本回答\n`);
   process.stdout.write(reply(prompt) + '\n');
@@ -26,10 +27,42 @@ const VIEWS = {
   Gemini: (q) => `我补充一些外部视角：做「${q}」之前，先看看同类做法和用户的真实反馈，别只凭内部判断。`,
 };
 
+function skillTag(p) {
+  const k = p.match(/【Hola 技能库】[^\n]*\n- ([^：\n]+)：/);
+  return k && name === 'Claude' && p.includes('同时、独立作答') ? `【技能】${k[1]}\n` : '';
+}
+
 function reply(p) {
-  if (/用英文（English）|英文界面/.test(p)) return replyEn(p);
+  const tag = skillTag(p);
+  if (tag) return tag + replyInner(p);
+  return replyInner(p);
+}
+
+function replyInner(p) {
+  if (/用英文（English）|英文界面|都用英文写|技能内容用英文写/.test(p)) return replyEn(p);
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 40) || '这个问题';
 
+  if (p.includes('技能整理员')) {
+    return `【本次变化】把"先定目标人群和结果、再在成本上限内选方案"的决策方法存成了技能
+<<<技能
+name: 方案决策三步法
+description: 需要在几个方向里选一个方案（渠道、定价、选题等）时使用
+---
+# 方案决策三步法
+
+## 步骤
+1. 先写清目标人群和想要的结果，没有这两条不讨论方案。
+2. Gemini 查同类做法和真实用户反馈；Claude 给出候选方案和取舍；Codex 估算每个方案的成本和执行难度。
+3. 设定成本上限，排除超出上限或落不了地的方案，剩下的按"结果 / 成本"排序。
+
+## 标准
+- 结论第一句直接给选择，再用一两句说明关键取舍。
+- 要动手的部分写成"@名字 + 具体任务"。
+
+## 踩过的坑
+- 只谈方向不算账：一定把成本上限写进结论。
+技能>>>`;
+  }
   if (p.includes('记忆整理员')) {
     if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return '【无需更新】';
     return `【本次变化】记下了关于「${q}」的团队结论和后续分工
@@ -95,6 +128,27 @@ const VIEWS_EN = {
 
 function replyEn(p) {
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 60) || 'this';
+  if (p.includes('技能整理员')) {
+    return `【本次变化】Saved the "audience and outcome first, then choose within a cost ceiling" decision method as a skill
+<<<技能
+name: Three-step decision
+description: Use when choosing between several directions (channel, pricing, topic and so on)
+---
+# Three-step decision
+
+## Steps
+1. Write down the target audience and the outcome you want. Don't discuss options without these two.
+2. Gemini looks at similar cases and real user feedback; Claude lays out the options and trade-offs; Codex estimates cost and effort for each.
+3. Set a cost ceiling, drop options above it or that can't be delivered, and rank the rest by outcome versus cost.
+
+## Standards
+- The conclusion opens with the choice, then one or two sentences on the key trade-off.
+- Hands-on work is written as "@name + task".
+
+## Lessons learned
+- Talking direction without doing the maths: always put the cost ceiling in the conclusion.
+技能>>>`;
+  }
   if (p.includes('记忆整理员')) {
     if (/^(hi|hello|hey)\b/i.test(q)) return '【无需更新】';
     return `【本次变化】Recorded the team conclusion on "${q}" and the follow-up task

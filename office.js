@@ -31,14 +31,15 @@ function readZip(buf) {
   return {
     has: (name) => files.has(name),
     names: () => [...files.keys()],
-    text(name) {
+    bytes(name) {
       const f = files.get(name);
-      if (!f) return '';
+      if (!f) return null;
       const lh = f.local;
       const start = lh + 30 + buf.readUInt16LE(lh + 26) + buf.readUInt16LE(lh + 28);
       const data = buf.slice(start, start + f.csize);
-      return (f.method === 8 ? zlib.inflateRawSync(data) : data).toString('utf8');
+      return f.method === 8 ? zlib.inflateRawSync(data) : data;
     },
+    text(name) { const b = this.bytes(name); return b ? b.toString('utf8') : ''; },
   };
 }
 
@@ -298,4 +299,4 @@ pre{white-space:pre-wrap;word-break:break-word;font:13.5px/1.65 Consolas,Menlo,m
 </style></head><body><header><b>${esc(title)}</b><small>${esc(note)}</small></header><main>${body}</main></body></html>`;
 }
 
-module.exports = { lang: 'zh', OFFICE_EXT, readOffice, toMarkdown, toHtml, previewPage, htmlTable, esc };
+module.exports = { lang: 'zh', readZip, OFFICE_EXT, readOffice, toMarkdown, toHtml, previewPage, htmlTable, esc };

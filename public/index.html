@@ -58,6 +58,43 @@ aside{width:252px;flex:none;background:var(--night);color:var(--night-ink);displ
 .conv .lamp{width:7px;height:7px;border-radius:50%;flex:none;background:transparent}
 .conv .lamp.run{animation:pulse 1.4s infinite}
 .conv .x{opacity:0;color:var(--night-dim);padding:2px;border-radius:5px}
+.sechead{display:flex;align-items:center;justify-content:space-between;margin:12px 6px 4px 10px;font-size:12px;font-weight:500;color:var(--night-dim)}
+.sechead button{color:var(--night-dim);padding:3px;border-radius:6px;display:grid;place-items:center}
+.sechead button:hover{background:var(--night-2);color:#fff}
+.sechead button svg{width:15px;height:15px}
+.proj{display:flex;align-items:center;gap:1px;border-radius:8px;margin-top:2px}
+.proj:hover{background:var(--night-2)}
+.proj .ph{flex:1;display:flex;align-items:center;gap:6px;padding:7px 6px 7px 8px;color:var(--night-ink);font-size:14px;font-weight:600;min-width:0;text-align:left}
+.proj .ph>svg{width:14px;height:14px;flex:none;color:var(--night-dim);transform:rotate(90deg);transition:transform .15s}
+.proj.col .ph>svg{transform:none}
+.proj .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .ph small{font-weight:400;color:var(--night-dim);font-size:12px;flex:none}
+.proj .pa{opacity:0;color:var(--night-dim);padding:3px;border-radius:6px;display:grid;place-items:center;flex:none}
+.proj .pa svg{width:15px;height:15px}
+.proj:hover .pa{opacity:1}
+.proj .pa:hover{color:#fff;background:var(--night-3)}
+.proj.drop,.sechead.drop{outline:1.5px dashed var(--night-dim);outline-offset:-2px}
+.ptasks .conv{padding-left:28px}
+.conv .ck{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--night-dim);flex:none;display:grid;place-items:center;padding:0}
+.conv .ck svg{width:11px;height:11px;stroke-width:3}
+.conv .ck:hover{border-color:#22D39A}
+.conv.done .ck{background:#22D39A;border-color:#22D39A;color:#0b1a14}
+.conv.done .t{opacity:.5;text-decoration:line-through}
+.pempty,.phint{font-size:12.5px;color:var(--night-dim);padding:3px 10px 8px 28px;line-height:1.6}
+.phint{padding-left:10px}
+.conv.dragging{opacity:.4}
+#cmenu{position:fixed;z-index:60;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:11px;box-shadow:0 14px 40px rgba(10,12,40,.28);padding:5px;min-width:190px;max-width:260px;display:none}
+#cmenu.show{display:block}
+#cmenu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:7px;font-size:13.5px;color:var(--ink)}
+#cmenu button:hover{background:var(--wash)}
+#cmenu button.on::after{content:'✓';margin-left:auto;color:var(--ink3)}
+#cmenu button.danger{color:var(--bad)}
+#cmenu small{display:block;padding:6px 10px 2px;font-size:11.5px;color:var(--ink3)}
+#cmenu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+#cmenu .pnm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb{font-size:13px;color:var(--ink3);padding:4px 8px;margin-right:-10px;border-radius:7px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;flex:none}
+.crumb:hover{background:var(--wash);color:var(--ink)}
+.took{margin-top:5px;font-size:12px;color:var(--ink3)}
 .conv:hover .x{opacity:1}
 .conv .x:hover{color:#fff;background:var(--night-3)}
 .conv input{flex:1;min-width:0;background:var(--night);border:1px solid var(--night-3);border-radius:6px;padding:2px 6px;color:#fff;font-size:14px}
@@ -315,6 +352,26 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
 .field textarea{min-height:56px;resize:vertical}
 .field small{color:var(--ink3);font-size:12px}
 .dfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;align-items:center}
+.skill-row{display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-top:1px solid var(--line)}
+.skill-row:first-child{border-top:0}
+.skill-row .ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,rgba(255,90,78,.16),rgba(34,211,154,.16) 50%,rgba(61,123,255,.18));color:var(--ink)}
+.skill-row .ic svg{width:16px;height:16px}
+.skill-row .info{flex:1;min-width:0}
+.skill-row .info b{font-weight:600}
+.skill-row .info p{margin:2px 0 0;color:var(--ink2);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.skill-row .info small{display:block;color:var(--ink3);font-size:12px;margin-top:3px}
+.skill-row .acts{display:flex;gap:6px;flex:none}
+.skill-row.off .info,.skill-row.off .ic{opacity:.45}
+.skills-empty{padding:26px 8px;text-align:center;color:var(--ink3);font-size:13.5px;line-height:1.7}
+#skillDlg{width:min(760px,94vw)}
+#kBody{min-height:300px;font:13px/1.6 Consolas,Menlo,monospace}
+.kfiles{font-size:12.5px;color:var(--ink3)}
+.concl-head .save-skill{margin-left:auto;display:flex;align-items:center;gap:5px;font-weight:500;font-size:12.5px;color:var(--ink2);padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface)}
+.concl-head .save-skill:hover{color:var(--ink);border-color:var(--ink3)}
+.concl-head .save-skill svg{width:14px;height:14px}
+.skilltag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--wash);color:var(--ink2);cursor:pointer}
+.skilltag svg{width:12px;height:12px}
+.skilltag:hover{color:var(--ink)}
 .dfoot .left{margin-right:auto;display:flex;gap:8px}
 
 .lightbox{position:fixed;inset:0;background:rgba(10,11,30,.85);display:none;place-items:center;z-index:50;cursor:zoom-out}
@@ -348,12 +405,15 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
   <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 0 0-5.8-1A3 3 0 0 0 4 9a3 3 0 0 0 0 5 3 3 0 0 0 3 5 3 3 0 0 0 5-1zM12 5a3 3 0 0 1 5.8-1A3 3 0 0 1 20 9a3 3 0 0 1 0 5 3 3 0 0 1-3 5 3 3 0 0 1-5-1zM12 5v13"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
   <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6.5A2.5 2.5 0 0 0 4 20.5 2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 7h7M9 11h5"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
 </svg>
 
@@ -372,12 +432,14 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
 <main id="main">
   <header>
     <button class="ibtn menu" id="menuBtn" aria-label="对话列表"><svg class="i"><use href="#i-menu"/></svg></button>
+    <button class="crumb" id="crumb" hidden data-raw title="编辑项目"></button>
     <div class="title" id="title" data-raw>Hola</div>
     <button class="lights" id="lights" aria-label="队友状态">
       <svg viewBox="0 0 40 32" aria-hidden="true" id="lightsSvg"></svg>
       <span class="who" id="whoText">检查中</span>
       <div class="pop" id="memberPop"></div>
     </button>
+    <button class="hbtn" id="skillsBtn" title="团队共用的技能库"><svg class="i"><use href="#i-book"/></svg><span>技能库</span></button>
     <button class="hbtn" id="memBtn"><svg class="i"><use href="#i-brain"/></svg><span>对话记忆</span></button>
     <button class="hbtn" id="dirBtn"><svg class="i"><use href="#i-folder"/></svg><span>文件夹</span></button>
   </header>
@@ -431,6 +493,10 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
       <small>由"团队结论由谁整理"的那位队友兼任记忆整理，每轮多用一次额度。</small>
     </div>
     <div class="field">
+      <label><input type="checkbox" id="sProc" style="width:auto;margin:0 4px 0 0">显示后台过程（排查问题时用）</label>
+      <small>打开后能看到每位队友读了哪些文件、跑了什么命令，以及原始报错。平时关着就行。</small>
+    </div>
+    <div class="field">
       <label for="sHops">队友之间最多自动接力几次</label>
       <input id="sHops" type="number" min="0" max="50">
       <small>队友在回复里 @ 别人会自动交接。超过次数就停下来等你看。</small>
@@ -476,6 +542,41 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
   </form>
 </dialog>
 
+<div id="cmenu" role="menu"></div>
+
+<dialog id="projDlg">
+  <form class="dlg" onsubmit="return false">
+    <h3 id="pTitle">新建项目</h3>
+    <p>项目把相关的对话归到一起，每个对话就是项目里的一个任务。项目说明会给项目里所有任务的队友看，他们还会参考同项目其他任务定下的结论。</p>
+    <div class="field"><label for="pName">项目名称</label><input id="pName" maxlength="40" placeholder="比如 双十一大促"></div>
+    <div class="field"><label for="pBrief">项目说明</label><textarea id="pBrief" rows="7" placeholder="目标、背景、时间节点、预算、要求……"></textarea><small>写得越具体，队友越不容易跑偏。</small></div>
+    <div class="dfoot"><span class="testres" id="pRes"></span><button type="button" class="btn danger" id="pDelete">删除项目</button><button type="button" class="btn" id="pCancel">取消</button><button type="button" class="btn pri" id="pSave">保存</button></div>
+  </form>
+</dialog>
+
+<dialog id="skillsDlg">
+  <div class="dlg">
+    <h3>技能库</h3>
+    <p>技能是可以反复用的做事方法：步骤、分工、标准、模板和踩过的坑。所有对话、所有队友共用。队友动手前会先看技能库，任务对得上就照着做。格式和 Claude Skills 一样（SKILL.md），可以直接导入。</p>
+    <div class="scrollable"><div id="skillList"></div></div>
+    <div class="dfoot"><div class="left"><button class="btn pri" id="skillNew">新建技能</button><button class="btn" id="skillFromConv">从当前对话整理</button><button class="btn" id="skillImport">导入</button><input type="file" id="skillFile" accept=".md,.markdown,.txt,.zip" hidden></div><button class="btn" id="skillOpenDir" title="在文件夹中显示">文件夹</button><button class="btn" id="skillsClose">完成</button></div>
+  </div>
+</dialog>
+
+<dialog id="skillDlg">
+  <form class="dlg" onsubmit="return false">
+    <h3 id="kTitle">新建技能</h3>
+    <p id="kSub">写清楚什么时候用、怎么做。队友会根据"什么时候用"判断要不要读它。</p>
+    <div class="scrollable">
+      <div class="field"><label for="kName">技能名称</label><input id="kName" maxlength="60" placeholder="比如 小红书种草文案"></div>
+      <div class="field"><label for="kDesc">什么时候用</label><input id="kDesc" maxlength="600" placeholder="比如 写小红书种草笔记、产品推广文案时使用"></div>
+      <div class="field"><label for="kBody">具体做法（Markdown）</label><textarea id="kBody" spellcheck="false" placeholder="步骤、分工、质量标准、模板、注意事项……"></textarea><small class="kfiles" id="kFiles"></small></div>
+      <label class="check"><input type="checkbox" id="kEnabled" checked>启用这个技能</label>
+    </div>
+    <div class="dfoot"><span class="testres" id="kRes"></span><button type="button" class="btn danger" id="kDelete">删除</button><button type="button" class="btn" id="kCancel">取消</button><button type="button" class="btn pri" id="kSave">保存</button></div>
+  </form>
+</dialog>
+
 <dialog id="teamDlg">
   <div class="dlg">
     <h3>队友</h3>
@@ -516,6 +617,10 @@ dialog::backdrop{background:rgba(15,16,40,.45)}
         <label class="check"><input type="checkbox" id="mReadOnly">只读：它不能写文件（成果写在回复里）</label>
         <label class="check"><input type="checkbox" id="mVer" checked>用 --version 检查它是否安装好</label>
       </div>
+      <div class="field" id="accessField" hidden>
+        <label class="check"><input type="checkbox" id="mFull">完全权限：能运行命令、读写电脑上任何地方的文件，不用确认</label>
+        <small>关着是安全模式：只在对话文件夹里干活（Gemini 只能读不能写）。有的 AI 在 Windows 的安全模式下跑不了命令，遇到时打开这个。</small>
+      </div>
       <label class="check"><input type="checkbox" id="mEnabled" checked>启用这位队友</label>
     </div>
     <div class="dfoot"><span class="testres" id="mRes"></span><button type="button" class="btn danger" id="mDelete">删除</button><button type="button" class="btn" id="mCancel">取消</button><button type="button" class="btn pri" id="mSave">保存并测试</button></div>
@@ -536,7 +641,7 @@ const $ = (s) => document.querySelector(s);
 const BUILTIN_COLORS = { claude: '#FF5A4E', codex: '#22D39A', gemini: '#3D7BFF' };
 const colorOf = (id) => (S.members.find(m=>m.id===id)||{}).color || BUILTIN_COLORS[id] || '#8C8FB8';
 const enabledMembers = () => S.members.filter(m=>m.enabled);
-const S = { convs: [], members: [], settings: {}, profile: {}, cur: null, conv: null, pending: [] };
+const S = { convs: [], members: [], settings: {}, profile: {}, skills: [], projects: [], cur: null, conv: null, pending: [] };
 const nodes = new Map();
 const store = { get(k){ try{return localStorage.getItem(k)}catch(_){return null} }, set(k,v){ try{localStorage.setItem(k,v)}catch(_){} } };
 
@@ -551,8 +656,9 @@ function fileUrl(p,dl){return `/files/${S.cur}/${p.split('/').map(encodeURICompo
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
 async function api(p, body){
   const r = await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json','X-Hola':'1'},body:JSON.stringify(body||{})});
-  if(!r.ok) throw new Error('请求失败 '+r.status);
-  return r.json();
+  let j=null; try{ j=await r.json() }catch(_){}
+  if(!r.ok&&!(j&&j.error)) throw new Error('请求失败 '+r.status);
+  return j||{};
 }
 function rel(ts){
   const d=Date.now()-ts, m=6e4;
@@ -608,27 +714,96 @@ function md(src){
 }
 
 // ---------- sidebar
+function convRow(c, inProj){
+  const lamp=c.running?`<span class="lamp run" style="background:${(c.working||[])[0]?colorOf(c.working[0]):'#fff'}"></span>`:'<span class="lamp"></span>';
+  const done=c.status==='done';
+  const ck=inProj?`<button class="ck" data-status title="${done?'标为进行中':'标为完成'}" aria-label="${done?'标为进行中':'标为完成'}">${done?'<svg class="i"><use href="#i-check"/></svg>':''}</button>`:'';
+  return `<div class="conv${c.id===S.cur?' on':''}${inProj&&done?' done':''}" data-id="${c.id}" role="button" tabindex="0" draggable="true">${inProj?ck:lamp}<span class="t" data-raw>${esc(c.title)}</span>${inProj&&c.running?lamp:''}<button class="x" data-menu title="更多" aria-label="更多"><svg class="i" style="width:15px;height:15px"><use href="#i-dots"/></svg></button></div>`;
+}
 function renderConvs(){
-  const el=$('#convs');
-  if(!S.convs.length){el.innerHTML='<h6>还没有对话</h6>';return}
+  const el=$('#convs'); const P=S.projects||[];
+  const byP=new Map(P.map(p=>[p.id,[]])); const loose=[];
+  for(const c of S.convs){ if(c.project&&byP.has(c.project)) byP.get(c.project).push(c); else loose.push(c) }
+  let h=`<div class="sechead"><span>项目</span><button data-newproj title="新建项目" aria-label="新建项目"><svg class="i"><use href="#i-plus"/></svg></button></div>`;
+  if(!P.length) h+=`<div class="phint">新建一个项目，把相关的对话归进去，每个对话就是一个任务，进度一目了然。</div>`;
+  for(const p of P){
+    const list=byP.get(p.id).sort((x,y)=>(x.status==='done')-(y.status==='done'));
+    const done=list.filter(c=>c.status==='done').length;
+    const col=store.get('hola.pc.'+p.id)==='1';
+    h+=`<div class="proj${col?' col':''}" data-pid="${p.id}"><button class="ph" data-ptoggle><svg class="i"><use href="#i-chev"/></svg><span class="pn" data-raw>${esc(p.name)}</span><small>${done}/${list.length}</small></button><button class="pa" data-pnew title="在这个项目里新建任务" aria-label="在这个项目里新建任务"><svg class="i"><use href="#i-plus"/></svg></button><button class="pa" data-pedit title="编辑项目" aria-label="编辑项目"><svg class="i"><use href="#i-dots"/></svg></button></div>`;
+    if(!col) h+=`<div class="ptasks">${list.map(c=>convRow(c,true)).join('')||'<div class="pempty">还没有任务，点 + 新建，或把对话拖进来</div>'}</div>`;
+  }
   const today=new Date().toDateString(); let lastGroup='';
-  el.innerHTML=S.convs.map(c=>{
-    const g=new Date(c.updated).toDateString()===today?'今天':'更早';
-    const head=g!==lastGroup?`<h6>${g}</h6>`:''; lastGroup=g;
-    const lamp=c.running?`<span class="lamp run" style="background:${(c.working||[])[0]?colorOf(c.working[0]):'#fff'}"></span>`:'<span class="lamp"></span>';
-    return `${head}<div class="conv${c.id===S.cur?' on':''}" data-id="${c.id}" role="button" tabindex="0">${lamp}<span class="t" data-raw>${esc(c.title)}</span><button class="x" data-del="${c.id}" title="删除对话" aria-label="删除对话"><svg class="i" style="width:15px;height:15px"><use href="#i-x"/></svg></button></div>`;
-  }).join('');
+  h+=`<div class="sechead" data-dropnone><span>对话</span></div>`;
+  if(!loose.length) h+=`<div class="phint">${S.convs.length?'所有对话都归进了项目':'还没有对话'}</div>`;
+  h+=loose.map(c=>{ const g=new Date(c.updated).toDateString()===today?'今天':'更早'; const head=g!==lastGroup?`<h6>${g}</h6>`:''; lastGroup=g; return head+convRow(c,false) }).join('');
+  el.innerHTML=h;
   el.querySelectorAll('.conv').forEach(d=>{
-    d.onclick=e=>{ if(e.target.closest('[data-del]')||e.target.tagName==='INPUT')return; openConv(d.dataset.id); $('#side').classList.remove('show'); };
+    d.onclick=e=>{ if(e.target.closest('[data-menu],[data-status]')||e.target.tagName==='INPUT')return; openConv(d.dataset.id); $('#side').classList.remove('show'); };
     d.onkeydown=e=>{ if(e.key==='Enter'&&e.target===d) openConv(d.dataset.id) };
     d.ondblclick=()=>renameInline(d);
+    d.ondragstart=e=>{ e.dataTransfer.setData('text/hola-conv',d.dataset.id); e.dataTransfer.effectAllowed='move'; d.classList.add('dragging') };
+    d.ondragend=()=>d.classList.remove('dragging');
   });
-  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=async e=>{
-    e.stopPropagation(); const c=S.convs.find(x=>x.id===b.dataset.del);
-    if(!confirm(`彻底删除「${c.title}」？\n\n聊天记录、对话记忆、附件和队友做出来的文件都会一起永久删除，无法恢复。`))return;
-    await api('conv/delete',{conv:c.id}); if(S.cur===c.id){S.cur=null;S.conv=null;store.set('hola.cur','');renderConv()}
+  el.querySelectorAll('[data-status]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); const c=S.convs.find(x=>x.id===b.closest('.conv').dataset.id); api('conv/status',{conv:c.id,status:c.status==='done'?'doing':'done'}) });
+  el.querySelectorAll('[data-menu]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); convMenu(b, S.convs.find(x=>x.id===b.closest('.conv').dataset.id)) });
+  el.querySelector('[data-newproj]').onclick=()=>openProject(null);
+  el.querySelectorAll('.proj').forEach(row=>{
+    const pid=row.dataset.pid, p=P.find(x=>x.id===pid);
+    row.querySelector('[data-ptoggle]').onclick=()=>{ store.set('hola.pc.'+pid, row.classList.contains('col')?'':'1'); renderConvs() };
+    row.querySelector('[data-pnew]').onclick=async()=>{ store.set('hola.pc.'+pid,''); const {id}=await api('conv/new',{project:pid}); await openConv(id); $('#side').classList.remove('show'); input.focus() };
+    row.querySelector('[data-pedit]').onclick=()=>openProject(p);
   });
+  el.querySelectorAll('.proj,[data-dropnone]').forEach(z=>{
+    z.ondragover=e=>{ if([...e.dataTransfer.types].includes('text/hola-conv')){ e.preventDefault(); z.classList.add('drop') } };
+    z.ondragleave=()=>z.classList.remove('drop');
+    z.ondrop=e=>{ e.preventDefault(); z.classList.remove('drop'); const id=e.dataTransfer.getData('text/hola-conv'); if(id) api('conv/project',{conv:id,project:z.dataset.pid||null}) };
+  });
+  renderCrumb();
 }
+function renderCrumb(){
+  const c=S.convs.find(x=>x.id===S.cur); const p=c&&c.project&&(S.projects||[]).find(x=>x.id===c.project);
+  const b=$('#crumb'); b.hidden=!p; if(p){ b.textContent=p.name+' /'; b.onclick=()=>openProject(p) }
+}
+function closeMenu(){ $('#cmenu').classList.remove('show') }
+document.addEventListener('click',e=>{ if(!e.target.closest('#cmenu')) closeMenu() });
+window.addEventListener('blur',closeMenu);
+function convMenu(btn, c){
+  const m=$('#cmenu'); const P=S.projects||[];
+  m.innerHTML=`<small>移到项目</small>${P.map(p=>`<button data-mv="${p.id}" class="${c.project===p.id?'on':''}"><span class="pnm" data-raw>${esc(p.name)}</span></button>`).join('')}<button data-mv="" class="${c.project?'':'on'}">不放进项目</button><button data-mvnew>新建项目并移入…</button><hr>
+    <button data-st>${c.status==='done'?'标为进行中':'标为完成'}</button><button data-rn>重命名</button><hr><button data-dl class="danger">删除对话</button>`;
+  const r=btn.getBoundingClientRect(); m.classList.add('show');
+  const mh=m.offsetHeight, mw=m.offsetWidth;
+  m.style.left=Math.min(r.left, innerWidth-mw-8)+'px'; m.style.top=(r.bottom+4+mh>innerHeight? Math.max(8,r.top-mh-4) : r.bottom+4)+'px';
+  m.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{ closeMenu(); api('conv/project',{conv:c.id,project:b.dataset.mv||null}) });
+  m.querySelector('[data-mvnew]').onclick=()=>{ closeMenu(); openProject(null, c.id) };
+  m.querySelector('[data-st]').onclick=()=>{ closeMenu(); api('conv/status',{conv:c.id,status:c.status==='done'?'doing':'done'}) };
+  m.querySelector('[data-rn]').onclick=()=>{ closeMenu(); const d=$('#convs').querySelector(`.conv[data-id="${c.id}"]`); if(d) renameInline(d) };
+  m.querySelector('[data-dl]').onclick=async()=>{ closeMenu();
+    if(!confirm(`彻底删除「${c.title}」？\n\n聊天记录、对话记忆、附件和队友做出来的文件都会一起永久删除，无法恢复。`))return;
+    await api('conv/delete',{conv:c.id}); if(S.cur===c.id){S.cur=null;S.conv=null;store.set('hola.cur','');renderConv()} };
+}
+let editingProj=null, projMoveConv=null;
+function openProject(p, moveConv){
+  editingProj=p||null; projMoveConv=moveConv||null;
+  $('#pTitle').textContent=p?'编辑项目':'新建项目';
+  $('#pName').value=p?p.name:''; $('#pBrief').value=p?p.brief||'':'';
+  $('#pDelete').hidden=!p; $('#pRes').textContent='';
+  $('#projDlg').showModal(); $('#pName').focus();
+}
+$('#pCancel').onclick=()=>$('#projDlg').close();
+$('#pSave').onclick=async()=>{
+  const name=$('#pName').value.trim(); if(!name){ $('#pRes').textContent=t('请填写项目名称'); $('#pRes').className='testres bad'; return }
+  const r=await api('projects/save',{project:{id:editingProj&&editingProj.id,name,brief:$('#pBrief').value}});
+  if(r.error){ $('#pRes').textContent=r.error; $('#pRes').className='testres bad'; return }
+  if(projMoveConv) await api('conv/project',{conv:projMoveConv,project:r.id});
+  $('#projDlg').close(); toast(editingProj?'项目已保存':'项目已创建');
+};
+$('#pDelete').onclick=async()=>{
+  if(!editingProj) return;
+  if(!confirm(`删除项目「${editingProj.name}」？\n\n项目里的对话不会被删除，会移到"对话"里。`)) return;
+  await api('projects/delete',{id:editingProj.id}); $('#projDlg').close(); toast('已删除');
+};
 function renameInline(d){
   const c=S.convs.find(x=>x.id===d.dataset.id); const t=d.querySelector('.t');
   const inp=document.createElement('input'); inp.value=c.title; t.replaceWith(inp); inp.focus(); inp.select();
@@ -649,10 +824,10 @@ function renderLights(){
     return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${m.color}" style="color:${m.color}" class="${cls}"/>`;
   }).join('');
   const on=list.filter(m=>m.online).length;
-  const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',memory:'整理记忆中'};
+  const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
     : list.some(m=>m.problem==='检查中…') ? '检查中' : `${on}/${n} 在线`;
-  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}</p></div></div>`).join('') +
+  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}</p></div></div>`).join('') +
     `<div style="padding:6px 8px 4px;display:flex;gap:6px"><span class="btn" id="popRecheck" role="button">重新检查</span><span class="btn" id="popTeam" role="button">管理队友</span></div>`;
   const pt=$('#popTeam'); if(pt) pt.onclick=e=>{e.stopPropagation();$('#memberPop').classList.remove('show');openTeam()};
   const rc=$('#popRecheck'); if(rc) rc.onclick=e=>{e.stopPropagation();api('recheck');toast('正在重新检查队友')};
@@ -709,6 +884,37 @@ function nearBottom(){return scroller.scrollHeight-scroller.scrollTop-scroller.c
 function scrollDown(){scroller.scrollTop=scroller.scrollHeight}
 
 const KIND={think:'思考',tool:'动作',result:'结果',log:'日志',error:'出错',say:'说'};
+// 平时不给老板看后台过程，用工地黑话包装一下；设置里打开"显示后台过程"才显示原始步骤
+const showProc=()=>!!S.settings.showProcess;
+const FUN={
+  zh:{think:['琢磨中','抓耳挠腮中','盯着天花板想事中','灵光一闪中'],read:['翻资料中','埋头看文件中','戴上老花镜中'],web:['上网冲浪中','出门打听消息中'],
+      write:['搬砖中','码字中','砌墙中'],build:['打螺丝中','抡锤子中','拧扳手中','焊接中'],stuck:['被卡住了，换个姿势再来','撞墙了，揉揉头继续'],
+      reply:['组织语言中','打草稿中'],idle:['摸鱼中（其实在等结果）','去厕所了，马上回来','泡杯茶先','伸个懒腰']},
+  en:{think:['Pondering','Scratching head','Staring at the ceiling','Lightbulb moment'],read:['Digging through files','Reading the fine print','Putting on reading glasses'],web:['Surfing the web','Asking around'],
+      write:['Hauling bricks','Typing away','Laying bricks'],build:['Tightening screws','Swinging the hammer','Turning the wrench','Welding'],stuck:['Hit a snag, trying another way','Bumped into a wall, carrying on'],
+      reply:['Finding the words','Drafting'],idle:['Slacking off (actually waiting)','Bathroom break, back soon','Making a cup of tea','Stretching']}
+};
+function stepCat(it){
+  if(it.k==='think') return 'think';
+  if(it.k==='error') return 'stuck';
+  const x=it.t||'';
+  if(/^(读取|查找文件|搜索内容)/.test(x)) return 'read';
+  if(/^(联网搜索|打开网页)/.test(x)) return 'web';
+  if(/^(写入|修改|记入)/.test(x)) return 'write';
+  return 'build';
+}
+function funLabel(m){
+  const L=FUN[window.HOLA_LANG==='en'?'en':'zh'];
+  const steps=(m.process||[]).filter(x=>x.k==='think'||x.k==='tool'||x.k==='error');
+  const lastTs=Math.max(m.startedAt||0,...(m.process||[]).map(x=>x.ts||0));
+  const idle=Date.now()-(lastTs||Date.now());
+  let cat = !steps.length ? (m.text ? 'reply' : 'think') : idle>45000 ? (m.text ? 'reply' : 'idle') : stepCat(steps[steps.length-1]);
+  const pool=L[cat]; const i = cat==='idle' ? Math.floor(idle/20000) : steps.length;
+  return pool[i%pool.length];
+}
+function friendlyErr(text){
+  return String(text||'').replace(/\n\n(错误信息：|Error:)\n[\s\S]*?(?=\n\n(常见原因|Common causes)|$)/,'');
+}
 function stepHTML(it){return `<div class="step ${it.k}"><span class="k">${KIND[it.k]||''}</span><span data-raw>${esc(it.t)}</span></div>`}
 function filesHTML(list, boss){
   if(!list||!list.length) return '';
@@ -728,19 +934,26 @@ function msgHTML(m){
     if(running) return `<div class="memline"><svg class="i"><use href="#i-brain"/></svg><span class="beam" style="color:${colorOf(m.from)}"></span>${esc(nameOf(m.from))} 正在整理对话记忆…</div>`;
     return `<div class="memline${m.status==='error'?' err':''}" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-brain"/></svg><span>${m.memoryChanged?'<b>对话记忆已更新</b>'+(window.HOLA_LANG==='en'?': ':'：'):''}<span data-raw>${esc(m.text)}</span></span>${m.memoryChanged?'<span class="link" data-openmem>查看</span>':''}</div>`;
   }
+  if(m.reason==='skill'){
+    if(running) return `<div class="memline"><svg class="i"><use href="#i-book"/></svg><span class="beam" style="color:${colorOf(m.from)}"></span>${esc(nameOf(m.from))} 正在把这次的做法整理成技能…</div>`;
+    if(m.status!=='done') return `<div class="memline err"><svg class="i"><use href="#i-book"/></svg><span data-raw>${esc(m.text)}</span></div>`;
+    return `<div class="memline" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-book"/></svg><span><b>${m.skillUpdated?'技能已更新':'已存为技能'}</b>${window.HOLA_LANG==='en'?': ':'：'}<b data-raw>${esc(m.skillName||'')}</b>${m.text?` · <span data-raw>${esc(m.text)}</span>`:''}</span><span class="link" data-openskill="${esc(m.skillId||'')}">查看</span></div>`;
+  }
   if(m.from==='system'&&m.divider) return `<div class="divider"><span><i></i>${esc(m.text)}</span></div>`;
   const tag = m.from==='boss' ? '' : ({mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',all:'依次发言'})[m.reason]||'';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
-  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':'仍有分歧，已写明'}</small></div>` : '';
+  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
   const WK={handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论'};
-  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${WK[m.reason]||'正在做'} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
-  else body=conclHead+`<div class="md" data-raw>${md(m.text)}</div>`;
+  const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
+  const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
+  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
+  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`;
   const last=m.process.length?m.process[m.process.length-1]:null;
-  const latest=running&&last?`<div class="latest" data-raw>${esc(t(KIND[last.k]||''))}　${esc(last.t.split('\n')[0])}</div>`:'';
+  const latest = !running ? '' : sp ? (last?`<div class="latest" data-raw>${esc(t(KIND[last.k]||''))}　${esc(last.t.split('\n')[0])}</div>`:'') : (m.text?`<div class="latest" data-raw data-fun="${m.id}">${esc(funLabel(m))}</div>`:'');
   const steps=m.process.filter(it=>it.k!=='say');
-  const proc=steps.length?`<details class="proc"><summary><svg class="i"><use href="#i-chev"/></svg>过程 ${steps.length} 步${m.endedAt&&m.startedAt?' · 用时 '+dur(m.endedAt-m.startedAt):''}</summary><div class="steps">${steps.map(stepHTML).join('')}</div></details>`:'';
+  const proc=!sp ? (!running&&m.endedAt&&m.startedAt&&m.from!=='boss'?`<div class="took">${window.HOLA_LANG==='en'?'Worked for ':'忙活了 '}${dur(m.endedAt-m.startedAt)}</div>`:'') : steps.length?`<details class="proc"><summary><svg class="i"><use href="#i-chev"/></svg>过程 ${steps.length} 步${m.endedAt&&m.startedAt?' · 用时 '+dur(m.endedAt-m.startedAt):''}</summary><div class="steps">${steps.map(stepHTML).join('')}</div></details>`:'';
   const state=m.status==='stopped'?' · 已叫停':m.status==='error'?' · 出错':'';
   const files = m.from==='boss' ? filesHTML(m.attachments,true) : '';
   const out = m.from!=='boss' && m.files && m.files.length ? `<div class="filebar">产出 ${m.files.length} 个文件</div>${filesHTML(m.files)}` : '';
@@ -748,7 +961,7 @@ function msgHTML(m){
   const memb = m.from!=='boss';
   const bossPic = !memb && S.profile.avatar ? ` pic" style="background-image:url('${S.profile.avatar}')` : '';
   return `<div class="row ${memb?'mem':'boss'}${concl?' concl':''}"${memb?` style="--mc:${colorOf(m.from)}"`:''}><span class="av ${memb?'mem':'boss'}${bossPic}"></span><div class="col">
-    <div class="meta"><span class="who">${esc(nameOf(m.from))}</span>${tag?`<span>${tag}</span>`:''}${stance}<span>${fmtTime(m.ts)}${state}</span></div>
+    <div class="meta"><span class="who">${esc(nameOf(m.from))}</span>${tag?`<span>${tag}</span>`:''}${stance}${(m.skills||[]).map(k=>`<span class="skilltag" data-openskill="${esc(k.id)}" title="用了技能库里的这个技能"><svg class="i"><use href="#i-book"/></svg><span data-raw>${esc(k.name)}</span></span>`).join('')}<span>${fmtTime(m.ts)}${state}</span></div>
     ${files}${showBubble?`<div class="bubble${m.status==='error'?' err':''}">${body}${latest}</div>`:''}${out}${proc}</div></div>`;
 }
 function putMsg(m, stick){
@@ -766,6 +979,10 @@ function putMsg(m, stick){
 function addStep(id,item){
   if(!S.conv) return; const m=S.conv.messages.find(x=>x.id===id); if(!m) return;
   m.process.push(item); const el=nodes.get(id); if(!el||item.k==='say') return;
+  if(!showProc()){
+    if(!el.querySelector('[data-fun]')) { putMsg(m); return }
+    el.querySelectorAll('[data-fun]').forEach(x=>x.textContent=funLabel(m)); return;
+  }
   const keep=nearBottom(); let det=el.querySelector('details.proc');
   if(!det){putMsg(m);return}
   const n=m.process.filter(x=>x.k!=='say').length;
@@ -778,6 +995,8 @@ function addStep(id,item){
   if(keep) scrollDown();
 }
 function bindFiles(el){
+  el.querySelectorAll('[data-openskill]').forEach(b=>b.onclick=()=>{ const k=S.skills.find(x=>x.id===b.dataset.openskill); if(k) openSkill(k); else toast('这个技能已经不在技能库里了') });
+  el.querySelectorAll('[data-saveskill]').forEach(b=>b.onclick=()=>distillSkill(b.dataset.saveskill));
   el.querySelectorAll('[data-openmem]').forEach(b=>b.onclick=()=>{ if(!$('#drawer').classList.contains('show')) $('#memBtn').click() });
   el.querySelectorAll('[data-img]').forEach(a=>a.onclick=e=>{e.preventDefault();const lb=$('#lightbox');lb.querySelector('img').src=a.dataset.img;lb.classList.add('show')});
   el.querySelectorAll('[data-reveal]').forEach(b=>b.onclick=()=>api('open',{conv:S.cur,file:b.dataset.reveal}));
@@ -791,7 +1010,10 @@ function openPreview(p){
   $('#previewDlg').showModal();
 }
 $('#pvClose').onclick=()=>{$('#previewDlg').close();$('#pvFrame').src='about:blank'};
-setInterval(()=>document.querySelectorAll('.timer').forEach(t=>t.textContent=dur(Date.now()-Number(t.dataset.start))),1000);
+setInterval(()=>{
+  document.querySelectorAll('.timer').forEach(t=>t.textContent=dur(Date.now()-Number(t.dataset.start)));
+  if(S.conv) document.querySelectorAll('[data-fun]').forEach(x=>{ const m=S.conv.messages.find(y=>y.id===x.dataset.fun); if(m){ const v=funLabel(m); if(x.textContent!==v) x.textContent=v } });
+},1000);
 
 function renderRun(){
   const c=S.convs.find(x=>x.id===S.cur);
@@ -909,19 +1131,77 @@ $('#openSettings').onclick=()=>{
   $('#sConcl').value=s.conclusionBy||'claude';
   $('#sRounds').value=s.maxDiscussRounds??3;
   $('#sLang').value=window.HOLA_LANG;
-  $('#sMem').checked=s.autoMemory!==false;
+  $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess;
   $('#sHops').value=s.maxAutoTurns??10;
   $('#settings').showModal();
 };
 $('#sCancel').onclick=()=>$('#settings').close();
 $('#sSave').onclick=async()=>{
-  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,autoMemory:$('#sMem').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
+  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
 };
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
 $('#quitApp').onclick=async()=>{ if(!confirm('退出 Hola？正在进行的工作会被叫停。下次双击桌面图标即可重新打开。'))return; await api('quit'); document.body.innerHTML='<div style="margin:auto;text-align:center;color:#888;font-size:15px">Hola 已退出，可以关掉这个窗口了。</div>' };
 
 // ---------- team manager
+// ---------------- 技能库
+let editingSkill=null;
+function openSkills(){ renderSkills(); if(!$('#skillsDlg').open) $('#skillsDlg').showModal() }
+function renderSkills(){
+  const list=S.skills||[];
+  $('#skillList').innerHTML = list.length ? list.map(k=>{
+    const src = k.source==='conversation' ? `<span>从对话整理</span>${k.fromConv?`<span data-raw>${window.HOLA_LANG==='en'?': ':'：'}${esc(k.fromConv)}</span>`:''}` : `<span>${k.source==='import'?'导入':'手写'}</span>`;
+    const meta = [src, `<span>${k.uses?`用过 ${k.uses} 次`:'还没用过'}</span>`, k.files.length?`<span>附带 ${k.files.length} 个文件</span>`:''].filter(Boolean);
+    return `<div class="skill-row${k.enabled?'':' off'}"><span class="ic"><svg class="i"><use href="#i-book"/></svg></span>
+      <div class="info"><b data-raw>${esc(k.name)}</b><p data-raw>${esc(k.description||'')}</p><small>${meta.join(' · ')}</small></div>
+      <div class="acts"><button class="btn" data-kedit="${esc(k.id)}">编辑</button><button class="btn" data-ktoggle="${esc(k.id)}">${k.enabled?'停用':'启用'}</button></div></div>`;
+  }).join('') : `<div class="skills-empty">技能库还是空的。<br>在团队结论旁点"存为技能"，或者点下面的"从当前对话整理"，让队友把这次的做法沉淀下来；也可以自己新建，或导入现成的 SKILL.md。</div>`;
+  $('#skillList').querySelectorAll('[data-kedit]').forEach(b=>b.onclick=()=>openSkill(list.find(k=>k.id===b.dataset.kedit)));
+  $('#skillList').querySelectorAll('[data-ktoggle]').forEach(b=>b.onclick=async()=>{ const k=list.find(x=>x.id===b.dataset.ktoggle); await api('skills/toggle',{id:k.id,enabled:!k.enabled}) });
+  $('#skillFromConv').disabled = !S.cur;
+}
+function openSkill(k){
+  editingSkill=k||null;
+  $('#kTitle').textContent = k ? '编辑技能' : '新建技能';
+  $('#kName').value = k ? k.name : ''; $('#kDesc').value = k ? k.description : ''; $('#kBody').value = k ? k.body : '';
+  $('#kEnabled').checked = k ? k.enabled : true;
+  $('#kFiles').textContent = k && k.files.length ? '同一文件夹里的其他文件：'+k.files.join('、') : '';
+  $('#kDelete').hidden = !k; $('#kRes').textContent=''; $('#kRes').className='testres';
+  $('#skillDlg').showModal();
+}
+async function distillSkill(fromMsg){
+  if(!S.cur) return toast('先开始一个对话');
+  const r = await api('skills/distill',{conv:S.cur,msg:fromMsg||null});
+  if(r&&!r.error) toast('队友正在把这次的做法整理成技能');
+}
+$('#skillsBtn').onclick=openSkills;
+$('#skillsClose').onclick=()=>$('#skillsDlg').close();
+$('#skillNew').onclick=()=>openSkill(null);
+$('#skillFromConv').onclick=()=>{ $('#skillsDlg').close(); distillSkill(null) };
+$('#skillOpenDir').onclick=()=>api('skills/open',{});
+$('#skillImport').onclick=()=>$('#skillFile').click();
+$('#skillFile').onchange=async()=>{
+  const f=$('#skillFile').files[0]; $('#skillFile').value=''; if(!f) return;
+  try{
+    const r=await fetch('/api/skills/import?name='+encodeURIComponent(f.name),{method:'POST',headers:{'X-Hola':'1','Content-Type':'application/octet-stream'},body:f});
+    const j=await r.json(); if(!r.ok||j.error) throw new Error(j.error||'导入失败');
+    toast('已导入技能');
+  }catch(e){ toast('导入失败：'+e.message) }
+};
+$('#kCancel').onclick=()=>$('#skillDlg').close();
+$('#kSave').onclick=async()=>{
+  const skill={id:editingSkill&&editingSkill.id, name:$('#kName').value.trim(), description:$('#kDesc').value.trim(), body:$('#kBody').value, enabled:$('#kEnabled').checked};
+  if(!skill.name) { $('#kRes').textContent=t('请填写技能名称'); $('#kRes').className='testres bad'; return }
+  const r=await fetch('/api/skills/save',{method:'POST',headers:{'Content-Type':'application/json','X-Hola':'1'},body:JSON.stringify({skill})});
+  const j=await r.json(); if(!r.ok||j.error){ $('#kRes').textContent=j.error||t('保存失败'); $('#kRes').className='testres bad'; return }
+  $('#skillDlg').close(); toast('技能已保存');
+};
+$('#kDelete').onclick=async()=>{
+  if(!editingSkill) return;
+  if(!confirm(`删除技能「${editingSkill.name}」？`)) return;
+  await api('skills/delete',{id:editingSkill.id}); $('#skillDlg').close(); toast('已删除');
+};
+
 const PRESETS = [
   { k:'deepseek-pro', label:'DeepSeek（V4 Pro，更强）', base:'https://api.deepseek.com', model:'deepseek-v4-pro', name:'DeepSeek', strengths:'中文写作、逻辑推理、数学和代码', strengthsEn:'Writing, logical reasoning, math and code' },
   { k:'deepseek-flash', label:'DeepSeek（Flash，更快更便宜）', base:'https://api.deepseek.com', model:'deepseek-flash', name:'DeepSeek', strengths:'中文写作、快速回答、日常推理', strengthsEn:'Writing, quick answers, everyday reasoning' },
@@ -938,7 +1218,7 @@ let editing = null, mType = 'api', mColor = SWATCHES[0];
 function openTeam(){ renderTeam(); if(!$('#teamDlg').open) $('#teamDlg').showModal() }
 function renderTeam(){
   $('#teamList').innerHTML = S.members.map(m=>{
-    const kind = m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行';
+    const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.access==='full' ? '</span><span class="tag">完全权限' : '');
     const sub = !m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线');
     return `<div class="team-row${m.enabled?'':' disabled'}"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span>
       <div class="info"><b>${esc(m.name)}</b><span class="tag">${kind}</span><small>${esc(m.strengths)}</small><small class="${m.enabled&&!m.online?'bad':''}">${sub}</small></div>
@@ -966,7 +1246,8 @@ function openMember(m){
   editing = m || null;
   const builtin = !!(m && m.builtin);
   $('#mTitle').textContent = m ? `编辑 ${m.name}` : '添加队友';
-  $('#mSub').textContent = builtin ? '内置队友只能改颜色、擅长什么，以及是否启用。' : '填好以后点"保存并测试"，会发一句话试试能不能连上。';
+  $('#mSub').textContent = builtin ? '内置队友只能改颜色、擅长什么、权限，以及是否启用。' : '填好以后点"保存并测试"，会发一句话试试能不能连上。';
+  $('#mFull').checked = !!(m && m.access==='full');
   $('#mPreset').innerHTML = PRESETS.map(p=>`<option value="${p.k}">${esc(p.label)}</option>`).join('');
   const used = new Set(S.members.map(x=>x.color));
   mColor = m ? m.color : (SWATCHES.find(c=>!used.has(c)) || SWATCHES[0]);
@@ -987,8 +1268,17 @@ function openMember(m){
   if(!m) applyPreset();
   $('#mDelete').hidden = !m || builtin;
   $('#mRes').textContent=''; $('#mRes').className='testres';
+  showAccess();
   $('#memberDlg').showModal();
 }
+// 认得的三种命令行（Claude / Codex / Antigravity）才能一键切换权限
+const ACCESS_PARSERS = ['claude-stream','codex-json','agy-json'];
+const accessShown = ()=> editing && editing.builtin ? !!editing.access : mType==='cli' && ACCESS_PARSERS.includes($('#mParser').value);
+function showAccess(){ $('#accessField').hidden = !accessShown() }
+$('#mParser').addEventListener('change', showAccess);
+$('#mFull').onchange = ()=>{
+  if($('#mFull').checked && !confirm('打开完全权限？\n\n这位队友将能运行任何命令、修改或删除你电脑上任何地方的文件，而且不会先问你。请只给你信任的 AI 打开，重要文件记得备份。')) $('#mFull').checked = false;
+};
 function applyPreset(){
   const p = PRESETS.find(x=>x.k===$('#mPreset').value); if(!p) return;
   if(p.base) $('#mBase').value = p.base;
@@ -997,7 +1287,7 @@ function applyPreset(){
   if(!editing){ if(p.name && !S.members.some(x=>x.name.toLowerCase()===p.name.toLowerCase())) $('#mName').value = (window.HOLA_LANG==='en'&&p.nameEn)||p.name; if(p.strengths) $('#mStrengths').value = (window.HOLA_LANG==='en'&&p.strengthsEn)||p.strengths; }
 }
 $('#mPreset').onchange = applyPreset;
-$('#mType').querySelectorAll('button').forEach(b=>b.onclick=()=>setType(b.dataset.t));
+$('#mType').querySelectorAll('button').forEach(b=>b.onclick=()=>{setType(b.dataset.t);showAccess()});
 $('#openTeam').onclick = openTeam;
 $('#teamClose').onclick = ()=>$('#teamDlg').close();
 $('#teamRecheck').onclick = ()=>{api('recheck');toast('正在重新检查队友')};
@@ -1012,6 +1302,7 @@ $('#mSave').onclick = async()=>{
   const builtin = !!(editing && editing.builtin);
   const member = { id: editing ? editing.id : undefined, name: builtin ? editing.name : $('#mName').value.trim(), color: mColor,
     strengths: $('#mStrengths').value.trim(), enabled: $('#mEnabled').checked };
+  if(accessShown()) member.access = $('#mFull').checked ? 'full' : 'safe';
   if(!builtin){
     member.type = mType;
     if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim() });
@@ -1090,7 +1381,7 @@ function connect(){
   es.onmessage=e=>{
     const ev=JSON.parse(e.data);
     if(ev.type==='init'){
-      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; renderMe();
+      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; S.skills=ev.skills||[]; S.projects=ev.projects||[]; renderMe();
       if(!S.settings.uiLang){ api('settings',{uiLang:window.HOLA_LANG}); S.settings.uiLang=window.HOLA_LANG; }
       else if(S.settings.uiLang!==window.HOLA_LANG){ window.setHolaLang(S.settings.uiLang); location.reload(); return; }
       const want=S.cur||store.get('hola.cur'); renderConvs();
@@ -1100,10 +1391,12 @@ function connect(){
     else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder() } }
     else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss') }
     else if(ev.type==='proc'){ if(ev.conv===S.cur) addStep(ev.id,ev.item) }
+    else if(ev.type==='projects'){ S.projects=ev.projects||[]; renderConvs() }
+    else if(ev.type==='skills'){ S.skills=ev.skills||[]; if($('#skillsDlg').open) renderSkills() }
     else if(ev.type==='profile'){ S.profile=ev.profile; renderMe(); if(S.conv) renderConv() }
     else if(ev.type==='memory'){ if(ev.conv===S.cur&&$('#drawer').classList.contains('show')&&document.activeElement!==$('#memText')){$('#memText').value=ev.memory;$('#memSaved').textContent='队友刚更新了记忆'} }
     else if(ev.type==='members'){ S.members=ev.members; renderLights(); if($('#feed .empty')) renderEmpty(); if($('#teamDlg').open) renderTeam() }
-    else if(ev.type==='settings'){ S.settings=ev.settings; S.members=ev.members; renderLights() }
+    else if(ev.type==='settings'){ const pv=!!S.settings.showProcess; S.settings=ev.settings; S.members=ev.members; renderLights(); if(pv!==!!S.settings.showProcess&&S.conv) renderConv() }
   };
 }
 renderUnder(); connect();
