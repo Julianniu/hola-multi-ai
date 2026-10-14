@@ -13,6 +13,13 @@ const office = require('./office');
 
 const ROOT = __dirname;
 const IS_WIN = process.platform === 'win32';
+// Mac 上从程序坞 / 访达打开时 PATH 很短，找不到 node、claude、codex、agy：补上常见的安装位置
+if (!IS_WIN) {
+  const home = require('os').homedir();
+  const extra = [`${home}/.local/bin`, `${home}/.hola-tools/bin`, '/opt/homebrew/bin', '/usr/local/bin', `${home}/.npm-global/bin`];
+  const cur = String(process.env.PATH || '').split(':').filter(Boolean);
+  process.env.PATH = [...extra.filter((d) => !cur.includes(d)), ...cur].join(':');
+}
 // node server.js --demo：用内置的演示队友，不需要任何账号就能体验
 const DEMO = process.argv.includes('--demo');
 const CONFIG_PATH = process.env.TEAM_CONFIG ? path.resolve(process.env.TEAM_CONFIG) : path.join(ROOT, DEMO ? 'demo' : '', 'config.json');
@@ -235,7 +242,11 @@ function whereAll(cmd) {
 }
 
 async function resolveCmd(cmd) {
-  if (!IS_WIN) return { file: cmd, shell: false };
+  if (!IS_WIN) {
+    if (cmd.includes('/')) return fileExists(cmd) ? { file: cmd, shell: false } : null;
+    const hit = String(process.env.PATH || '').split(':').filter(Boolean).map((d) => path.join(d, cmd)).find(fileExists);
+    return hit ? { file: hit, shell: false } : null;
+  }
   if (/[\\/]/.test(cmd)) return fileExists(cmd) ? { file: cmd, shell: /\.(cmd|bat)$/i.test(cmd) } : null;
   // 自己按 PATH 查找，避免 where 的 GBK 输出把中文路径弄成乱码
   const found = [];
@@ -268,6 +279,8 @@ function spawnMember(m, args, opts) {
   let file = m.resolved.file;
   let finalArgs = args;
   const o = { windowsHide: true, ...opts };
+  // Mac / Linux：让它自成一个进程组，叫停时能连同它启动的子进程一起结束
+  if (!IS_WIN) o.detached = true;
   if (m.resolved.shell) {
     file = '"' + file + '"';
     finalArgs = args.map(winQuote);
@@ -296,7 +309,7 @@ function cleanEnv() {
 function killTree(child) {
   if (!child || child.exitCode !== null) return;
   if (IS_WIN) { try { spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }); } catch (_) {} }
-  else { try { child.kill('SIGTERM'); } catch (_) {} }
+  else { try { process.kill(-child.pid, 'SIGTERM'); } catch (_) { try { child.kill('SIGTERM'); } catch (_) {} } }
 }
 
 async function checkMember(m) {
@@ -1120,7 +1133,9 @@ function phaseGuide(c, m, turn) {
   }
 }
 
-const LOGIN_BAT = { claude: 'Login-Claude.bat', codex: 'Login-Codex.bat', gemini: 'Login-Gemini.bat' };
+const LOGIN_BAT = IS_WIN
+  ? { claude: 'Login-Claude.bat', codex: 'Login-Codex.bat', gemini: 'Login-Gemini.bat' }
+  : { claude: 'mac/Login-Claude.command', codex: 'mac/Login-Codex.command', gemini: 'mac/Login-Gemini.command' };
 function loginHint(m) {
   if (m.type === 'api') return T('\n\n常见原因：API Key 不对、余额不足，或模型名写错了。', '\n\nCommon causes: wrong API key, no balance left, or a wrong model name.');
   const how = LOGIN_BAT[m.id] ? T(`双击 Hola 文件夹里的 ${LOGIN_BAT[m.id]} 重新登录`, `double-click ${LOGIN_BAT[m.id]} in the Hola folder to sign in again`)

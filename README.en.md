@@ -70,7 +70,7 @@ To see how it works first, use **demo mode**: teammates follow a scripted reply 
 
 1. Install [Node.js](https://nodejs.org/) (LTS, 18 or later).
 2. Download this project (green **Code** button → **Download ZIP**) and unzip it.
-3. Windows: double-click `START-DEMO.bat`. Other systems: run `node server.js --demo` in the project folder.
+3. Windows: double-click `START-DEMO.bat`. Mac: in Terminal, type `bash ` (with a trailing space), drag `mac/START-DEMO.command` into the window and press Enter. Other systems: run `node server.js --demo` in the project folder.
 4. Open <http://localhost:3457> and pick **English** under **Settings → 界面语言 / Language** if it isn't already.
 
 ## Install (Windows)
@@ -91,7 +91,20 @@ To see how it works first, use **demo mode**: teammates follow a scripted reply 
 >
 > **Gemini**: since June 2026 Google no longer lets personal subscriptions use the Gemini CLI; it was replaced by the [Antigravity CLI](https://antigravity.google/docs/cli/install/) (`agy`). `SETUP.bat` and `Login-Gemini.bat` already use it.
 
-macOS / Linux: the core is a zero-dependency Node.js app, so run `node server.js` and open <http://localhost:3456>. The desktop launcher and setup scripts are Windows-only for now and the app hasn't been fully tested on these systems. Contributions welcome.
+## Install (Mac, beta)
+
+> The Mac version is the same app as the Windows one; only installing and launching differ. **It hasn't been fully tested on a real Mac yet.** Please report problems in Issues.
+
+**You need:** macOS, [Node.js](https://nodejs.org/) LTS (18 or later), and the same subscriptions as on Windows.
+
+**Steps:**
+1. Download this project (green **Code** button → **Download ZIP**) and unzip it somewhere permanent, such as a `hola` folder in Documents.
+2. Open Terminal (search for "Terminal" in Launchpad), type `bash ` (with a trailing space), drag `SETUP.command` from the `mac` folder into the window and press Enter. It installs the three official CLIs (no admin password needed), walks you through signing in, and creates the **Hola** app.
+3. From then on, open **Hola** from Launchpad or your desktop.
+
+After SETUP has run once, the other files in the `mac` folder can be double-clicked: `START.command` (debug mode, shows errors), `START-DEMO.command` (demo mode), and `Login-Claude.command` / `Login-Codex.command` / `Login-Gemini.command` (sign in again). If you move the Hola folder, run `SETUP.command` again.
+
+Linux: the core also works there. Run `node server.js` and open <http://localhost:3456>; there are no dedicated setup scripts yet.
 
 ## How to use
 
@@ -156,7 +169,7 @@ After each round ──→ the conversation memory is updated automatically
 
 ## Contributing
 
-Issues and pull requests are welcome, especially for: launchers for macOS / Linux, more AI presets, and more interface languages.
+Issues and pull requests are welcome, especially for: testing the Mac version on a real Mac, launchers for Linux, more AI presets, and more interface languages.
 
 To work on the interface and flow without signing in to anything, use demo mode: `node server.js --demo` (the teammates' script is in `demo/fake-ai.js`). Interface strings live in `public/i18n.js`.
 

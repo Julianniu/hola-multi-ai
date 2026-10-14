@@ -19,6 +19,7 @@ Hola puts several AIs (Claude, Codex, Gemini, plus any OpenAI-compatible API or 
 - `demo/` — `node server.js --demo` uses `demo/config.json` and `demo/fake-ai.js` (scripted teammates, no accounts). Data goes to `data-demo/` and `demo-workspace/`.
 - `config.json` — member definitions (commands, args, parser). The repo copy is the **safe default** (Gemini read-only, no dangerous flags).
 - Windows launchers: `Hola.vbs` (UTF-16 LE with BOM; starts server hidden, opens Edge/Chrome `--app=`), `SETUP.bat`, `START.bat`, `START-DEMO.bat`, `Create-Desktop-Icon.bat`, `Login-Claude/Codex/Gemini.bat`, `tools/install-shortcut.ps1`. All `.bat` files must stay CRLF + UTF-8 (`chcp 65001`), messages bilingual.
+- Mac launchers (beta, not yet run on a real Mac) live in `mac/`: `common.sh` (finds the Hola folder, extends PATH), `SETUP.command` (installs Claude Code / Codex with `npm -g --prefix ~/.hola-tools`, agy via its `install.sh`, logs in, clears quarantine, chmods), `make-app.sh` (generates `~/Applications/Hola.app` + desktop link), `START.command`, `START-DEMO.command`, `Login-*.command`. They must stay LF, no BOM, executable (`git add --chmod=+x`), and bash 3.2 / BSD-tool compatible. `server.js` only differs on non-Windows in PATH setup, `resolveCmd`, process-group kill (`detached` + `kill(-pid)`) and the login-script names in `loginHint`.
 - `GUIDE.html` (bilingual user guide with a 中文/English switch), `README.md` (Chinese) and `README.en.md` (English) — keep all three in sync when features change.
 
 ## Runtime data (gitignored)

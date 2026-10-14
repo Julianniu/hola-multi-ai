@@ -70,7 +70,7 @@ Hola 换了个思路：**让它们自己讨论**。每个模型的训练数据�
 
 1. 安装 [Node.js](https://nodejs.org/)（LTS 版，18 或以上）。
 2. 下载本项目（绿色的 **Code** 按钮 → **Download ZIP**），解压。
-3. Windows：双击 `START-DEMO.bat`。其他系统：在项目文件夹运行 `node server.js --demo`。
+3. Windows：双击 `START-DEMO.bat`。Mac：在"终端"里输入 `bash `（后面有个空格），把 `mac/START-DEMO.command` 拖进终端窗口，回车。其他系统：在项目文件夹运行 `node server.js --demo`。
 4. 浏览器打开 <http://localhost:3457>。
 
 ## 正式安装（Windows）
@@ -91,7 +91,20 @@ Hola 换了个思路：**让它们自己讨论**。每个模型的训练数据�
 >
 > **Gemini 说明**：Google 自 2026 年 6 月起不再让个人订阅使用 Gemini CLI，改为 [Antigravity CLI](https://antigravity.google/docs/cli/install/)（命令是 `agy`）。`SETUP.bat` 和 `Login-Gemini.bat` 已经按新方式处理。
 
-macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` 后打开 <http://localhost:3456> 即可，但桌面启动器和安装脚本目前只有 Windows 版，也还没在这些系统上完整测试过，欢迎贡献。
+## 正式安装（Mac，测试版）
+
+> Mac 版和 Windows 版是同一套程序，只是安装和启动方式不同。**Mac 版还没有在真实的 Mac 上完整测试过**，遇到问题欢迎到 Issues 反馈。
+
+**需要准备：** macOS、[Node.js](https://nodejs.org/) LTS 版（18 或以上），以及和 Windows 版一样的订阅。
+
+**步骤：**
+1. 下载本项目（绿色的 **Code** 按钮 → **Download ZIP**），解压到一个固定的位置，比如"文稿"里的 `hola` 文件夹。
+2. 打开"终端"（在启动台搜索"终端"），输入 `bash `（后面有个空格），把 `mac` 文件夹里的 `SETUP.command` 拖进终端窗口，回车。它会安装三家的官方命令行工具（不需要管理员密码），带你依次登录，最后生成 **Hola** 应用。
+3. 以后在启动台或桌面上点 **Hola** 就能打开。
+
+第一次运行完 SETUP 之后，`mac` 文件夹里的其他文件就可以直接双击了：`START.command`（调试模式，能看到报错）、`START-DEMO.command`（演示模式）、`Login-Claude.command` / `Login-Codex.command` / `Login-Gemini.command`（重新登录）。如果你移动了 Hola 文件夹，重新运行一次 `SETUP.command` 就好。
+
+Linux：核心程序同样可以用，运行 `node server.js` 后打开 <http://localhost:3456> 即可，但还没有专门的安装脚本。
 
 ## 怎么用
 
@@ -154,7 +167,7 @@ macOS / Linux：核心程序是零依赖的 Node.js，运行 `node server.js` �
 
 ## 参与贡献
 
-欢迎提 Issue 和 Pull Request，尤其是这些方向：macOS / Linux 的启动器、更多 AI 的接入预设、更多界面语言（界面文字在 `public/i18n.js`）。
+欢迎提 Issue 和 Pull Request，尤其是这些方向：在真实 Mac 上测试 Mac 版、Linux 的启动器、更多 AI 的接入预设、更多界面语言（界面文字在 `public/i18n.js`）。
 
 想不登录账号调试界面和流程，可以用演示模式：`node server.js --demo`（队友剧本在 `demo/fake-ai.js`）。
 
