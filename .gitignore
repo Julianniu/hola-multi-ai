@@ -10,3 +10,10 @@ Thumbs.db
 
 # Claude Code 的个人笔记（含本机路径），不上传
 CLAUDE.local.md
+
+# 发布签名用的私钥（只在作者电脑上，绝不能上传）和本机"开发版"标记
+.release/
+.hola-dev
+
+# 打包生成的安装包
+dist/

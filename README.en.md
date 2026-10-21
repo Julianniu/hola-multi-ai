@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="#try-it-no-account-needed">Try it</a> ·
-  <a href="#install-windows">Install</a> ·
+  <a href="#install-the-desktop-app-recommended">Install</a> ·
   <a href="#how-to-use">How to use</a> ·
   <a href="#add-more-ais">Add DeepSeek and others</a>
 </p>
@@ -42,7 +42,7 @@ The name means *union of light*: red, green and blue light combined make white l
 - **Automatic hand-offs**: if a conclusion needs hands-on work, a teammate @s the right person and they pick it up.
 - **Separate memory for each conversation**: after each round Hola curates the conversation memory (goal, your preferences, decisions, progress, key files), so long chats don't lose the thread. Conversations don't share memory, and you can edit it any time.
 - **Multimodal**: drag or paste images and files in. Images, videos and audio the teammates generate are collected into the conversation folder (even if the AI saved them elsewhere or only returned them inline) and shown, played and downloadable right in the chat.
-- **Reads Office documents**: Word, Excel and PowerPoint files get an automatic text version (headings, paragraphs, tables, multiple sheets, dates, slides and speaker notes), so every teammate can read them, including API-based ones. Click "Preview" to view documents and PDFs in the app.
+- **Reads Office documents**: Word, Excel and PowerPoint files get an automatic text version (headings, paragraphs, tables, multiple sheets, dates, slides and speaker notes), so every teammate can read them, including API-based ones. Click "Preview" to open documents, PDFs and images in a split pane next to the chat; the divider and sidebar can be dragged, and the chat area switches between standard, wide and full width.
 - **Projects**: group related chats into projects in the sidebar. Each chat is a task you can tick off or drag between projects, with progress shown next to the project. Teammates on every task see the project brief and take into account what the project's other tasks decided, so work stays consistent.
 - **Shared skill library**: turn what worked into a *skill* (steps, who does what, standards, templates, lessons learned) that every chat and every teammate shares. Click "Save as skill" next to a team conclusion and a teammate writes it up; next time a similar task comes in, teammates read the skill before starting, and the message shows which skill was used. The format matches Claude Skills (SKILL.md), so existing skills can be imported.
 - **Pick models, see usage**: under Teammates → Edit, choose the model for Claude, Codex and Gemini (say, Opus or Sonnet for Claude) and the thinking effort (low / medium / high…); the lists come straight from each company's command-line tool. Each reply shows the model it used and its usage (input / output tokens), and the teammate status at the top right shows this conversation's total per teammate. On a subscription, usage counts toward your plan's quota and nothing extra is billed.
@@ -73,7 +73,23 @@ To see how it works first, use **demo mode**: teammates follow a scripted reply 
 3. Windows: double-click `START-DEMO.bat`. Mac: in Terminal, type `bash ` (with a trailing space), drag `mac/START-DEMO.command` into the window and press Enter. Other systems: run `node server.js --demo` in the project folder.
 4. Open <http://localhost:3457> and pick **English** under **Settings → 界面语言 / Language** if it isn't already.
 
-## Install (Windows)
+## Install the desktop app (recommended)
+
+Download the installer from the [Releases page](https://github.com/Julianniu/hola-multi-ai/releases/latest):
+
+| System | Download |
+|---|---|
+| Windows 10 / 11 | `Hola-Setup-x.y.z.exe` |
+| Mac (Apple silicon: M1 / M2 / M3 / M4…) | `Hola-x.y.z-mac-arm64.dmg` (beta) |
+| Mac (Intel) | `Hola-x.y.z-mac-x64.dmg` (beta) |
+
+- Double-click to install; no need to install Node.js first. Hola then appears on your desktop and in the Start menu.
+- **The first launch shows a system warning** (Hola doesn't use a paid developer certificate). On Windows, when you see "Windows protected your PC", click "More info" → "Run anyway". On Mac, if it says the developer can't be verified, right-click Hola in Applications → "Open" (on newer macOS: System Settings → Privacy & Security → "Open Anyway"). This is only needed once.
+- **Automatic updates**: Hola downloads new versions in the background, checks the author's digital signature before using them, and asks before restarting. The occasional update that needs a new installer sends you to the download page.
+- Conversation folders live in DocumentsHola; settings and API keys in the system's app-data folder.
+- To use Claude, Codex and Gemini as command-line teammates you still need their official CLIs installed and signed in (see the zip version below; `SETUP.bat` installs them). API teammates such as DeepSeek need nothing extra.
+
+## Zip version (Windows)
 
 **You need:**
 - Windows 10 / 11
@@ -91,7 +107,7 @@ To see how it works first, use **demo mode**: teammates follow a scripted reply 
 >
 > **Gemini**: since June 2026 Google no longer lets personal subscriptions use the Gemini CLI; it was replaced by the [Antigravity CLI](https://antigravity.google/docs/cli/install/) (`agy`). `SETUP.bat` and `Login-Gemini.bat` already use it.
 
-## Install (Mac, beta)
+## Zip version (Mac, beta)
 
 > The Mac version is the same app as the Windows one; only installing and launching differ. **It hasn't been fully tested on a real Mac yet.** Please report problems in Issues.
 
@@ -169,7 +185,7 @@ After each round ──→ the conversation memory is updated automatically
 
 ## Contributing
 
-Issues and pull requests are welcome, especially for: testing the Mac version on a real Mac, launchers for Linux, more AI presets, and more interface languages.
+Issues and pull requests are welcome (by submitting one you agree that the author may use your changes under this project's license), especially for: testing the Mac version on a real Mac, launchers for Linux, more AI presets, and more interface languages.
 
 To work on the interface and flow without signing in to anything, use demo mode: `node server.js --demo` (the teammates' script is in `demo/fake-ai.js`). Interface strings live in `public/i18n.js`.
 
@@ -179,4 +195,12 @@ Questions, ideas or partnership proposals: please leave a message in [Issues](ht
 
 ## License
 
-[Apache License 2.0](LICENSE)
+Since October 2026, Hola is licensed under the [PolyForm Internal Use License 1.0.0](LICENSE):
+
+- ✅ Individuals and companies may use it free of charge, including for their work;
+- ✅ you may modify it for your own or your company's use;
+- ❌ you may not distribute it (modified or not): no passing on copies, reselling, republishing, or offering it as a product or service. To recommend it, point people to this page.
+
+For anything not covered above (commercial partnerships, distribution), contact the author through [Issues](https://github.com/Julianniu/hola-multi-ai/issues). Versions released before October 2026 remain under the Apache License 2.0 they were released with.
+
+**Official build badge**: releases carry the author's digital signature (`release.json`). After Hola starts, the top left shows the version number; if program files have been changed, it shows "Unofficial", and clicking it lists the files that differ.

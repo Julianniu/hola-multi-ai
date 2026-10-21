@@ -1,0 +1,74 @@
+{
+  "fetched_at": "2026-10-21T00:00:00Z",
+  "models": [
+    {
+      "slug": "gpt-test-sol",
+      "display_name": "GPT-Test-Sol",
+      "visibility": "list",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "low"
+        },
+        {
+          "effort": "medium",
+          "description": "medium"
+        },
+        {
+          "effort": "high",
+          "description": "high"
+        },
+        {
+          "effort": "xhigh",
+          "description": "xhigh"
+        },
+        {
+          "effort": "max",
+          "description": "max"
+        },
+        {
+          "effort": "ultra",
+          "description": "ultra"
+        }
+      ]
+    },
+    {
+      "slug": "gpt-test-luna",
+      "display_name": "GPT-Test-Luna",
+      "visibility": "list",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "low"
+        },
+        {
+          "effort": "medium",
+          "description": "medium"
+        },
+        {
+          "effort": "high",
+          "description": "high"
+        },
+        {
+          "effort": "xhigh",
+          "description": "xhigh"
+        },
+        {
+          "effort": "max",
+          "description": "max"
+        }
+      ]
+    },
+    {
+      "slug": "gpt-hidden",
+      "display_name": "Hidden",
+      "visibility": "hide",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "low"
+        }
+      ]
+    }
+  ]
+}

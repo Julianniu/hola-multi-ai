@@ -1,0 +1,78 @@
+{
+  "name": "hola",
+  "productName": "Hola",
+  "version": "1.0.0",
+  "description": "Hola · 光辉联合：把几个 AI 拉进一个群，它们讨论，你拍板",
+  "author": "Julianniu",
+  "license": "SEE LICENSE IN LICENSE",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "app": "electron .",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "44.6.0",
+    "electron-builder": "26.17.0",
+    "playwright-core": "1.63.0"
+  },
+  "build": {
+    "appId": "io.github.julianniu.hola",
+    "productName": "Hola",
+    "copyright": "Copyright © 2026 Julianniu",
+    "asar": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "package.json",
+      "server.js",
+      "office.js",
+      "config.json",
+      "LICENSE",
+      "release.json",
+      "lib/**",
+      "public/**",
+      "demo/**",
+      "desktop/**",
+      "tools/release-files.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "hola.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Hola",
+      "artifactName": "Hola-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "artifactName": "Hola-${version}-mac-${arch}.${ext}"
+    },
+    "afterPack": "build/after-pack.js"
+  }
+}

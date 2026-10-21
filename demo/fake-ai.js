@@ -10,8 +10,15 @@ let prompt = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (d) => (prompt += d));
 process.stdin.on('end', async () => {
-  if (process.env.HOLA_DEMO_DUMP) { try { fs.writeFileSync(`.hola/prompt-${name}.txt`, prompt); } catch (_) {} }
-  await sleep(900 + Math.random() * 1400);
+  // HOLA_DEMO_DUMP=1：把收到的提示词写到 .hola/prompt-名字.txt；=all：每一次都追加到 .hola/prompts.log（改代码前后对比用）
+  if (process.env.HOLA_DEMO_DUMP) {
+    try {
+      if (process.env.HOLA_DEMO_DUMP === 'all') fs.appendFileSync('.hola/prompts.log', `\n<<<<<PROMPT ${name}>>>>>\n${prompt}`);
+      else fs.writeFileSync(`.hola/prompt-${name}.txt`, prompt);
+    } catch (_) {}
+  }
+  // HOLA_DEMO_FAST：自动测试时不用"假装思考"，马上回答
+  await sleep(process.env.HOLA_DEMO_FAST ? 20 : 900 + Math.random() * 1400);
   process.stderr.write(`（演示模式）${name} 在按剧本回答\n`);
   process.stdout.write(reply(prompt) + '\n');
 });
@@ -95,7 +102,9 @@ description: 需要在几个方向里选一个方案（渠道、定价、选题�
 
 Gemini 和 Claude 认为不先看真实反馈，成本也估不准；Codex 认为不先定上限，调研范围会失控。我建议选 B：调研可以在上限内做，反过来却容易超支。
 
-（演示模式：接入真实 AI 后，这里会是针对你问题的具体方案。）`;
+（演示模式：接入真实 AI 后，这里会是针对你问题的具体方案。）` +
+      // 自动测试用：故意不守规矩、在等拍板的结论里 @ 人，确认 Hola 自己会拦住
+      (process.env.HOLA_TEST_DISOBEY ? '\n\n@Codex 先把表格做出来。' : '');
   }
 
   if (p.includes('同时、独立作答')) {

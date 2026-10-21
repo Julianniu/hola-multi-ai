@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "date": "2026-10-21",
+  "minShell": "1.0.0",
+  "files": {
+    "LICENSE": "fde7b1f052d2ff8a71e8b1c2ec071c697d37f3a0fae906931f27d6c6e44373ea",
+    "config.json": "596590c09cd247b21c347eb5a35a4fd76d0117c4a36e395455116a3ed4eaba81",
+    "demo/config.json": "77fc91d41efa4fa136a034ea4095a38133ace5db0f648df9bc4d4305ba5abe4d",
+    "demo/fake-ai.js": "0effc41577d67e63eb72f0c89f9576e17bc36bb62dc4c33d83a243b2ff88100b",
+    "desktop/main.js": "01a8b22d8e4361a17ea380b2ed945a10e04a9bc4ac11f6ee00ef1ca4e504582b",
+    "desktop/updater.js": "5d641e742034cd7baaf36effcbd106349a4cb0f4a69bab5f74a1f31a9ca591d7",
+    "lib/build-check.js": "cfa9747c37f2b3af350cfab4c110d9e9ea499657125063bc12c0371a31ccd2dc",
+    "lib/convs.js": "0e8a34c495dc145ab8e2fcc9c0e23dafcf71fe3fe516df7efeb205c3f2e45e03",
+    "lib/core.js": "9871d5fde1ce20d7b7d690e4f27dd46d91075a8a58788d3a8fd0b554b93b1a42",
+    "lib/engine.js": "fee7032a50fc50990333fc4a8bc73fdd3885e869e0ad5c8754e67cacffb41e69",
+    "lib/http.js": "7a40ee028f11d605154e5476785f40b7d9fe53809c419a54cc6ce87d0caf82b7",
+    "lib/members.js": "03fba78340423a689b4b56dd80bfd66dc6de9abbb80fcb1d754f08a110ba75ce",
+    "lib/prompts.js": "d049d188cb234ea48f63bf86b2c9d013e0d84b393c5c1ac88381b12a8db73beb",
+    "lib/run.js": "8ed249000f88b2be2db29701c3557b3d24f07e90b1931a5313837a9975cf2fd1",
+    "lib/skills.js": "776b2aed651ffa3eb2010f8fb994c40be88554febea5ed8748778ef34909f84b",
+    "office.js": "3c195bfac7e4567214c0a836937ad83e63311d63abb64f8a96ebe47f71b1fef0",
+    "public/app.css": "0dfba8803f103aadc14081e79922dccae01fc8ecc8f7ddb3865334e00171b83e",
+    "public/app.js": "52b36b375b4e462c2a5a8a016cb7be8311d7bff2e6fe9f469ac3843494589715",
+    "public/favicon.png": "7d2c46cfa6d42ea7ebf869eba02871b256fcf7904d7672b2eb73407c03c43cf1",
+    "public/i18n.js": "ac5c66e1fd2dc6d6417c61867dd848eb0e8aca68b8ad7e2104d89eb901a8c945",
+    "public/icon-192.png": "58bebeacd8e6079b16733a689f678dfa7377bbdcc28ab3c9d12e9614383f7f62",
+    "public/index.html": "3f56c5da3938eae681ab1790f205b95bd8bd28d2d22f41a531df8e4a07103ba0",
+    "public/logo.svg": "6083467759a04e1664d712d1052bfc842df0e924f4b0f9f704fdce7a0999eaba",
+    "server.js": "8e51ac630eb62d6cdff979c0788116b4b61512d3269a64de04205750f2ce147d",
+    "tools/release-files.js": "a1102a908d854ef91e88fb3605a5253c42274f2e1499f96ee52d34a87b4b3d0b"
+  },
+  "sig": "GruPwS9okWh+Dqj+HvWa78eppnh7Mbudo31RXXAKdJnTLq6BQ9YYhZ/vKjSXaG71fPDBeVYwVkq/0luiVEJ6Aw=="
+}
