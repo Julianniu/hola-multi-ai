@@ -25,6 +25,9 @@ describe('桌面版', { skip }, () => {
 
   before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hola-app-'));
+    // 界面语言固定成中文：不然会跟着电脑的系统语言走（GitHub 的云电脑是英文），测试里的中文判断就对不上了
+    fs.mkdirSync(path.join(dir, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'data', 'settings.json'), JSON.stringify({ uiLang: 'zh' }));
     // HOLA_APP_EXE：测打包好的应用（比如 dist/win-unpacked/Hola.exe），确认打包时没漏文件
     const exe = process.env.HOLA_APP_EXE;
     app = await pw._electron.launch({

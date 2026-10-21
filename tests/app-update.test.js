@@ -46,6 +46,9 @@ describe('桌面版自动更新（真跑一遍）', { skip }, () => {
 
   before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hola-app-update-'));
+    // 界面语言固定成中文：不然会跟着电脑的系统语言走（GitHub 的云电脑是英文），测试里的中文判断就对不上了
+    fs.mkdirSync(path.join(dir, 'data'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'data', 'settings.json'), JSON.stringify({ uiLang: 'zh' }));
     port = await freePort();
     gh = http.createServer((req, res) => {
       if (!latest) { res.writeHead(404); return res.end(); }
