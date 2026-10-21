@@ -7,6 +7,7 @@ const fs = require('fs');
 const nodeNet = require('net'); // 查空闲端口用（Electron 的 net 用来联网）
 
 const updater = require('./updater');
+const { createBrowser } = require('./browser');
 
 const CODE_DIR = path.join(__dirname, '..');
 const DEMO = process.env.HOLA_DEMO === '1' || process.argv.includes('--demo');
@@ -61,7 +62,9 @@ if (!app.requestSingleInstanceLock()) {
 
   function buildMenu() {
     const mac = process.platform === 'darwin';
-    // Mac 上没有"编辑"菜单的话，Cmd+C / Cmd+V 用不了
+    // Windows：窗口顶上不要菜单栏（标题栏由 Hola 自己画）；复制粘贴等快捷键照样能用
+    if (!mac) return Menu.setApplicationMenu(null);
+    // Mac 的菜单在屏幕最上方，必须有"编辑"菜单，Cmd+C / Cmd+V 才能用
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       ...(mac ? [{ role: 'appMenu' }] : []),
       { role: 'editMenu' },
@@ -74,7 +77,10 @@ if (!app.requestSingleInstanceLock()) {
     win = new BrowserWindow({
       width: 1300, height: 880, minWidth: 720, minHeight: 520, title: 'Hola', show: false,
       icon: path.join(CODE_DIR, 'public', 'icon-192.png'), autoHideMenuBar: true,
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: !process.env.HOLA_TEST_HIDDEN },
+      // 不用系统自带的标题栏：Windows 只保留右上角的最小化 / 最大化 / 关闭（颜色跟着 Hola 的主题），Mac 保留左上角的红黄绿三个按钮
+      titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+      ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 18 } } : { titleBarOverlay: { color: '#F6F6FB', symbolColor: '#4A4D68', height: 44 } }),
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: !process.env.HOLA_TEST_HIDDEN },
     });
     // HOLA_TEST_HIDDEN：自动测试时窗口不弹出来，免得打扰正在用电脑的人
     if (!process.env.HOLA_TEST_HIDDEN) win.once('ready-to-show', () => win.show());
@@ -89,11 +95,45 @@ if (!app.requestSingleInstanceLock()) {
       e.preventDefault();
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     });
+    win.on('focus', () => win.flashFrame(false));
     win.on('closed', () => { win = null; });
     win.loadURL(base + '/');
   }
 
   app.on('window-all-closed', () => app.quit());
+
+  // 页面换了深浅色：标题栏右上角按钮的颜色跟着换（只接受 #RRGGBB）
+  const { ipcMain } = require('electron');
+  ipcMain.on('hola:titlebar', (e, c) => {
+    const w = BrowserWindow.fromWebContents(e.sender);
+    const ok = (x) => /^#[0-9a-f]{6}$/i.test(String(x || ''));
+    if (w && process.platform !== 'darwin' && c && ok(c.bg) && ok(c.fg)) { try { w.setTitleBarOverlay({ color: c.bg, symbolColor: c.fg, height: 44 }); } catch (_) {} }
+  });
+
+  // 内置浏览器：只听 Hola 主窗口的（"在新窗口打开"的预览页也带着这个小口子，但不许它们控制浏览器）
+  let browser = null;
+  const fromMain = (e) => win && !win.isDestroyed() && e.sender === win.webContents;
+  ipcMain.on('hola:browser-bounds', (e, rect) => {
+    if (!browser || !fromMain(e)) return;
+    const ok = rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]));
+    browser.setBounds(ok ? rect : null, win.webContents.getZoomFactor());
+  });
+  ipcMain.on('hola:attention', (e) => { if (fromMain(e) && !win.isFocused()) win.flashFrame(true); });
+  ipcMain.handle('hola:browser', async (e, a) => {
+    if (!browser || !fromMain(e) || !a) return null;
+    if (a.op === 'open') {
+      // 老板在地址栏里输的：像网址就打开，不像就用必应搜一下
+      let u = String(a.url || '').trim();
+      if (!u) return browser.state();
+      if (!/^https?:\/\//i.test(u)) u = /^[^\s/]+\.[a-z]{2,}(\/|$|:)/i.test(u) ? 'https://' + u : 'https://www.bing.com/search?q=' + encodeURIComponent(u);
+      const r = await browser.navigate(u);
+      return { ...browser.state(), error: r.error };
+    }
+    if (a.op === 'back') browser.back();
+    else if (a.op === 'forward') browser.forward();
+    else if (a.op === 'reload') browser.reload();
+    return browser.state();
+  });
 
   app.whenReady().then(async () => {
     if (process.platform === 'win32') app.setAppUserModelId('io.github.julianniu.hola');
@@ -140,6 +180,9 @@ if (!app.requestSingleInstanceLock()) {
     }
     if (UPDATES) updater.markStarted(APPS_DIR);
     createWindow(base);
+    // 把内置浏览器交给后台（用后台所在那份程序里的 lib/browser.js；老版本程序没有这个文件就算了）
+    browser = createBrowser(() => win);
+    try { require(path.join(code.dir, 'lib', 'browser.js')).setBackend(browser); } catch (_) {}
     if (UPDATES) {
       setTimeout(() => checkUpdates(code.version), Number(process.env.HOLA_UPDATE_DELAY_MS) || 8000);
       setInterval(() => checkUpdates(code.version), 6 * 3600 * 1000);

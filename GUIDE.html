@@ -77,7 +77,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   <li><b>API 接入</b>：DeepSeek、通义千问、Kimi、智谱、OpenRouter、本地 Ollama 等 OpenAI 兼容接口。选服务商，填 API Key（模型名以服务商文档为准），点"保存并测试"。API Key 只保存在本机的 <code>data\members.json</code> 里。</li>
   <li><b>命令行</b>：任何有命令行工具的 AI（记得先登录，见上面）。填命令和参数，参数里写 <code>{PROMPT}</code> 的地方会换成要它做的事。</li>
   </ul></li>
-<li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，你发的文字类附件会直接附给它看。</li>
+<li>通过 API 接入的队友不能读写文件、不能联网，只参与思考和写作，你发的文字类附件会直接附给它看。模型能看图的话，在"编辑"里勾上<b>能看图片</b>，图片就直接发给它；没勾的，会先请一位能看图的队友写一段图片说明给它。</li>
 <li>每位队友擅长什么、用什么颜色，在 <b>队友</b> 里点"编辑"修改，大家会按这个分工。</li>
 <li><b>模型</b>：在 <b>队友</b> → "编辑" 里可以给 Claude、Codex、Gemini 选模型，比如 Claude 选 Opus 还是 Sonnet，还能选<b>思考深度</b>（想得越深答得越好，但更慢、更费额度）；"默认"就是用它自己的设置。选了订阅里没有的模型会出错，改回"默认"就好。</li>
 <li><b>用量</b>：每条回复下面会写用的模型和用量（输入 / 输出 tokens，鼠标停在上面能看到明细），右上角的队友状态里有本对话每位队友的合计。用订阅时，用量计入订阅额度，不会另外收钱；用 API 时按服务商的价格计费。</li>
@@ -91,6 +91,16 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>Word、Excel、PPT 会自动转一份文字版，所有队友都能读；点"预览"会在<b>右侧分屏</b>打开，PDF 和图片也可以，中间的分隔线可以拖动调宽。队友回复里提到的文件链接，点一下也会在右边打开。</li>
 <li><b>调整布局</b>：拖动侧栏边缘可以调宽，左上角的 ☰ 可以收起侧栏；顶栏的"标准宽度"按钮在标准、加宽、铺满之间切换聊天区宽度。双击分隔线恢复默认。</li>
 <li>队友做出来的图片、视频、文件会显示在他的消息下面，可以放大、播放、下载，或者在文件夹里找到它。</li>
+<li><b>图片库 / 文件库</b>（左侧栏）：你上传的、对话里发过的、队友做出来的图片和文件都在这里，标明来自哪个对话。可以上传、搜索、预览，点"发到对话"就放进输入框；顶栏的"文件夹"按钮打开存放上传文件的"资料库"文件夹。</li>
+</ul>
+
+<h2>内置浏览器（桌面版）</h2>
+<ul>
+<li>点顶栏的 <b>浏览器</b>，右侧分屏会打开一个真正的浏览器：在地址栏输入网址，或者直接输入要搜索的词。它和你平常用的浏览器分开，在里面登录过的网站，下次打开还在。</li>
+<li>队友（目前是 Claude）也能用它：打开网页、读内容、截图、点按钮、填表。它打开网页时，右边会自动显示出来，地址栏旁边写着"Claude 正在用"。</li>
+<li>队友<b>点按钮或填表之前</b>，输入框上方会出现一张卡片问你：<b>允许</b>、<b>这个对话都允许</b>，或<b>不允许</b>。3 分钟没回答就当不允许。不想每次都被问，可以在 <b>设置</b> 里关掉"先问我"。</li>
+<li>注意：浏览器里登录过的网站，队友操作时用的是你的身份。付款、发帖、删除这类事，最好自己来。</li>
+<li>为了安全，内置浏览器不打开本机地址和本地文件，网页要摄像头、麦克风、定位等权限一律拒绝。</li>
 </ul>
 
 <h2>项目</h2>
@@ -174,7 +184,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
   <li><b>API</b>: OpenAI-compatible endpoints such as DeepSeek, Qwen, Kimi, Zhipu, OpenRouter or local Ollama. Pick a provider, enter the API key (check the provider's docs for model names), click "Save and test". Keys are stored only on this computer in <code>data\members.json</code>.</li>
   <li><b>Command line</b>: any AI with a CLI (sign it in first, see above). Enter the command and arguments; <code>{PROMPT}</code> in the arguments is replaced with the task.</li>
   </ul></li>
-<li>API teammates can't read or write files or go online; they think and write, and text attachments you send are included for them.</li>
+<li>API teammates can't read or write files or go online; they think and write, and text attachments you send are included for them. If the model can read images, tick <b>Can see images</b> under "Edit" and images go straight to it; otherwise a teammate who can see images first writes a description for it.</li>
 <li>Edit what each teammate is good at, and its colour, under <b>Teammates</b> → "Edit". The team divides work accordingly.</li>
 <li><b>Models</b>: under <b>Teammates</b> → "Edit" you can choose the model for Claude, Codex and Gemini, say Opus or Sonnet for Claude, and the <b>thinking effort</b> (deeper thinking gives better answers but is slower and uses more quota); "Default" uses the tool's own setting. Picking a model your subscription doesn't include will fail; just switch back to "Default".</li>
 <li><b>Usage</b>: each reply shows the model it used and its usage (input / output tokens; hover for details), and the teammate status at the top right shows this conversation's total per teammate. On a subscription, usage counts toward your plan's quota and nothing extra is billed; on an API it's billed at the provider's price.</li>
@@ -188,6 +198,16 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>Word, Excel and PowerPoint files get an automatic text version every teammate can read. Click "Preview" to open them in a <b>split pane</b> on the right (PDFs and images too); drag the divider to resize it. File links in a teammate's reply open there as well.</li>
 <li><b>Adjust the layout</b>: drag the sidebar edge to resize it, or use ☰ at the top left to hide it. The "Standard width" button in the header switches the chat between standard, wide and full width. Double-click a divider to reset it.</li>
 <li>Images, videos and files your teammates make appear under their message: enlarge, play, download, or show them in the folder.</li>
+<li><b>Images / Files</b> (left sidebar): everything you uploaded, sent in chats, or your teammates made, labelled with the chat it came from. Upload, search, preview, and click "Send to chat" to put it in the input box; the "Folder" button in the header opens the library folder where uploads are kept.</li>
+</ul>
+
+<h2>Built-in browser (desktop app)</h2>
+<ul>
+<li>Click <b>Browser</b> in the header to open a real browser in the split pane on the right: type an address, or just what you want to search for. It is separate from your everyday browser; sites you sign in to stay signed in next time.</li>
+<li>Teammates (currently Claude) can use it too: open pages, read them, take screenshots, click buttons and fill in forms. When one opens a page, the browser appears on the right, with "Claude is using it" next to the address bar.</li>
+<li><b>Before a teammate clicks or types</b>, a card above the input box asks you: <b>Allow</b>, <b>Allow for this chat</b> or <b>Don't allow</b>. No answer within 3 minutes counts as no. If you'd rather not be asked each time, turn off "Ask me" in <b>Settings</b>.</li>
+<li>Note: on sites you're signed in to there, teammates act as you. Payments, posting and deleting are best done yourself.</li>
+<li>For safety, the built-in browser won't open local addresses or local files, and it refuses every page's request for camera, microphone, location and similar permissions.</li>
 </ul>
 
 <h2>Projects</h2>

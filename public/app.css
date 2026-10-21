@@ -50,6 +50,26 @@ body.dragging iframe{pointer-events:none}
 .split iframe{flex:1;border:0;width:100%;background:#fff}
 .split .spimg{flex:1;overflow:auto;display:grid;place-items:center;background:var(--wash);padding:16px}
 .split .spimg img{max-width:100%;border-radius:8px}
+/* 内置浏览器：和文件预览共用右侧分屏，切换显示 */
+.split:not(.web)>.spbar,.split:not(.web)>.spweb,.split.web>.sph:not(.spbar),.split.web>iframe,.split.web>.spimg{display:none!important}
+.split .spbar{gap:2px;padding-left:8px}
+.split .spbar .ibtn:disabled{opacity:.35;pointer-events:none}
+.split .spbar input{flex:1;min-width:60px;height:32px;margin:0 4px;padding:0 12px;border:1px solid var(--line);border-radius:16px;background:var(--wash);color:var(--ink);font:inherit;font-size:13px;outline:none}
+.split .spbar input:focus{border-color:var(--ink3);background:var(--surface)}
+.split .spbar.loading #bReload svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.split .bdrv{flex:none;font-size:12px;padding:3px 9px;border-radius:12px;background:var(--wash);color:var(--ink2);white-space:nowrap}
+.split .spweb{flex:1;position:relative;background:var(--wash);display:grid;place-items:center;padding:24px}
+.split .spweb p{max-width:340px;color:var(--ink2);font-size:13px;line-height:1.7;text-align:center}
+.basks{display:flex;flex-direction:column;gap:8px;padding:0 16px;max-width:760px;width:100%;margin:0 auto}
+.basks:empty{display:none}
+.bask{border:1px solid var(--line);border-left:3px solid #e8a33d;border-radius:12px;background:var(--surface);padding:12px 14px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.bask.done{opacity:.5;pointer-events:none}
+.bask .bq{font-size:13px;color:var(--ink2)}
+.bask .bq b{color:var(--ink)}
+.bask .bd{margin:6px 0 4px;font-size:14px;word-break:break-all}
+.bask .bc{font-size:12px;color:var(--ink2)}
+.bask .bb{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 a.flink{color:var(--gemini);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 
 /* ---------- sidebar ---------- */
@@ -59,6 +79,45 @@ aside{width:var(--side-w);flex:none;background:var(--night);color:var(--night-in
 .brand b{font:700 25px/1 var(--brand);letter-spacing:-.01em;color:#fff}
 .brand small{display:block;font-size:11.5px;color:var(--night-dim);margin-top:3px;letter-spacing:.08em}
 .build{margin-left:auto;align-self:flex-start;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid var(--night-3);color:var(--night-dim);white-space:nowrap}
+/* 桌面版标题栏：顶栏和侧栏顶部可以拖动窗口；Windows 右上角留给最小化 / 最大化 / 关闭；Mac 左上角留给红黄绿按钮 */
+body.desktop header, body.desktop .brand, body.desktop .split .sph{-webkit-app-region:drag}
+body.desktop header button, body.desktop header a, body.desktop header input, body.desktop .brand button, body.desktop .split .sph a, body.desktop .split .sph button, body.desktop .split .sph input, body.desktop .pop{-webkit-app-region:no-drag}
+body.desktop dialog, body.desktop .pop, body.desktop #cmenu, body.no-drag *{-webkit-app-region:no-drag!important}
+body.desktop.os-win32 header{padding-right:150px}
+body.desktop.os-win32:has(#split:not([hidden])) header{padding-right:22px}
+body.desktop.os-win32 .split .sph{padding-right:150px}
+body.desktop.os-darwin .brand{padding-top:44px}
+/* 图片库 / 文件库 */
+.newbtn.lib{background:transparent;font-weight:500;margin-bottom:2px}
+.newbtn.lib:hover,.newbtn.lib.on{background:var(--night-2)}
+.newbtn.lib.on{color:#fff}
+.newbtn+.newbtn.lib{margin-top:-4px}
+.newbtn.lib:last-of-type{margin-bottom:10px}
+.libview{display:none;flex:1;overflow-y:auto;padding:22px 22px 30px}
+body.view-lib .libview{display:block}
+body.view-lib #scroll, body.view-lib .composer-wrap{display:none}
+.libbar{max-width:var(--feed-w);margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.libbar #libSearch{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.libhint{max-width:var(--feed-w);margin:10px auto 14px;font-size:12.5px;color:var(--ink3)}
+.libitems{max-width:var(--feed-w);margin:0 auto}
+.libitems.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.libcard{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.libcard .ph{aspect-ratio:4/3;background:var(--wash);display:grid;place-items:center;overflow:hidden;cursor:zoom-in;padding:0;width:100%}
+.libcard .ph img{width:100%;height:100%;object-fit:cover}
+.libcard .mt{padding:9px 11px 4px;min-width:0}
+.libcard .mt b,.librow .nm b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.libcard .mt small,.librow .nm small{display:block;font-size:12px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.libacts{display:flex;gap:2px;padding:4px 6px 8px;flex-wrap:wrap}
+.libacts button,.libacts a{font-size:12.5px;color:var(--ink2);padding:4px 7px;border-radius:7px;text-decoration:none}
+.libacts button:hover,.libacts a:hover{background:var(--wash);color:var(--ink)}
+.libacts .libsend{color:var(--gemini);font-weight:600}
+.libitems.list{display:flex;flex-direction:column;gap:6px}
+.librow{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.librow>svg{width:22px;height:22px;color:var(--ink3);flex:none}
+.librow .nm{flex:1;min-width:0}
+.librow .libacts{padding:0;flex-wrap:nowrap}
+.libempty{text-align:center;color:var(--ink3);padding:60px 10px;font-size:14px}
+.ver{margin:14px 0 0;font-size:12px;color:var(--ink3)}
 .build:hover{color:#fff;border-color:var(--night-dim)}
 .build.warn{color:#FFB3A8;border-color:#FF7A6B}
 .newbtn{margin:0 12px 10px;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;background:var(--night-2);color:#fff;font-weight:600;font-size:14px}

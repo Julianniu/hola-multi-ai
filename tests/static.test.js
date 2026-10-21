@@ -25,7 +25,7 @@ describe('代码和文件格式', () => {
   });
 
   it('后台按层拆分：每个模块只依赖更底层的模块', () => {
-    const layers = ['core', 'members', 'convs', 'run', 'skills', 'prompts', 'engine', 'build-check', 'http'];
+    const layers = ['core', 'members', 'convs', 'library', 'browser', 'run', 'skills', 'prompts', 'engine', 'build-check', 'http'];
     assert.deepEqual(list('lib', /\.js$/).map((f) => path.basename(f, '.js')).sort(), [...layers].sort());
     for (const [i, name] of layers.entries()) {
       const t = read(`lib/${name}.js`).toString('utf8');

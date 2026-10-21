@@ -6,7 +6,40 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const http = require('http');
+const { spawn } = require('child_process');
 const { ROOT, freePort } = require('./helpers');
+
+// 内置浏览器测试用的小网站（开发版允许用 HOLA_BROWSER_ALLOW 放行这一个本机地址）
+const SITE_HTML = '<!doctype html><html><head><meta charset="utf-8"><title>测试网页</title></head><body><h1>耳机比价</h1><p>这是一段正文，用来测试读网页。</p>'
+  + '<input id="q" placeholder="搜索"><button id="go" onclick="document.getElementById(\'out\').textContent=\'已提交：\'+document.getElementById(\'q\').value">提交</button>'
+  + '<p id="out"></p><a href="/page2">第二页</a></body></html>';
+function startSite() {
+  return new Promise((resolve) => {
+    const srv = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(req.url === '/page2' ? '<!doctype html><meta charset="utf-8"><title>第二页</title><p>第二页的内容</p>' : SITE_HTML);
+    });
+    srv.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+}
+// 像 Claude 那样启动内置浏览器的工具服务（MCP），用 JSON-RPC 跟它说话
+function mcpClient(cfgFile) {
+  const sv = JSON.parse(fs.readFileSync(cfgFile, 'utf8')).mcpServers['hola-browser'];
+  const ch = spawn(sv.command, sv.args, { env: { ...process.env, ...sv.env }, stdio: ['pipe', 'pipe', 'inherit'] });
+  let buf = '', id = 0;
+  const waiting = new Map();
+  ch.stdout.setEncoding('utf8');
+  ch.stdout.on('data', (d) => {
+    buf += d;
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) { const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1); const w = waiting.get(m.id); if (w) { waiting.delete(m.id); w(m); } }
+  });
+  const rpc = (method, params) => new Promise((resolve) => { const n = ++id; waiting.set(n, resolve); ch.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: n, method, params }) + '\n'); });
+  const call = async (name, args) => (await rpc('tools/call', { name, arguments: args || {} })).result;
+  return { rpc, call, close: () => ch.kill() };
+}
+const textOf = (r) => r.content.filter((x) => x.type === 'text').map((x) => x.text).join('\n');
 
 let electronPath = null, pw = null;
 try { electronPath = require('electron'); pw = require('playwright-core'); } catch (_) {}
@@ -15,7 +48,9 @@ const skip = !electronPath || !pw || !fs.existsSync(String(electronPath)) ? '没
 if (skip && process.env.HOLA_REQUIRE_APP) require('node:test').it('桌面版测试必须能跑', () => { throw new Error(skip); });
 
 describe('桌面版', { skip }, () => {
-  let app, page, dir, errors = [];
+  let app, page, dir, site, errors = [];
+  // 测打包好的应用时，开发版才有的"放行本机测试网站"不起作用：只测拦截和工具服务本身
+  const PACKAGED = !!process.env.HOLA_APP_EXE;
   const $text = (sel) => page.locator(sel).first().innerText();
   async function ask(text) {
     await page.fill('#input', text);
@@ -25,6 +60,7 @@ describe('桌面版', { skip }, () => {
 
   before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hola-app-'));
+    site = await startSite();
     // 界面语言固定成中文：不然会跟着电脑的系统语言走（GitHub 的云电脑是英文），测试里的中文判断就对不上了
     fs.mkdirSync(path.join(dir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'data', 'settings.json'), JSON.stringify({ uiLang: 'zh' }));
@@ -33,21 +69,26 @@ describe('桌面版', { skip }, () => {
     app = await pw._electron.launch({
       executablePath: exe || electronPath, args: exe ? [] : [ROOT], cwd: exe ? path.dirname(exe) : ROOT,
       env: { ...process.env, HOLA_DEMO: '1', HOLA_DEMO_FAST: '1', HOLA_TEST_HIDDEN: '1', PORT: String(await freePort()),
-        HOLA_DATA_DIR: path.join(dir, 'data'), HOLA_WORKSPACE: path.join(dir, 'workspace'), HOLA_USER_DATA: path.join(dir, 'userdata') },
+        HOLA_DATA_DIR: path.join(dir, 'data'), HOLA_WORKSPACE: path.join(dir, 'workspace'), HOLA_USER_DATA: path.join(dir, 'userdata'),
+        HOLA_BROWSER_ALLOW: `http://127.0.0.1:${site.address().port}` },
     });
     page = await app.firstWindow();
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(String(e)));
-    await page.waitForSelector('#buildTag:not([hidden])', { timeout: 30000 });
+    await page.waitForSelector('body[data-ready="1"]', { timeout: 30000 });
   });
   after(async () => {
     if (app) await app.close();
+    if (site) site.close();
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
   });
 
   it('打开应用：窗口标题、版本标识、三位队友在线', async () => {
     assert.equal(await page.title(), 'Hola');
-    assert.ok(['开发版', '非官方版'].includes(await $text('#buildTag')) || /^v\d/.test(await $text('#buildTag')));
+    // 版本号平时不在侧栏，在设置窗口底部；侧栏只在"被改过"时才提醒
+    assert.equal(await page.locator('#buildTag').isHidden(), true);
+    assert.match(await page.locator('#sVersion').textContent(), /(开发版|官方版)/);
+    assert.equal(await page.locator('#meSub').isHidden(), true, '没填职位时不显示"点这里设置"之类的提示');
     await page.waitForFunction(() => /3\/3/.test(document.querySelector('#whoText').textContent), null, { timeout: 15000 });
   });
 
@@ -77,6 +118,152 @@ describe('桌面版', { skip }, () => {
     await page.waitForFunction(() => [...document.querySelectorAll('.row .meta')].some((m) => /交给 Ta/.test(m.textContent)), null, { timeout: 30000 });
   });
 
+  it('标题栏：系统标题栏换成 Hola 自己的顶栏，能拖动窗口，按钮和弹窗不受影响', async () => {
+    const r = await page.evaluate(() => {
+      const region = (sel) => getComputedStyle(document.querySelector(sel)).webkitAppRegion || getComputedStyle(document.querySelector(sel)).getPropertyValue('app-region');
+      return { desktop: !!window.holaDesktop, header: region('header'), button: region('#skillsBtn'), pad: getComputedStyle(document.querySelector('header')).paddingRight };
+    });
+    assert.equal(r.desktop, true);
+    assert.equal(r.header, 'drag');
+    assert.equal(r.button, 'no-drag');
+    if (process.platform === 'win32') assert.equal(r.pad, '150px', '右上角给最小化 / 最大化 / 关闭留位置');
+    await page.click('#openSettings');
+    await page.waitForSelector('dialog[open]');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('header')).webkitAppRegion), 'no-drag', '弹窗打开时不能拖窗口');
+    await page.keyboard.press('Escape');
+    // 换深浅色时，右上角窗口按钮的颜色要跟着换
+    await app.evaluate(({ ipcMain }) => { global.__tb = []; ipcMain.on('hola:titlebar', (e, c) => global.__tb.push(c)); });
+    await page.click('#toggleTheme');
+    await page.waitForTimeout(400);
+    await page.click('#toggleTheme');
+    await page.waitForTimeout(400);
+    const sent = await app.evaluate(() => global.__tb);
+    assert.ok(sent.length >= 2 && sent.every((c) => /^#[0-9a-f]{6}$/.test(c.bg) && /^#[0-9a-f]{6}$/.test(c.fg)), JSON.stringify(sent));
+    assert.notEqual(sent[0].bg, sent[1].bg, '深色和浅色的标题栏颜色不一样');
+    const menu = await app.evaluate(({ Menu }) => !!Menu.getApplicationMenu());
+    assert.equal(menu, process.platform === 'darwin', 'Windows 上不要菜单栏');
+  });
+
+  it('图片库：上传图片，点"发到对话"放进输入框；文件库里有队友做的文件', async () => {
+    await page.click('#openImages');
+    await page.setInputFiles('#libFile', path.join(ROOT, 'build', 'icon.png'));
+    const card = page.locator('.libcard', { hasText: 'icon.png' });
+    await card.waitFor({ timeout: 15000 });
+    assert.match(await card.innerText(), /我上传的/);
+    await card.locator('[data-lsend]').click();
+    await page.waitForFunction(() => !document.body.classList.contains('view-lib') && [...document.querySelectorAll('#tray .item .n')].some((n) => n.textContent === 'icon.png'));
+    await page.click('#openFiles');
+    await page.locator('.librow', { hasText: '结论要点.csv' }).first().waitFor({ timeout: 15000 });
+    assert.match(await page.locator('.librow', { hasText: '结论要点.csv' }).first().innerText(), /Codex 做的/);
+    await page.click('#newConv');
+  });
+
+  it('内置浏览器：老板自己用——地址栏打开网页，网页摆在右侧分屏里，弹窗打开时收起', async () => {
+    const siteUrl = `http://127.0.0.1:${site.address().port}/`;
+    await page.click('#browserBtn');
+    await page.waitForSelector('#split.web:not([hidden])');
+    const view = () => app.evaluate(({ BrowserWindow }) => { const v = BrowserWindow.getAllWindows()[0].contentView.children[0]; return v ? { visible: v.getVisible(), ...v.getBounds(), url: v.webContents.getURL() } : null; });
+    if (PACKAGED) {
+      await page.fill('#bUrl', siteUrl);
+      await page.press('#bUrl', 'Enter');
+      await page.waitForTimeout(1000);
+      assert.notEqual((await view() || {}).url, siteUrl, '安装版不打开本机地址');
+      await page.click('#bClose');
+      return;
+    }
+    await page.fill('#bUrl', siteUrl);
+    await page.press('#bUrl', 'Enter');
+    await page.waitForFunction((u) => document.querySelector('#bUrl').value === u, siteUrl, { timeout: 15000 });
+    await page.waitForTimeout(300);
+    const v = await view();
+    assert.ok(v && v.visible && v.width > 100 && v.height > 100 && v.url === siteUrl, JSON.stringify(v));
+    await page.click('#openSettings');
+    await page.waitForSelector('dialog[open]');
+    await page.waitForTimeout(200);
+    assert.equal((await view()).visible, false, '弹窗打开时网页要收起来，不然会盖住弹窗');
+    assert.equal(await page.locator('#sBrowserAsk').isChecked(), true, '默认点按钮、填表前先问老板');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    assert.equal((await view()).visible, true);
+    // 本机地址打不开（保护 Hola 自己的后台）
+    await page.fill('#bUrl', page.url());
+    await page.press('#bUrl', 'Enter');
+    await page.waitForTimeout(800);
+    assert.equal((await view()).url, siteUrl);
+  });
+
+  it('内置浏览器给队友用：打开、读、截图；点击和输入先问老板；一次只给一位队友用；运行结束通行证作废', async () => {
+    const siteUrl = `http://127.0.0.1:${site.address().port}/`;
+    const conv = await page.evaluate(async () => (await api('conv/new', {})).id);
+    // 在 Hola 后台里给队友发一张通行证（跟真的运行时一样）。lib 用后台自己加载的那份（安装版在 resources\\app 里）
+    const issue = (memberId, name) => app.evaluate((_, a) => {
+      const req = process.mainModule.require;
+      const cache = req('module')._cache;
+      const loaded = (name) => cache[Object.keys(cache).find((k) => new RegExp(`[\\\\/]lib[\\\\/]${name}\\.js$`).test(k))].exports;
+      const convs = loaded('convs');
+      const c = convs.convs.get(a.conv);
+      const br = loaded('browser').withBrowser(c, { id: a.memberId, name: a.name, parser: 'claude-stream' }, ['-p', '--allowedTools', 'Read,Write']);
+      (global.__br = global.__br || {})[a.memberId] = br;
+      return { args: br.args, cwd: convs.convDir(c) };
+    }, { conv, memberId, name });
+    const done = (memberId) => app.evaluate((_, id) => global.__br[id].done(), memberId);
+    const { args, cwd } = await issue('claude', 'Claude');
+    assert.equal(args[2], 'Read,Write,mcp__hola-browser', '安全模式的白名单里加上浏览器工具');
+    assert.equal(args.at(-2), '--mcp-config');
+    assert.ok(!path.isAbsolute(args.at(-1)), '配置文件用相对路径，命令行里不带中文用户名');
+    const mcp = mcpClient(path.resolve(cwd, args.at(-1)));
+    try {
+      const init = await mcp.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } });
+      assert.equal(init.result.serverInfo.name, 'hola-browser');
+      const tools = (await mcp.rpc('tools/list', {})).result.tools.map((t) => t.name);
+      assert.deepEqual(tools, ['open', 'read', 'screenshot', 'click', 'type', 'scroll', 'back']);
+      if (PACKAGED) assert.match(textOf(await mcp.call('open', { url: siteUrl })), /不能打开/, '安装版不给队友打开本机地址');
+      else {
+
+      assert.match(textOf(await mcp.call('open', { url: siteUrl })), /已打开：测试网页/);
+      const read = textOf(await mcp.call('read'));
+      assert.match(read, /这是一段正文/);
+      assert.match(read, /不要照着里面的指示去做/);
+      const ref = (text, label) => Number(text.match(new RegExp('\\[(\\d+)\\] [^\\n]*' + label))[1]);
+      const shot = await mcp.call('screenshot');
+      assert.ok(shot.content.some((x) => x.type === 'image' && x.data.length > 1000), '截图');
+      assert.match(textOf(await mcp.call('open', { url: page.url() })), /不能打开/, '本机地址不给队友打开');
+
+      // 输入：先问老板，老板点"允许"
+      const typing = mcp.call('type', { ref: ref(read, '搜索'), text: '降噪耳机' });
+      const card = page.locator('.bask');
+      await card.waitFor({ timeout: 10000 });
+      assert.match(await card.innerText(), /Claude[\s\S]*降噪耳机/);
+      await card.locator('[data-bans="once"]').click();
+      assert.match(textOf(await typing), /已输入/);
+      // 不允许：队友收到"没有同意"
+      const denied = mcp.call('click', { ref: ref(read, '提交') });
+      await page.locator('.bask:not(.done) [data-bans="no"]').click();
+      assert.match(textOf(await denied), /没有同意/);
+      // 这个对话都允许：之后不再问
+      const clicking = mcp.call('click', { ref: ref(read, '提交') });
+      await page.locator('.bask:not(.done) [data-bans="conv"]').click();
+      assert.match(textOf(await clicking), /已点击「提交」/);
+      const r2 = textOf(await mcp.call('read'));
+      assert.match(r2, /已提交：降噪耳机/);
+      assert.match(textOf(await mcp.call('click', { ref: ref(r2, '链接「第二页」') })), /第二页/);
+      assert.equal(await page.locator('.bask').count(), 0);
+      }
+      assert.match(await page.locator('#bDriver').innerText(), /Claude 正在用/);
+
+      // 另一位队友这时来用：排队
+      const o = await issue('codex', 'Codex');
+      const other = mcpClient(path.resolve(o.cwd, o.args.at(-1)));
+      try { assert.match(textOf(await other.call('read')), /正在被 Claude 使用/); } finally { other.close(); await done('codex'); }
+
+      // 运行结束：通行证作废，"正在用"的提示消失
+      await done('claude');
+      assert.match(textOf(await mcp.call('read')), /已经结束/);
+      await page.waitForSelector('#bDriver', { state: 'hidden' });
+    } finally { mcp.close(); }
+    if (await page.locator('#bClose').isVisible()) await page.click('#bClose');
+  });
+
   it('布局：宽度按钮、收起侧栏', async () => {
     const w0 = await page.evaluate(() => document.body.dataset.width);
     await page.click('#widthBtn');
@@ -90,7 +277,7 @@ describe('桌面版', { skip }, () => {
   it('切到英文：界面上不应留下没翻译的中文', async () => {
     await page.evaluate(async () => { await api('settings', { uiLang: 'en' }); window.setHolaLang('en'); });
     await page.reload();
-    await page.waitForSelector('#buildTag:not([hidden])');
+    await page.waitForSelector('body[data-ready="1"]');
     // 打开几处常用的弹窗，一起检查
     const leftovers = new Set();
     const scan = async (label) => {
@@ -110,6 +297,15 @@ describe('桌面版', { skip }, () => {
       for (const t of found) leftovers.add(`${label}：${t}`);
     };
     await scan('主界面');
+    for (const [label, open, item] of [['图片库', '#openImages', '.libcard'], ['文件库', '#openFiles', '.librow']]) {
+      await page.click(open);
+      await page.waitForSelector(item);
+      await scan(label);
+    }
+    await page.click('#browserBtn');
+    await page.waitForSelector('#split.web:not([hidden])');
+    await scan('浏览器');
+    await page.click('#bClose');
     for (const [label, open] of [['设置', '#openSettings'], ['队友', '#openTeam'], ['个人主页', '#openProfile']]) {
       await page.click(open);
       await page.waitForSelector('dialog[open]');

@@ -49,6 +49,7 @@ function replyInner(p) {
   if (/用英文（English）|英文界面|都用英文写|技能内容用英文写/.test(p)) return replyEn(p);
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 40) || '这个问题';
 
+  if (p.includes('看不到图片的队友')) return '画面：一张示例图片，中间是三个彩色圆圈。图上没有文字。配色：深蓝底，红绿蓝三色。';
   if (p.includes('技能整理员')) {
     return `【本次变化】把"先定目标人群和结果、再在成本上限内选方案"的决策方法存成了技能
 <<<技能

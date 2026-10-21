@@ -24,6 +24,7 @@
   <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 9"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
@@ -31,14 +32,20 @@
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6.5A2.5 2.5 0 0 0 4 20.5 2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 7h7M9 11h5"/></symbol>
   <symbol id="i-width" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-reload" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
 </svg>
 
 <aside id="side">
   <div class="brand"><img src="/logo.svg" alt=""><div><b>Hola</b><small>光辉联合</small></div><button class="build" id="buildTag" hidden></button></div>
   <button class="newbtn" id="newConv"><svg class="i"><use href="#i-plus"/></svg>新对话<kbd>Ctrl N</kbd></button>
+  <button class="newbtn lib" id="openImages"><svg class="i"><use href="#i-image"/></svg>图片库</button>
+  <button class="newbtn lib" id="openFiles"><svg class="i"><use href="#i-file"/></svg>文件库</button>
   <div class="convs" id="convs"></div>
-  <button class="me" id="openProfile"><span class="ava" id="meAva"></span><div><b id="meName" data-raw>你</b><small id="meSub">点这里设置头像和偏好</small></div></button>
+  <button class="me" id="openProfile"><span class="ava" id="meAva"></span><div><b id="meName" data-raw>你</b><small id="meSub" hidden></small></div></button>
   <div class="sidefoot">
     <button id="openTeam"><svg class="i"><use href="#i-users"/></svg>队友</button>
     <button id="openSettings"><svg class="i"><use href="#i-gear"/></svg>设置</button>
@@ -61,9 +68,23 @@
     <button class="hbtn" id="skillsBtn" title="团队共用的技能库"><svg class="i"><use href="#i-book"/></svg><span>技能库</span></button>
     <button class="hbtn" id="memBtn"><svg class="i"><use href="#i-brain"/></svg><span>对话记忆</span></button>
     <button class="hbtn" id="dirBtn"><svg class="i"><use href="#i-folder"/></svg><span>文件夹</span></button>
+    <button class="hbtn" id="browserBtn" hidden title="内置浏览器：你和队友都能用"><svg class="i"><use href="#i-globe"/></svg><span>浏览器</span></button>
   </header>
 
   <div class="scroll" id="scroll"><div class="feed" id="feed"></div></div>
+
+  <section class="libview" id="libView" aria-label="资料库">
+    <div class="libbar">
+      <div class="seg" id="libFilter"><button type="button" data-f="all" class="on">全部</button><button type="button" data-f="upload">我上传的</button><button type="button" data-f="chat">对话里的</button></div>
+      <input id="libSearch" type="search" placeholder="搜索文件名">
+      <button class="btn pri" id="libUpload">上传</button>
+      <input type="file" id="libFile" multiple hidden>
+    </div>
+    <p class="libhint" id="libHint"></p>
+    <div class="libitems" id="libItems"></div>
+  </section>
+
+  <div class="basks" id="bAsks" aria-live="polite"></div>
 
   <div class="composer-wrap">
     <div class="composer">
@@ -92,6 +113,15 @@
 <div class="grip" id="splitGrip" hidden title="拖动调整预览宽度，双击恢复"></div>
 <section class="split" id="split" hidden aria-label="文件预览">
   <div class="sph"><b id="spName" data-raw></b><a class="ibtn" id="spOpen" target="_blank" rel="noopener" title="在新窗口打开"><svg class="i"><use href="#i-open"/></svg></a><a class="ibtn" id="spDown" title="下载原文件"><svg class="i"><use href="#i-down"/></svg></a><button class="ibtn" id="spClose" title="关闭预览"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sph spbar" id="spBar">
+    <button class="ibtn" id="bBack" title="后退"><svg class="i"><use href="#i-back"/></svg></button>
+    <button class="ibtn" id="bFwd" title="前进"><svg class="i"><use href="#i-fwd"/></svg></button>
+    <button class="ibtn" id="bReload" title="刷新"><svg class="i"><use href="#i-reload"/></svg></button>
+    <input id="bUrl" spellcheck="false" autocomplete="off" placeholder="输入网址或要搜索的内容">
+    <span class="bdrv" id="bDriver" hidden data-raw></span>
+    <button class="ibtn" id="bClose" title="关闭浏览器"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="spweb" id="spWeb"><p id="bTip">在上面输入网址打开网页。队友（目前是 Claude）也能用这个浏览器帮你查资料、操作网页，点按钮和填表前会先问你。</p></div>
   <iframe id="spFrame" title="预览"></iframe>
   <div class="spimg" id="spImg" hidden><img alt=""></div>
 </section>
@@ -121,11 +151,16 @@
       <label><input type="checkbox" id="sProc" style="width:auto;margin:0 4px 0 0">显示后台过程（排查问题时用）</label>
       <small>打开后能看到每位队友读了哪些文件、跑了什么命令，以及原始报错。平时关着就行。</small>
     </div>
+    <div class="field" id="sBrowserField" hidden>
+      <label><input type="checkbox" id="sBrowserAsk" style="width:auto;margin:0 4px 0 0">队友在内置浏览器里点按钮、填表前，先问我</label>
+      <small>关掉后，队友用内置浏览器时不再逐个征求你同意。浏览器里登录过的网站，队友也能用你的身份操作。</small>
+    </div>
     <div class="field">
       <label for="sHops">队友之间最多自动接力几次</label>
       <input id="sHops" type="number" min="0" max="50">
       <small>队友在回复里 @ 别人会自动交接。超过次数就停下来等你看。</small>
     </div>
+    <p class="ver" id="sVersion" data-raw></p>
     <div class="dfoot">
       <div class="left"><button class="btn" id="recheck">重新检查队友</button><button class="btn danger" id="quitApp">退出 Hola</button></div>
       <button class="btn" id="sCancel">取消</button><button class="btn pri" id="sSave">保存</button>
@@ -229,6 +264,8 @@
           <div class="field"><label for="mModel">模型名</label><input id="mModel" placeholder="deepseek-v4-pro"></div>
           <div class="field"><label for="mTemp">温度（可不填）</label><input id="mTemp" placeholder="默认"></div>
         </div>
+        <label class="check"><input type="checkbox" id="mVision">这个模型能看图片（会把图片一起发给它）</label>
+        <small class="hint" style="display:block;margin:-2px 0 10px 24px;color:var(--ink3);font-size:12px">不勾也没关系：有图片时，会请能看图的队友先把图片写成文字说明给它。</small>
         <div class="field"><label for="mKey">API Key</label><input id="mKey" type="password" autocomplete="off" placeholder="sk-..."><small id="mKeyNote">只保存在你电脑的 Hola 文件夹里（data\members.json），不会显示在页面上。</small></div>
       </div>
       <div id="cliFields" hidden>

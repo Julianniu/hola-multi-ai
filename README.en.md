@@ -42,6 +42,9 @@ The name means *union of light*: red, green and blue light combined make white l
 - **Automatic hand-offs**: if a conclusion needs hands-on work, a teammate @s the right person and they pick it up.
 - **Separate memory for each conversation**: after each round Hola curates the conversation memory (goal, your preferences, decisions, progress, key files), so long chats don't lose the thread. Conversations don't share memory, and you can edit it any time.
 - **Multimodal**: drag or paste images and files in. Images, videos and audio the teammates generate are collected into the conversation folder (even if the AI saved them elsewhere or only returned them inline) and shown, played and downloadable right in the chat.
+- **Images and Files libraries**: "Images" and "Files" in the sidebar gather everything you uploaded, sent in chats, or your teammates made, labelled with the chat it came from. Upload, search, preview, and click "Send to chat" to put one in the input box for your teammates. Uploads are stored in the workspace's "资料库" (library) folder.
+- **Teammates that can't see images still get them**: if a model you added through an API can read images, tick "Can see images" under Teammates → Edit and images go straight to it; if not, Hola first asks a teammate who can see images to write a description for it.
+- **Built-in browser (desktop app)**: "Browser" in the header opens a real browser in the split pane on the right. You can use it yourself, and teammates (currently Claude) can use it to open pages, read them, take screenshots, click buttons and fill in forms. Teammates ask you in Hola before they click or type (you can choose "Allow for this chat", or turn the question off in Settings).
 - **Reads Office documents**: Word, Excel and PowerPoint files get an automatic text version (headings, paragraphs, tables, multiple sheets, dates, slides and speaker notes), so every teammate can read them, including API-based ones. Click "Preview" to open documents, PDFs and images in a split pane next to the chat; the divider and sidebar can be dragged, and the chat area switches between standard, wide and full width.
 - **Projects**: group related chats into projects in the sidebar. Each chat is a task you can tick off or drag between projects, with progress shown next to the project. Teammates on every task see the project brief and take into account what the project's other tasks decided, so work stays consistent.
 - **Shared skill library**: turn what worked into a *skill* (steps, who does what, standards, templates, lessons learned) that every chat and every teammate shares. Click "Save as skill" next to a team conclusion and a teammate writes it up; next time a similar task comes in, teammates read the skill before starting, and the message shows which skill was used. The format matches Claude Skills (SKILL.md), so existing skills can be imported.
@@ -146,7 +149,7 @@ Under **Settings** (bottom left) you can set the interface language, the maximum
 
 <p align="center"><img src="docs/en/screenshot-team.png" width="720" alt="Managing teammates"></p>
 
-Teammates added through an API can only "think": they can't read or write files or go online, and text attachments you send are included for them directly. They work best as an extra independent voice in discussions. APIs are usually billed by usage, so keep an eye on your provider's dashboard.
+Teammates added through an API can only "think": they can't read or write files or go online, and text attachments you send are included for them directly; images are sent as images if "Can see images" is ticked, otherwise a teammate who can see them writes a description. They work best as an extra independent voice in discussions. APIs are usually billed by usage, so keep an eye on your provider's dashboard.
 
 ## How it works
 
@@ -170,6 +173,7 @@ After each round ──→ the conversation memory is updated automatically
 - It listens on your own computer only; your local network and other websites can't reach it. Every write request needs a dedicated header, so web pages can't call it behind your back.
 - Conversations, memory and API keys are stored only on your computer (`workspace/`, `data/`), and both folders are in `.gitignore` so they can't be committed by accident.
 - Default teammate permissions: Claude can read and write files and look things up, but not run commands; Codex runs in its own sandbox and can only change the working folder; Gemini is read-only. To give a teammate more power (run commands, change files anywhere on the PC), tick "Full access" under **Teammates → Edit** at the bottom left; no need to edit `config.json`. **Make sure you understand the risks before granting more**.
+- The built-in browser (desktop app) is separate from your everyday browser; sign-ins are kept only inside Hola. By default teammates ask you before they click or type in it; it won't open local addresses (protecting Hola itself) or local files, and it refuses every page's request for camera, microphone, location and similar permissions. Note: on sites you're signed in to there, teammates act as you.
 - Teammates follow the skills in the library, so only import skills you trust, and read them first under Skills → Edit.
 - This project is not affiliated with Anthropic, OpenAI, Google, DeepSeek or any other company. It only calls the official tools and APIs they publish. Follow each service's terms; subscription quotas and API costs are charged to your own accounts.
 
@@ -203,4 +207,4 @@ Since October 2026, Hola is licensed under the [PolyForm Internal Use License 1.
 
 For anything not covered above (commercial partnerships, distribution), contact the author through [Issues](https://github.com/Julianniu/hola-multi-ai/issues). Versions released before October 2026 remain under the Apache License 2.0 they were released with.
 
-**Official build badge**: releases carry the author's digital signature (`release.json`). After Hola starts, the top left shows the version number; if program files have been changed, it shows "Unofficial", and clicking it lists the files that differ.
+**Official build badge**: releases carry the author's digital signature (`release.json`). The version number is at the bottom of the **Settings** window; if program files have been changed, the top left shows "Unofficial", and clicking it lists the files that differ.

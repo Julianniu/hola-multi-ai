@@ -175,6 +175,52 @@ describe('调用 AI', () => {
       rejectOptions = false;
     });
 
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const lastReq = () => reqs[reqs.length - 1];
+    const addApi = async (name, vision) => {
+      const r = await h.post('members/save', { member: { name, type: 'api', baseUrl: reqs.base, model: 'm-' + name, apiKey: 'sk-x', strengths: '写作', vision } });
+      for (let i = 0; i < 50 && !(await member(r.id)).online; i++) await new Promise((ok) => setTimeout(ok, 100));
+      return r.id;
+    };
+
+    it('能看图片的 API 队友：图片跟着消息一起发过去', async () => {
+      reqs.base = (await member(api.memberId)).edit.baseUrl;
+      const vid = await addApi('DSV', true);
+      const conv = await h.newConv();
+      await h.upload(conv, '海报.png', PNG);
+      await h.post('send', { conv, text: '@DSV 看看这张海报', attachments: [{ path: '附件/海报.png' }] });
+      await h.waitIdle(conv);
+      const content = lastReq().body.messages[0].content;
+      assert.ok(Array.isArray(content), '要用"文字 + 图片"的格式');
+      assert.match(content[0].text, /已经附在这条消息里/);
+      assert.match(content[1].image_url.url, /^data:image\/png;base64,iVBOR/);
+      await h.post('members/delete', { id: vid });
+    });
+
+    it('看不到图片的 API 队友：先请能看图的队友写图片说明；两位同时要，也只写一次', async () => {
+      const a = await addApi('TXA', false), b = await addApi('TXB', false);
+      const conv = await h.newConv();
+      await h.upload(conv, '截图.png', PNG);
+      const n0 = reqs.length;
+      await h.post('send', { conv, text: '@TXA 和 @TXB 都说说这张截图', attachments: [{ path: '附件/截图.png' }] });
+      const c = await h.waitIdle(conv);
+      const desc = c.messages.filter((m) => m.reason === 'describe');
+      assert.equal(desc.length, 1, '同一张图只写一次说明');
+      assert.equal(desc[0].status, 'done');
+      assert.equal(desc[0].from, 'gemini', '优先请 Gemini 看图');
+      const note = fs.readFileSync(path.join(h.workspace, conv, '文字版', '附件__截图.png.说明.md'), 'utf8');
+      assert.match(note, /三个彩色圆圈/);
+      const texts = reqs.slice(n0).map((q) => q.body.messages[0].content);
+      assert.equal(texts.length, 2);
+      for (const t of texts) {
+        assert.equal(typeof t, 'string', '看不到图的队友只发文字');
+        assert.match(t, /下面是能看图的队友写的图片说明[\s\S]*三个彩色圆圈/);
+      }
+      assert.ok(!c.messages.some((m) => m.reason === 'describe' && m.status === 'running'));
+      await h.post('members/delete', { id: a });
+      await h.post('members/delete', { id: b });
+    });
+
     it('API 队友的 Key 不会出现在页面数据里', async () => {
       const m = await member(api.memberId);
       assert.ok(!JSON.stringify(m).includes('sk-test'));

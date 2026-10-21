@@ -67,7 +67,7 @@ describe('桌面版自动更新（真跑一遍）', { skip }, () => {
     latest = { version: '9.9.9', zip: bundle('9.9.9', (f) => { f['public/app.js'] = Buffer.concat([f['public/app.js'], Buffer.from("\nwindow.__holaVersion = '9.9.9';\n")]); }) };
     const app = await launch();
     const page = await app.firstWindow();
-    await page.waitForSelector('#buildTag:not([hidden])', { timeout: 30000 });
+    await page.waitForSelector('body[data-ready="1"]', { timeout: 30000 });
     assert.equal(await page.evaluate(() => window.__holaVersion), undefined, '还是旧版本');
     assert.ok(await waitFor(() => pointer().version === '9.9.9'), '应该下载好 9.9.9：' + JSON.stringify(pointer()));
     assert.ok(fs.existsSync(path.join(dir, 'userdata', 'app', '9.9.9', 'server.js')));
@@ -78,7 +78,7 @@ describe('桌面版自动更新（真跑一遍）', { skip }, () => {
     latest = null;
     const app = await launch();
     const page = await app.firstWindow();
-    await page.waitForSelector('#buildTag:not([hidden])', { timeout: 30000 });
+    await page.waitForSelector('body[data-ready="1"]', { timeout: 30000 });
     assert.equal(await page.evaluate(() => window.__holaVersion), '9.9.9');
     assert.equal(pointer().lastStart.ok, true, '启动成功要报平安');
     await app.close();
@@ -87,7 +87,7 @@ describe('桌面版自动更新（真跑一遍）', { skip }, () => {
   it('新版本是坏的：启动失败后自动退回上一个能用的版本', async () => {
     latest = { version: '9.9.10', zip: bundle('9.9.10', (f) => { f['server.js'] = Buffer.from("throw new Error('坏掉的更新');\n"); }) };
     let app = await launch();
-    await (await app.firstWindow()).waitForSelector('#buildTag:not([hidden])', { timeout: 30000 });
+    await (await app.firstWindow()).waitForSelector('body[data-ready="1"]', { timeout: 30000 });
     assert.ok(await waitFor(() => pointer().version === '9.9.10'));
     await app.close();
     latest = null;
@@ -102,7 +102,7 @@ describe('桌面版自动更新（真跑一遍）', { skip }, () => {
     // 再打开：回到 9.9.9，正常工作
     app = await launch();
     const page = await app.firstWindow();
-    await page.waitForSelector('#buildTag:not([hidden])', { timeout: 30000 });
+    await page.waitForSelector('body[data-ready="1"]', { timeout: 30000 });
     assert.equal(await page.evaluate(() => window.__holaVersion), '9.9.9');
     await app.close();
   });

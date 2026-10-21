@@ -256,6 +256,7 @@ function renderUnder(){
 
 // ---------- conversation view
 async function openConv(id){
+  setView('chat');
   S.cur=id; store.set('hola.cur',id||''); nodes.clear(); S.conv=null; renderConvs();
   if(!id){renderConv();return}
   const r=await fetch('/api/conv/'+id); if(!r.ok){S.cur=null;renderConv();return}
@@ -301,7 +302,7 @@ function stepCat(it){
   if(it.k==='error') return 'stuck';
   const x=it.t||'';
   if(/^(读取|查找文件|搜索内容)/.test(x)) return 'read';
-  if(/^(联网搜索|打开网页)/.test(x)) return 'web';
+  if(/^(联网搜索|打开网页|浏览网页)/.test(x)) return 'web';
   if(/^(写入|修改|记入)/.test(x)) return 'write';
   return 'build';
 }
@@ -344,6 +345,11 @@ function msgHTML(m){
   if(m.reason==='memory'){
     if(running) return `<div class="memline"><svg class="i"><use href="#i-brain"/></svg><span class="beam" style="color:${colorOf(m.from)}"></span>${esc(nameOf(m.from))} 正在整理对话记忆…</div>`;
     return `<div class="memline${m.status==='error'?' err':''}" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-brain"/></svg><span>${m.memoryChanged?'<b>对话记忆已更新</b>'+(window.HOLA_LANG==='en'?': ':'：'):''}<span data-raw>${esc(m.text)}</span></span>${m.memoryChanged?'<span class="link" data-openmem>查看</span>':''}</div>`;
+  }
+  if(m.reason==='describe'){
+    if(running) return `<div class="memline"><svg class="i"><use href="#i-image"/></svg><span class="beam" style="color:${colorOf(m.from)}"></span>${esc(nameOf(m.from))} 正在帮看不到图片的队友看图…</div>`;
+    if(m.status!=='done') return `<div class="memline err"><svg class="i"><use href="#i-image"/></svg><span data-raw>${esc(m.text)}</span></div>`;
+    return `<div class="memline" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-image"/></svg><span><b>图片说明已写好</b>${window.HOLA_LANG==='en'?': ':'：'}<span data-raw>${esc(m.text)}</span>${window.HOLA_LANG==='en'?` (by ${esc(nameOf(m.from))}, for teammates who can't see images)`:`（${esc(nameOf(m.from))} 看图后写的，给看不到图片的队友）`}</span></div>`;
   }
   if(m.reason==='skill'){
     if(running) return `<div class="memline"><svg class="i"><use href="#i-book"/></svg><span class="beam" style="color:${colorOf(m.from)}"></span>${esc(nameOf(m.from))} 正在把这次的做法整理成技能…</div>`;
@@ -424,7 +430,9 @@ $('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
 function renderBuild(b){
   const tag=$('#buildTag'); if(!b) return;
   const en=EN_UI(), st=b.status;
-  tag.hidden=false; tag.classList.toggle('warn', st==='modified'||st==='unofficial');
+  // 平时不在侧栏显示版本号（在设置窗口底部）；只有被改过、不是官方版时才在侧栏提醒
+  const warn = st==='modified'||st==='unofficial';
+  tag.hidden=!warn; tag.classList.toggle('warn', warn);
   tag.textContent = st==='official' ? 'v'+b.version : st==='dev' ? (en?'Dev':'开发版') : (en?'Unofficial':'非官方版');
   const files=(b.changed||[]).slice(0,8).join(en?', ':'、');
   const msg = st==='official' ? (en?`Official release v${b.version} (${b.date}). Signature verified.`:`官方正式版 v${b.version}（${b.date}），签名校验通过。`)
@@ -432,19 +440,153 @@ function renderBuild(b){
     : (en?`This copy of Hola is not the official release${files?' (changed files: '+files+')':''}. Someone may have modified it. To get the official version, download it again from github.com/Julianniu/hola-multi-ai.`
          :`这份 Hola 不是官方发布的版本${files?'（被改动的文件：'+files+'）':''}，可能被人改过。想用官方版，请到 github.com/Julianniu/hola-multi-ai 重新下载。`);
   tag.title=msg; tag.onclick=()=>alert(msg);
+  const label = st==='official' ? (en?'Official release':'官方版') : st==='dev' ? (en?'Development copy':'开发版') : (en?'Not the official release':'非官方版');
+  $('#sVersion').textContent = (b.version ? (en?'Version ':'版本 ')+b.version+' · ' : '') + label;
+  $('#sVersion').title = msg;
 }
+// ---------- 图片库 / 文件库：自己上传的 + 所有对话里的附件和队友做的文件
+const LIB={kind:null, items:[], filter:'all', q:''};
+function setView(v){
+  document.body.classList.toggle('view-lib', v!=='chat');
+  LIB.kind = v==='chat' ? null : v;
+  $('#openImages').classList.toggle('on', v==='images'); $('#openFiles').classList.toggle('on', v==='files');
+  if(v!=='chat'){ $('#title').textContent = v==='images'?'图片库':'文件库'; $('#crumb').hidden=true }
+}
+async function openLib(kind){
+  setView(kind); $('#side').classList.remove('show');
+  $('#libHint').textContent = kind==='images'
+    ? '你上传的图片，和所有对话里的图片（你发的、队友做的）都在这里。点"发到对话"，就放进当前对话的输入框，能看图的队友都看得到。'
+    : '你上传的文件，和所有对话里的文件（你发的、队友做的）都在这里。点"发到对话"，就放进当前对话的输入框，Word、Excel、PPT 会自动转成文字版给队友读。';
+  await libReload();
+}
+let libT=null;
+function libReload(){ clearTimeout(libT); return new Promise(r=>{ libT=setTimeout(async()=>{ try{ LIB.items=(await (await fetch('/api/library')).json()).items||[] }catch(_){ LIB.items=[] } renderLib(); r() }, 120) }) }
+// 来源说明（里面有对话标题，所以整段不交给翻译，直接按界面语言写）
+function libSource(it){
+  const en=EN_UI();
+  if(it.from==='upload') return en?'Uploaded by me':'我上传的';
+  const who = it.from==='boss' ? (en?'sent by you':'你发的') : (en?`made by ${nameOf(it.from)}`:`${nameOf(it.from)} 做的`);
+  return en ? `"${it.conv.title}" · ${who}` : `「${it.conv.title}」· ${who}`;
+}
+function renderLib(){
+  if(!LIB.kind) return;
+  const q=LIB.q.trim().toLowerCase();
+  const list=LIB.items.filter(it=>(LIB.kind==='images')===!!it.image)
+    .filter(it=>LIB.filter==='all'||(LIB.filter==='upload')===(it.from==='upload'))
+    .filter(it=>!q||it.name.toLowerCase().includes(q)||(it.conv&&it.conv.title.toLowerCase().includes(q)));
+  const box=$('#libItems');
+  box.className='libitems '+(LIB.kind==='images'?'grid':'list');
+  if(!list.length){ box.innerHTML=`<div class="libempty">${LIB.items.length?'没有符合条件的文件':'这里还是空的。点右上角"上传"，或者把文件拖进来。'}</div>`; return }
+  const acts=it=>`<div class="libacts"><button class="libsend" data-lsend="${esc(it.id)}">发到对话</button>${(it.preview||it.image)?`<button data-lpv="${esc(it.id)}">预览</button>`:''}<a href="${it.url}?download" title="下载">下载</a>${it.conv?`<button data-lconv="${esc(it.conv.id)}">打开对话</button>`:`<button data-ldel="${esc(it.id)}">删除</button>`}</div>`;
+  box.innerHTML = list.map(it=> LIB.kind==='images'
+    ? `<div class="libcard"><button class="ph" data-lpv="${esc(it.id)}" aria-label="预览"><img src="${it.url}" alt="" loading="lazy"></button><div class="mt"><b data-raw>${esc(it.name)}</b><small data-raw>${esc(libSource(it))}</small></div>${acts(it)}</div>`
+    : `<div class="librow"><svg class="i"><use href="#i-file"/></svg><div class="nm"><b data-raw>${esc(it.name)}</b><small data-raw>${esc(size(it.size))} · ${esc(libSource(it))}</small></div>${acts(it)}</div>`).join('');
+  const find=id=>LIB.items.find(x=>x.id===id);
+  box.querySelectorAll('[data-lpv]').forEach(b=>b.onclick=()=>{ const it=find(b.dataset.lpv); if(it) openPreviewUrl(it.name, it.image?it.url:it.previewUrl, it.url, it.image) });
+  box.querySelectorAll('[data-lconv]').forEach(b=>b.onclick=()=>openConv(b.dataset.lconv));
+  box.querySelectorAll('[data-ldel]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.ldel); if(!it||!confirm(`删除「${it.name}」？会从资料库文件夹里永久删除。`)) return; const r=await api('library/delete',{id:it.id}); if(r.error) toast(r.error); else libReload() });
+  box.querySelectorAll('[data-lsend]').forEach(b=>b.onclick=()=>libSend(find(b.dataset.lsend)));
+}
+// 发到对话：复制进当前对话（没有就新建一个），放进输入框上方，写上要做什么再发
+async function libSend(it){
+  if(!it) return;
+  const id = S.cur || (await api('conv/new')).id;
+  const info = await api('library/attach',{conv:id, id:it.id});
+  if(!info||info.error){ toast(info&&info.error||'发送失败'); return }
+  if(id!==S.cur) await openConv(id); else setView('chat');
+  S.pending.push({name:info.name, done:true, path:info.path, preview: it.image?it.url:''});
+  renderTray(); updateSend(); input.focus();
+  toast('已放进输入框，写上要做什么再发送');
+}
+async function libUploadFiles(files){
+  for(const f of files){
+    const r=await fetch(`/api/library/upload?name=${encodeURIComponent(f.name||'file')}`,{method:'POST',headers:{'X-Hola':'1','Content-Type':'application/octet-stream'},body:f}).then(r=>r.json()).catch(()=>({error:1}));
+    if(r.error) toast('上传失败：'+(f.name||''));
+  }
+  libReload();
+}
+$('#openImages').onclick=()=>openLib('images');
+$('#openFiles').onclick=()=>openLib('files');
+$('#libUpload').onclick=()=>$('#libFile').click();
+$('#libFile').onchange=e=>{ libUploadFiles([...e.target.files]); e.target.value='' };
+$('#libFilter').querySelectorAll('button').forEach(b=>b.onclick=()=>{ LIB.filter=b.dataset.f; $('#libFilter').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); renderLib() });
+$('#libSearch').oninput=e=>{ LIB.q=e.target.value; renderLib() };
+
 // ---------- 右侧分屏预览（和聊天并排，中间的分隔线可以拖动）
 const IMG_RE=/\.(png|jpe?g|gif|webp|bmp|svg)$/i, PREVIEW_RE=/\.(docx|xlsx|pptx|pdf|csv|tsv|md|txt|json)$/i;
 function openPreview(p){
-  const img=IMG_RE.test(p), url=`/preview/${S.cur}/${p.split('/').map(encodeURIComponent).join('/')}`;
-  $('#spName').textContent=p.split('/').pop(); $('#spName').title=p;
-  $('#spDown').href=fileUrl(p,true); $('#spOpen').href=img?fileUrl(p):url;
+  const img=IMG_RE.test(p);
+  openPreviewUrl(p.split('/').pop(), img?fileUrl(p):`/preview/${S.cur}/${p.split('/').map(encodeURIComponent).join('/')}`, fileUrl(p), img, p);
+}
+// name：显示的名字；viewUrl：预览栏里显示什么；rawUrl：原文件（下载用）；img：是不是图片
+function openPreviewUrl(name, viewUrl, rawUrl, img, title){
+  setWebMode(false);
+  $('#spName').textContent=name; $('#spName').title=title||name;
+  $('#spDown').href=rawUrl+(rawUrl.includes('?')?'&':'?')+'download'; $('#spOpen').href=viewUrl;
   $('#spImg').hidden=!img; $('#spFrame').hidden=img;
-  if(img){ $('#spImg').querySelector('img').src=fileUrl(p); $('#spFrame').src='about:blank' } else $('#spFrame').src=url;
+  if(img){ $('#spImg').querySelector('img').src=viewUrl; $('#spFrame').src='about:blank' } else $('#spFrame').src=viewUrl;
   $('#split').hidden=false; $('#splitGrip').hidden=false;
 }
-function closePreview(){ $('#split').hidden=true; $('#splitGrip').hidden=true; $('#spFrame').src='about:blank'; $('#spImg').querySelector('img').removeAttribute('src') }
+function closePreview(){ setWebMode(false); $('#split').hidden=true; $('#splitGrip').hidden=true; $('#spFrame').src='about:blank'; $('#spImg').querySelector('img').removeAttribute('src') }
 $('#spClose').onclick=closePreview;
+
+// ---------- 内置浏览器（只在桌面版里有）：开在右侧分屏里，你和队友都能用
+// 真正的网页由桌面版外壳摆在 #spWeb 的位置上，盖在页面上面；所以有弹窗、看大图时要先把它收起来
+const BR=window.holaDesktop&&window.holaDesktop.browser||null;
+let webOn=false, webHasPage=false, webAsks=0;
+function setWebMode(on){ webOn=on; $('#split').classList.toggle('web',on); syncWeb() }
+function syncWeb(){
+  if(!BR) return;
+  const covered=!!document.querySelector('dialog[open]')||$('#lightbox').classList.contains('show');
+  const r=webOn&&webHasPage&&!$('#split').hidden&&!covered?$('#spWeb').getBoundingClientRect():null;
+  BR.setBounds(r&&r.width>0&&r.height>0?{x:r.left,y:r.top,width:r.width,height:r.height}:null);
+}
+function openBrowser(){
+  if(!BR) return;
+  $('#split').hidden=false; $('#splitGrip').hidden=false;
+  $('#spFrame').src='about:blank'; $('#spImg').querySelector('img').removeAttribute('src');
+  setWebMode(true);
+  if(!webHasPage) $('#bUrl').focus();
+}
+function webState(s){
+  if(!s) return;
+  webHasPage=!!s.url&&s.url!=='about:blank';
+  if(document.activeElement!==$('#bUrl')) $('#bUrl').value=webHasPage?s.url:'';
+  $('#bBack').disabled=!s.canBack; $('#bFwd').disabled=!s.canForward;
+  $('#spBar').classList.toggle('loading',!!s.loading);
+  if(s.error==='blocked') toast('内置浏览器不打开本机地址和本地文件');
+  else if(s.error) toast('打不开这个网页');
+  if(s.reveal&&!webOn) openBrowser(); else syncWeb();
+}
+// 谁正在用浏览器、谁在等你点头
+function renderBrowser(){
+  const b=S.browser||{};
+  const d=b.driver;
+  $('#bDriver').hidden=!d;
+  if(d) $('#bDriver').textContent=window.HOLA_LANG==='en'?`${d.name} is using it`:`${d.name} 正在用`;
+  const asks=b.asks||[];
+  if(asks.length>webAsks&&!document.hasFocus()&&window.holaDesktop&&window.holaDesktop.attention) window.holaDesktop.attention();
+  webAsks=asks.length;
+  $('#bAsks').innerHTML=asks.map(a=>`<div class="bask" data-id="${esc(a.id)}"><div class="bq"><b data-raw>${esc(a.name)}</b> <span>想在内置浏览器里操作</span></div><div class="bd" data-raw>${esc(a.detail)}</div>${a.convTitle?`<div class="bc"><span>来自对话</span> <span data-raw>${esc(a.convTitle)}</span></div>`:''}<div class="bb"><button class="btn pri" data-bans="once">允许</button><button class="btn" data-bans="conv">这个对话都允许</button><button class="btn" data-bans="no">不允许</button></div></div>`).join('');
+  $('#bAsks').querySelectorAll('[data-bans]').forEach(btn=>btn.onclick=()=>{ btn.closest('.bask').classList.add('done'); api('browser/answer',{id:btn.closest('.bask').dataset.id,answer:btn.dataset.bans}) });
+  // 队友要点网页了：把浏览器打开，让你看到它要点的是哪个网页
+  if(asks.length&&!webOn) openBrowser();
+}
+if(BR){
+  $('#browserBtn').hidden=false; $('#sBrowserField').hidden=false;
+  $('#browserBtn').onclick=()=>webOn&&!$('#split').hidden?closePreview():openBrowser();
+  $('#bClose').onclick=closePreview;
+  $('#bBack').onclick=()=>BR.back().then(webState);
+  $('#bFwd').onclick=()=>BR.forward().then(webState);
+  $('#bReload').onclick=()=>BR.reload().then(webState);
+  $('#bUrl').onkeydown=e=>{ if(e.key==='Enter'&&e.target.value.trim()){ e.preventDefault(); BR.open(e.target.value.trim()).then(webState); e.target.blur() } };
+  $('#bUrl').onfocus=e=>e.target.select();
+  BR.onState(webState);
+  BR.state().then(webState);
+  new ResizeObserver(syncWeb).observe($('#spWeb'));
+  addEventListener('resize',syncWeb);
+  new MutationObserver(syncWeb).observe($('#lightbox'),{attributes:true,attributeFilter:['class']});
+}
 // AI 回复里的文件链接：能预览的在右边打开，文件夹在资源管理器里打开，其他的直接下载
 function openFileLink(rel){
   if(/\/$/.test(rel)||!/\.[A-Za-z0-9]{1,8}$/.test(rel)) return api('open',{conv:S.cur,file:rel.replace(/\/$/,'')});
@@ -540,12 +682,12 @@ let dragN=0; const main=$('#main');
 main.addEventListener('dragenter',e=>{if(e.dataTransfer.types.includes('Files')){dragN++;$('#drop').classList.add('show')}});
 main.addEventListener('dragleave',()=>{if(--dragN<=0){dragN=0;$('#drop').classList.remove('show')}});
 main.addEventListener('dragover',e=>e.preventDefault());
-main.addEventListener('drop',e=>{e.preventDefault();dragN=0;$('#drop').classList.remove('show');addFiles([...e.dataTransfer.files])});
+main.addEventListener('drop',e=>{e.preventDefault();dragN=0;$('#drop').classList.remove('show');(LIB.kind?libUploadFiles:addFiles)([...e.dataTransfer.files])});
 
 // header buttons
-$('#newConv').onclick=async()=>{const {id}=await api('conv/new');await openConv(id);input.focus();$('#side').classList.remove('show')};
+$('#newConv').onclick=async()=>{setView('chat');const {id}=await api('conv/new');await openConv(id);input.focus();$('#side').classList.remove('show')};
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();$('#newConv').click()} if(e.key==='Escape'){if(!document.querySelector('dialog[open]')&&!$('#split').hidden&&!$('#lightbox').classList.contains('show')&&!$('#drawer').classList.contains('show'))closePreview();$('#lightbox').classList.remove('show');$('#drawer').classList.remove('show');$('#memBtn').classList.remove('on')}});
-$('#dirBtn').onclick=()=>api('open',{conv:S.cur||undefined});
+$('#dirBtn').onclick=()=>LIB.kind?api('open',{library:true}):api('open',{conv:S.cur||undefined});
 // ---------- 布局：侧栏可拖宽 / 收起，聊天区三档宽度，分屏预览可拖宽（都记在本机浏览器里）
 const isNarrow=()=>matchMedia('(max-width:760px)').matches;
 $('#menuBtn').onclick=()=>{ if(isNarrow()) return $('#side').classList.toggle('show'); store.set('hola.sideOff', document.body.classList.toggle('side-off')?'1':'') };
@@ -588,8 +730,21 @@ function applyTheme(t){ if(t) document.documentElement.dataset.theme=t; else del
 applyTheme(store.get('hola.theme'));
 $('#toggleTheme').onclick=()=>{
   const dark=document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
-  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t);
+  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t); syncTitleBar();
 };
+
+// ---------- 桌面版：自己画的标题栏（拖动区域、给窗口按钮留位置、按钮颜色跟着深浅色走）
+const DESKTOP = window.holaDesktop || null;
+if (DESKTOP) document.body.classList.add('desktop', 'os-' + DESKTOP.platform);
+function syncTitleBar(){
+  if(!DESKTOP||!DESKTOP.setTitleBarColors) return;
+  const hex=(c)=>'#'+(c.match(/\d+/g)||[]).slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
+  DESKTOP.setTitleBarColors(hex(getComputedStyle($('header')).backgroundColor), hex(getComputedStyle($('header .hbtn')).color));
+}
+syncTitleBar();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTitleBar);
+// 弹窗打开时整页都不当作拖动区域（不然点到标题栏那一条会变成拖窗口）
+new MutationObserver(()=>{ document.body.classList.toggle('no-drag', !!document.querySelector('dialog[open]')); if(typeof syncWeb==='function') syncWeb() }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 
 // settings
 $('#openSettings').onclick=()=>{
@@ -598,13 +753,13 @@ $('#openSettings').onclick=()=>{
   $('#sConcl').value=s.conclusionBy||'claude';
   $('#sRounds').value=s.maxDiscussRounds??3;
   $('#sLang').value=window.HOLA_LANG;
-  $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess;
+  $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess; $('#sBrowserAsk').checked=s.browserAsk!==false;
   $('#sHops').value=s.maxAutoTurns??10;
   $('#settings').showModal();
 };
 $('#sCancel').onclick=()=>$('#settings').close();
 $('#sSave').onclick=async()=>{
-  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
+  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
 };
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
@@ -726,7 +881,7 @@ function openMember(m){
   $('#mType').querySelectorAll('button').forEach(b=>b.disabled=builtin);
   $('#mType').hidden = builtin; $('#apiFields').hidden = builtin || mType!=='api'; $('#cliFields').hidden = builtin || mType!=='cli';
   const e = (m && m.edit) || {};
-  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? '';
+  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision;
   $('#mKey').value = ''; $('#mKey').placeholder = e.keyHint ? `已保存（${e.keyHint}），留空表示不改` : 'sk-...';
   $('#mCmd').value = e.cmd || ''; $('#mArgs').value = e.argsText || ''; $('#mParser').value = e.parser || 'plain';
   $('#mReadOnly').checked = !!e.readOnly; $('#mVer').checked = e.versionCheck !== false;
@@ -804,7 +959,7 @@ $('#mSave').onclick = async()=>{
   if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }
   if(!builtin){
     member.type = mType;
-    if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim() });
+    if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked });
     else Object.assign(member,{ cmd:$('#mCmd').value.trim(), argsText:$('#mArgs').value, parser:$('#mParser').value, readOnly:$('#mReadOnly').checked, versionCheck:$('#mVer').checked });
     if(!member.name){ res.className='testres bad'; res.textContent='请填写名字'; return }
     if(mType==='api' && (!member.baseUrl || !member.model)){ res.className='testres bad'; res.textContent='请填写接口地址和模型名'; return }
@@ -829,7 +984,8 @@ function paintAva(el){ if(S.profile.avatar){ el.style.backgroundImage=`url('${S.
 function renderMe(){
   paintAva($('#meAva'));
   $('#meName').textContent = S.profile.name || t('你');
-  $('#meSub').textContent = [S.profile.title,S.profile.org].filter(Boolean).join(' · ') || '点这里设置头像和偏好';
+  const sub=[S.profile.title,S.profile.org].filter(Boolean).join(' · ');
+  $('#meSub').textContent = sub; $('#meSub').hidden = !sub;
 }
 let pfDraft = {};
 function openProfile(){
@@ -880,7 +1036,7 @@ function connect(){
   es.onmessage=e=>{
     const ev=JSON.parse(e.data);
     if(ev.type==='init'){
-      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; S.skills=ev.skills||[]; S.projects=ev.projects||[]; renderMe(); renderBuild(ev.build);
+      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; S.skills=ev.skills||[]; S.projects=ev.projects||[]; renderMe(); renderBuild(ev.build); S.browser=ev.browser||null; renderBrowser(); document.body.dataset.ready='1';
       if(!S.settings.uiLang){ api('settings',{uiLang:window.HOLA_LANG}); S.settings.uiLang=window.HOLA_LANG; }
       else if(S.settings.uiLang!==window.HOLA_LANG){ window.setHolaLang(S.settings.uiLang); location.reload(); return; }
       const want=S.cur||store.get('hola.cur'); renderConvs();
@@ -888,7 +1044,9 @@ function connect(){
     }
     else if(ev.type==='convs'){ S.convs=ev.convs; renderConvs(); if(S.conv){const c=S.convs.find(x=>x.id===S.cur); if(c){S.conv.title=c.title;$('#title').textContent=c.title}} renderRun() }
     else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder() } }
-    else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss') }
+    else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss'); if(LIB.kind&&(ev.msg.files||ev.msg.attachments)) libReload() }
+    else if(ev.type==='library'){ if(LIB.kind) libReload() }
+    else if(ev.type==='browser'){ S.browser=ev.browser; renderBrowser() }
     else if(ev.type==='proc'){ if(ev.conv===S.cur) addStep(ev.id,ev.item) }
     else if(ev.type==='projects'){ S.projects=ev.projects||[]; renderConvs() }
     else if(ev.type==='skills'){ S.skills=ev.skills||[]; if($('#skillsDlg').open) renderSkills() }
