@@ -18,10 +18,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: 下载 Electron
@@ -35,21 +35,27 @@ jobs:
             if (pkg !== rel || (tag && tag !== pkg)) { console.error('版本号对不上：', { tag, pkg, rel }); process.exit(1); }
             console.log('版本', pkg);"
       - name: 全部测试（必须是作者签好的正式版，桌面版测试不许跳过）
-        run: node --test --test-timeout=180000 "tests/*.test.js"
+        shell: bash
+        run: node --test --test-timeout=180000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=test-results.tap "tests/*.test.js"
         env:
           HOLA_RELEASE_CHECK: '1'
           HOLA_REQUIRE_APP: '1'
+      - name: 测试失败时，把原因写成公开的错误提示
+        if: failure()
+        shell: bash
+        run: node tools/ci-annotate.js test-results.tap
       - name: 打包 Windows 安装包
         run: npx electron-builder --win --publish never
       - name: 打包程序更新包
         run: node tools/pack-app.js
       - name: 测打出来的东西：安装版能用、更新包能通过签名核对并运行
-        run: node --test --test-timeout=180000 tests/app.test.js tests/update.test.js
+        shell: bash
+        run: node --test --test-timeout=180000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=test-results.tap tests/app.test.js tests/update.test.js
         env:
           HOLA_APP_EXE: ${{ github.workspace }}\dist\win-unpacked\Hola.exe
           HOLA_BUNDLE_DIR: ${{ github.workspace }}\dist
           HOLA_REQUIRE_APP: '1'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows
           path: |
@@ -64,22 +70,25 @@ jobs:
     # Mac 版还是测试版：这一步出问题时 Windows 版照样发布
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: 下载 Electron
         run: node node_modules/electron/install.js
       - name: 全部测试（在真的 Mac 上跑）
-        run: node --test --test-timeout=180000 "tests/*.test.js"
+        run: node --test --test-timeout=180000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=test-results.tap "tests/*.test.js"
         env:
           HOLA_RELEASE_CHECK: '1'
           HOLA_REQUIRE_APP: '1'
+      - name: 测试失败时，把原因写成公开的错误提示
+        if: failure()
+        run: node tools/ci-annotate.js test-results.tap
       - name: 打包 Mac 安装包（Apple 芯片、Intel 各一个，免费临时签名）
         run: npx electron-builder --mac --publish never
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: mac
           path: dist/Hola-*-mac-*.dmg
@@ -91,7 +100,7 @@ jobs:
     if: ${{ !cancelled() && needs.windows.result == 'success' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: out
           merge-multiple: true
