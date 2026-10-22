@@ -29,18 +29,17 @@ describe('核心流程', () => {
     assert.ok(['official', 'modified', 'unofficial', 'dev'].includes(init.build.status));
   });
 
-  it('打招呼：大家各自回答，不进入讨论', async () => {
+  it('直接发送：主脑一个人回答，不开会', async () => {
     const id = await h.newConv();
     const { added } = await h.ask(id, '大家好');
-    const initial = added.filter((m) => m.reason === 'initial');
-    assert.equal(initial.length, 3);
-    assert.ok(initial.every((m) => m.needDiscuss === false && m.status === 'done'));
-    assert.ok(!added.some((m) => m.reason === 'discuss' || m.reason === 'conclusion'));
+    const replies = added.filter((m) => m.from !== 'boss' && m.reason !== 'memory');
+    assert.deepEqual(replies.map((m) => `${m.from}:${m.reason}`), ['claude:main']);
+    assert.match(replies[0].text, /在线/);
   });
 
-  it('不点名：独立作答 → 讨论 → 达成共识 → 自动接力 → 整理记忆', async () => {
+  it('开会讨论：独立作答 → 讨论 → 达成共识 → 自动接力 → 主脑验收 → 整理记忆', async () => {
     const id = await h.newConv();
-    const { conv, added } = await h.ask(id, '新品耳机首发该怎么推广');
+    const { conv, added } = await h.ask(id, '新品耳机首发该怎么推广', { mode: 'discuss' });
     const r = reasons(added);
     assert.equal(r.filter((x) => x.endsWith(':initial')).length, 3, r.join(' '));
     assert.ok(r.filter((x) => x.endsWith(':discuss')).length >= 3, r.join(' '));
@@ -52,6 +51,12 @@ describe('核心流程', () => {
     assert.equal(hand && hand.from, 'codex', '结论里 @Codex 应该自动接手');
     assert.ok((hand.files || []).some((f) => f.path === '结论要点.csv'), '接手做出的文件要挂在消息上');
     assert.ok(fs.existsSync(path.join(h.workspace, id, '结论要点.csv')));
+    const reviews = added.filter((m) => m.reason === 'review');
+    assert.equal(reviews.length, 1, '队友交付后，主脑验收一次');
+    assert.equal(reviews[0].from, 'claude');
+    assert.equal(reviews[0].review, 'pass');
+    assert.ok(!/【验收】/.test(reviews[0].text), '验收标签变成标记，不留在正文里');
+    assert.ok(added.indexOf(reviews[0]) > added.indexOf(hand));
     assert.ok(added.some((m) => m.reason === 'memory' && m.memoryChanged), '每轮结束要整理记忆');
     assert.match(conv.memory, /已经定下的结论/);
     assert.equal(conv.running, false);
@@ -59,7 +64,7 @@ describe('核心流程', () => {
 
   it('谈不拢：停下来等老板拍板，点按钮后按决定分工', async () => {
     const id = await h.newConv();
-    const { added } = await h.ask(id, '新品耳机首发该怎么推广，有分歧就让我拍板');
+    const { added } = await h.ask(id, '新品耳机首发该怎么推广，有分歧就让我拍板', { mode: 'discuss' });
     const concl = added.find((m) => m.reason === 'conclusion');
     assert.ok(concl.awaitDecision && !concl.consensus);
     assert.deepEqual(concl.options.map((o) => o.key), ['A', 'B']);
@@ -84,7 +89,7 @@ describe('核心流程', () => {
 
   it('谈不拢：直接打字也算拍板，不会重新开一轮讨论', async () => {
     const id = await h.newConv();
-    await h.ask(id, '新品耳机首发该怎么推广，有分歧就让我拍板');
+    await h.ask(id, '新品耳机首发该怎么推广，有分歧就让我拍板', { mode: 'discuss' });
     const { conv, added } = await h.ask(id, '选A，但预算控制在5万以内');
     assert.equal(added[0].reason, 'decision');
     assert.ok(!added.some((m) => m.reason === 'initial' || m.reason === 'discuss'), reasons(added).join(' '));
@@ -102,7 +107,7 @@ describe('核心流程', () => {
 
   it('叫停：正在干的活马上停下', async () => {
     const id = await h.newConv();
-    await h.post('send', { conv: id, text: '新品耳机首发该怎么推广' });
+    await h.post('send', { conv: id, text: '新品耳机首发该怎么推广', mode: 'discuss' });
     assert.equal((await h.post('stop', { conv: id })).status, 200);
     const c = await h.waitIdle(id);
     assert.equal(c.running, false);

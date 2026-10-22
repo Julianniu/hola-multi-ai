@@ -52,9 +52,9 @@ describe('桌面版', { skip }, () => {
   // 测打包好的应用时，开发版才有的"放行本机测试网站"不起作用：只测拦截和工具服务本身
   const PACKAGED = !!process.env.HOLA_APP_EXE;
   const $text = (sel) => page.locator(sel).first().innerText();
-  async function ask(text) {
+  async function ask(text, meet) {
     await page.fill('#input', text);
-    await page.click('#sendBtn');
+    await page.click(meet ? '#meetBtn' : '#sendBtn');
   }
   const waitIdle = () => page.waitForFunction(() => !document.body.classList.contains('busy') && !document.querySelector('.row .working'), null, { timeout: 30000 });
 
@@ -92,8 +92,8 @@ describe('桌面版', { skip }, () => {
     await page.waitForFunction(() => /3\/3/.test(document.querySelector('#whoText').textContent), null, { timeout: 15000 });
   });
 
-  it('不点名提问：讨论出结论，接力做出文件，在右侧分屏预览', async () => {
-    await ask('新品耳机首发该怎么推广');
+  it('开会讨论：讨论出结论，接力做出文件，主脑验收，在右侧分屏预览', async () => {
+    await ask('新品耳机首发该怎么推广', true);
     await page.waitForSelector('.row.concl .concl-head', { timeout: 30000 });
     const pv = page.locator('[data-preview]').first();
     await pv.waitFor({ timeout: 30000 });
@@ -109,7 +109,7 @@ describe('桌面版', { skip }, () => {
 
   it('谈不拢：出现拍板卡片，点方案后按决定分工', async () => {
     await page.click('#newConv');
-    await ask('新品耳机首发该怎么推广，有分歧就让我拍板');
+    await ask('新品耳机首发该怎么推广，有分歧就让我拍板', true);
     const btn = page.locator('[data-decide][data-key="B"]');
     await btn.waitFor({ timeout: 30000 });
     assert.match(await $text('.decide-h'), /请你拍板/);
@@ -319,6 +319,19 @@ describe('桌面版', { skip }, () => {
       if (r && r.id) await page.evaluate((id) => api('members/delete', { id }), r.id);
     }
     if (await page.locator('#bClose').isVisible()) await page.click('#bClose');
+  });
+
+  it('直接发送：主脑一个人回答；点"让大家讨论一下"再开会', async () => {
+    await page.click('#newConv');
+    await ask('新品耳机首发该怎么推广');
+    const btn = page.locator('[data-escalate]');
+    await btn.waitFor({ timeout: 30000 });
+    assert.equal(await page.locator('.row .meta').filter({ hasText: '主脑' }).count(), 1);
+    await btn.click();
+    await page.waitForSelector('.row.concl .concl-head', { timeout: 30000 });
+    await page.waitForSelector('.review.pass', { timeout: 30000 });
+    await waitIdle();
+    assert.equal(await page.locator('[data-escalate]').count(), 0, '讨论过的回答不再显示按钮');
   });
 
   it('布局：宽度按钮、收起侧栏', async () => {

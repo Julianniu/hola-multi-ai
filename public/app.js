@@ -241,10 +241,10 @@ document.addEventListener('click',e=>{ if(!e.target.closest('#lights')) $('#memb
 function activeFor(c){ const all=enabledMembers().map(m=>m.id); return c&&Array.isArray(c.active)? all.filter(id=>c.active.includes(id)) : all }
 function renderUnder(){
   const cs = S.conv && S.convs.find(c=>c.id===S.cur), act=activeFor(cs);
-  const hint = '不点名：参与的队友同时作答，再自己讨论出结论 · @ 多人：按 @ 的顺序来';
+  const hint = '发送：主脑回答 · 开会讨论：大脑们讨论出团队结论 · @ 某人：按 @ 的顺序来';
   $('#under').innerHTML = `<span class="lbl">参与</span>` + enabledMembers().map(m=>{
     const on=act.includes(m.id);
-    return `<button class="part${on?'':' off'}${m.online?'':' down'}" style="--mc:${m.color}" data-part="${m.id}" title="${on?'点一下：这次不让 Ta 参与':'点一下：让 Ta 参与'}${m.online?'':'（不在线）'}"><i></i><span>${esc(m.name)}</span></button>`;
+    return `<button class="part${on?'':' off'}${m.online?'':' down'}" style="--mc:${m.color}" data-part="${m.id}" title="${on?'点一下：这次不让 Ta 参与':'点一下：让 Ta 参与'}${m.online?'':'（不在线）'}"><i></i><span>${esc(m.name)}</span>${m.role==='helper'?'<em>帮手</em>':''}</button>`;
   }).join('') + `<span class="hint">${hint}</span>`;
   $('#under').querySelectorAll('[data-part]').forEach(b=>b.onclick=async()=>{
     const id=await ensureConv(); const c=S.convs.find(x=>x.id===id); let a=activeFor(c);
@@ -257,6 +257,8 @@ function renderUnder(){
 // ---------- conversation view
 async function openConv(id){
   setView('chat');
+  // 待发送的附件是传到上一个对话里的：换对话时清掉，免得带到别的对话里找不到文件
+  if(id!==S.cur && S.pending.length){ S.pending=[]; renderTray(); updateSend() }
   S.cur=id; store.set('hola.cur',id||''); nodes.clear(); S.conv=null; renderConvs();
   if(!id){renderConv();return}
   const r=await fetch('/api/conv/'+id); if(!r.ok){S.cur=null;renderConv();return}
@@ -277,7 +279,7 @@ function renderEmpty(){
     '@Codex 做一个网页小工具：输入活动预算和达人报价，自动算出投放组合'];
   $('#feed').innerHTML=`<div class="empty"><img class="glow" src="/logo.svg" alt="">
     <h2>${S.profile.callMe?esc(S.profile.callMe)+'，':''}今天让大家一起做什么？</h2>
-    <p>不点名的话，参与的队友会同时独立作答。遇到需要判断的问题，他们会自己讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。</p>
+    <p>直接发送，由主脑回答，最快。值得多想想的问题，点「开会讨论」：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。</p>
     <div class="team">${enabledMembers().map(m=>`<div><b><i style="background:${m.color};box-shadow:0 0 8px ${m.color}"></i>${esc(m.name)}</b><span>${esc(m.strengths)}</span></div>`).join('')}</div>
     <div class="tries">${tries.map(t=>`<button>${esc(t)}</button>`).join('')}</div></div>`;
   $('#feed').querySelectorAll('.tries button').forEach(b=>b.onclick=()=>{input.value=b.textContent;autoGrow();updateSend();input.focus()});
@@ -357,16 +359,19 @@ function msgHTML(m){
     return `<div class="memline" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-book"/></svg><span><b>${m.skillUpdated?'技能已更新':'已存为技能'}</b>${window.HOLA_LANG==='en'?': ':'：'}<b data-raw>${esc(m.skillName||'')}</b>${m.text?` · <span data-raw>${esc(m.text)}</span>`:''}</span><span class="link" data-openskill="${esc(m.skillId||'')}">查看</span></div>`;
   }
   if(m.from==='system'&&m.divider) return `<div class="divider"><span><i></i>${esc(m.text)}</span></div>`;
-  const tag = m.from==='boss' ? '' : ({mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言'})[m.reason]||'';
+  const tag = m.from==='boss' ? '' : ({main:'主脑',review:'验收',mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言'})[m.reason]||'';
+  const reviewTag = m.reason==='review'&&m.status==='done'&&m.review ? `<span class="review ${m.review}">${({pass:'✓ 验收通过',fixed:'✓ 改好后通过',redo:'退回重做'})[m.review]}</span>` : '';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
   const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
-  const WK={handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
+  const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
   const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
   if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
-  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m);
+  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)
+    // 主脑的回答下面：老板觉得需要，再请大家开会
+    +(m.reason==='main'&&m.status==='done'&&!m.escalated?`<button class="escalate" data-escalate="${m.id}" title="其他大脑先各自独立作答，再和主脑一起讨论出团队结论">让大家讨论一下</button>`:'');
   const last=m.process.length?m.process[m.process.length-1]:null;
   const latest = !running ? '' : sp ? (last?`<div class="latest" data-raw>${esc(t(KIND[last.k]||''))}　${esc(last.t.split('\n')[0])}</div>`:'') : (m.text?`<div class="latest" data-raw data-fun="${m.id}">${esc(funLabel(m))}</div>`:'');
   const steps=m.process.filter(it=>it.k!=='say');
@@ -378,7 +383,7 @@ function msgHTML(m){
   const memb = m.from!=='boss';
   const bossPic = !memb && S.profile.avatar ? ` pic" style="background-image:url('${S.profile.avatar}')` : '';
   return `<div class="row ${memb?'mem':'boss'}${concl?' concl':''}"${memb?` style="--mc:${colorOf(m.from)}"`:''}><span class="av ${memb?'mem':'boss'}${bossPic}"></span><div class="col">
-    <div class="meta"><span class="who">${esc(nameOf(m.from))}</span>${tag?`<span>${tag}</span>`:''}${stance}${(m.skills||[]).map(k=>`<span class="skilltag" data-openskill="${esc(k.id)}" title="用了技能库里的这个技能"><svg class="i"><use href="#i-book"/></svg><span data-raw>${esc(k.name)}</span></span>`).join('')}<span>${fmtTime(m.ts)}${state}</span></div>
+    <div class="meta"><span class="who">${esc(nameOf(m.from))}</span>${tag?`<span>${tag}</span>`:''}${stance}${reviewTag}${(m.skills||[]).map(k=>`<span class="skilltag" data-openskill="${esc(k.id)}" title="用了技能库里的这个技能"><svg class="i"><use href="#i-book"/></svg><span data-raw>${esc(k.name)}</span></span>`).join('')}<span>${fmtTime(m.ts)}${state}</span></div>
     ${files}${showBubble?`<div class="bubble${m.status==='error'?' err':''}">${body}${latest}</div>`:''}${out}${proc}</div></div>`;
 }
 function putMsg(m, stick){
@@ -414,6 +419,7 @@ function addStep(id,item){
 function bindFiles(el){
   el.querySelectorAll('[data-openskill]').forEach(b=>b.onclick=()=>{ const k=S.skills.find(x=>x.id===b.dataset.openskill); if(k) openSkill(k); else toast('这个技能已经不在技能库里了') });
   el.querySelectorAll('[data-saveskill]').forEach(b=>b.onclick=()=>distillSkill(b.dataset.saveskill));
+  el.querySelectorAll('[data-escalate]').forEach(b=>b.onclick=async()=>{ b.disabled=true; const j=await api('discuss',{conv:S.cur,msg:b.dataset.escalate}); if(j.error){ toast(j.error); b.disabled=false } });
   el.querySelectorAll('[data-decide]').forEach(b=>b.onclick=async()=>{
     el.querySelectorAll('[data-decide]').forEach(x=>x.disabled=true);
     const j=await api('decide',{conv:S.cur,msg:b.dataset.decide,option:b.dataset.key}).catch(e=>({error:e.message}));
@@ -580,6 +586,9 @@ function renderBrowser(){
   // 队友要点网页了：把浏览器打开，让你看到它要点的是哪个网页
   if(asks.length&&!webOn) openBrowser();
 }
+// 1.2 起直接发送由主脑回答：第一次打开时提示一下新用法
+if(!store.get('hola.notice12')) $('#v12Notice').hidden=false;
+$('#v12Ok').onclick=()=>{ $('#v12Notice').hidden=true; store.set('hola.notice12','1') };
 if(BR){
   $('#browserBtn').hidden=false; $('#sBrowserField').hidden=false;
   $('#browserBtn').onclick=()=>webOn&&!$('#split').hidden?closePreview():openBrowser();
@@ -615,27 +624,28 @@ function renderRun(){
 // ---------- composer
 const input=$('#input');
 function autoGrow(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,220)+'px'}
-function updateSend(){ $('#sendBtn').disabled = !(input.value.trim()||S.pending.some(p=>p.done)) || S.pending.some(p=>!p.done) }
+function updateSend(){ $('#sendBtn').disabled = $('#meetBtn').disabled = !(input.value.trim()||S.pending.some(p=>p.done)) || S.pending.some(p=>!p.done) }
 input.addEventListener('input',()=>{autoGrow();updateSend();checkMention()});
 input.addEventListener('keydown',e=>{
   if($('#mpop').classList.contains('show')&&['ArrowDown','ArrowUp','Enter','Tab','Escape'].includes(e.key)){mpopKey(e);return}
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}
 });
 async function ensureConv(){ if(S.cur&&S.conv) return S.cur; const {id}=await api('conv/new'); await openConv(id); return id }
-async function send(){
+async function send(mode){
   const text=input.value.trim(); const atts=S.pending.filter(p=>p.done).map(p=>({path:p.path}));
   if(!text&&!atts.length) return; if(S.pending.some(p=>!p.done)){toast('附件还在上传');return}
   const id=await ensureConv();
   input.value=''; S.pending=[]; renderTray(); autoGrow(); updateSend();
-  try{ await api('send',{conv:id,text,attachments:atts}) }catch(e){ toast('发送失败：Hola 后台可能没在运行') }
+  try{ await api('send',{conv:id,text,attachments:atts,...(mode==='discuss'?{mode}:{})}) }catch(e){ toast('发送失败：Hola 后台可能没在运行') }
 }
-$('#sendBtn').onclick=send;
+$('#sendBtn').onclick=()=>send();
+$('#meetBtn').onclick=()=>send('discuss');
 $('#stopBtn').onclick=()=>S.cur&&api('stop',{conv:S.cur});
 
 // mentions popup
 let mIdx=0, mStart=-1;
 function mentionOptions(q){
-  const all=[...enabledMembers().map(m=>({v:m.name,id:m.id,d:m.online?'':'不在线'})),{v:'全员',id:'all',d:'参与的人同时作答'}];
+  const all=[...enabledMembers().map(m=>({v:m.name,id:m.id,d:m.online?'':'不在线'})),{v:'全员',id:'all',d:'开会讨论'}];
   return all.filter(o=>o.v.toLowerCase().startsWith(q.toLowerCase()));
 }
 function checkMention(){
@@ -758,7 +768,7 @@ new MutationObserver(()=>{ document.body.classList.toggle('no-drag', !!document.
 $('#openSettings').onclick=()=>{
   const s=S.settings;
   $('#sConcl').innerHTML=S.members.filter(m=>m.enabled).map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  $('#sConcl').value=s.conclusionBy||'claude';
+  $('#sConcl').value=s.conclusionBy||'claude'; $('#sPolicy').value=s.policy||'auto';
   $('#sRounds').value=s.maxDiscussRounds??3;
   $('#sLang').value=window.HOLA_LANG;
   $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess; $('#sBrowserAsk').checked=s.browserAsk!==false;
@@ -767,7 +777,7 @@ $('#openSettings').onclick=()=>{
 };
 $('#sCancel').onclick=()=>$('#settings').close();
 $('#sSave').onclick=async()=>{
-  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
+  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,policy:$('#sPolicy').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
 };
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
@@ -883,7 +893,7 @@ function openMember(m){
   mColor = m ? m.color : (SWATCHES.find(c=>!used.has(c)) || SWATCHES[0]);
   renderSwatches();
   $('#mName').value = m ? m.name : ''; $('#mName').disabled = builtin;
-  $('#mStrengths').value = m ? m.strengths : '';
+  $('#mStrengths').value = m ? m.strengths : ''; $('#mRole').value = m && m.role==='helper' ? 'helper' : 'brain';
   $('#mEnabled').checked = m ? m.enabled : true;
   setType(m ? m.type : 'api');
   $('#mType').querySelectorAll('button').forEach(b=>b.disabled=builtin);
@@ -990,7 +1000,7 @@ $('#mSave').onclick = async()=>{
   const res=$('#mRes'); res.className='testres'; res.textContent='保存中…';
   const builtin = !!(editing && editing.builtin);
   const member = { id: editing ? editing.id : undefined, name: builtin ? editing.name : $('#mName').value.trim(), color: mColor,
-    strengths: $('#mStrengths').value.trim(), enabled: $('#mEnabled').checked };
+    strengths: $('#mStrengths').value.trim(), enabled: $('#mEnabled').checked, role: $('#mRole').value };
   if(accessShown()) member.access = $('#mFull').checked ? 'full' : 'safe';
   const modelsLoaded = !!$('#mModelSel').querySelector('option[value="__custom"]');
   if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }

@@ -86,6 +86,7 @@
   </section>
 
   <div class="basks" id="bAsks" aria-live="polite"></div>
+  <div class="notice" id="v12Notice" hidden><b>新的用法</b>直接发送，由主脑一个人回答，更快。想听大家一起讨论，点输入框旁的「开会讨论」，或者在主脑的回答下面点「让大家讨论一下」。主脑、干活策略在"设置"里改，大脑 / 帮手在"队友 → 编辑"里改。<button class="btn" id="v12Ok">知道了</button></div>
 
   <div class="composer-wrap">
     <div class="composer">
@@ -96,7 +97,8 @@
         <input type="file" id="fileInput" multiple hidden>
         <textarea id="input" rows="1" placeholder="说说要做什么，@ 谁就让谁来"></textarea>
         <button class="stop" id="stopBtn"><svg class="i"><use href="#i-stop"/></svg>叫停</button>
-        <button class="send" id="sendBtn" aria-label="发送" disabled><svg class="i"><use href="#i-send"/></svg></button>
+        <button class="meet" id="meetBtn" disabled title="让几位大脑开会讨论，得出团队结论">开会讨论</button>
+        <button class="send" id="sendBtn" aria-label="发送" title="发送：由主脑回答" disabled><svg class="i"><use href="#i-send"/></svg></button>
       </div>
     </div>
     <div class="under" id="under"></div>
@@ -141,8 +143,14 @@
       <small>不点名时，参与的队友先各自作答；只要有人认为值得讨论，就进入讨论，直到大家都同意或到达轮数上限。</small>
     </div>
     <div class="field">
-      <label for="sConcl">团队结论由谁整理</label>
+      <label for="sConcl">主脑</label>
       <select id="sConcl"></select>
+      <small>直接发送时由主脑回答；开会时由主脑写团队结论；队友交付的东西由主脑验收。</small>
+    </div>
+    <div class="field">
+      <label for="sPolicy">干活策略</label>
+      <select id="sPolicy"><option value="auto">自动（推荐）</option><option value="quality">质量优先</option><option value="balanced">均衡</option><option value="saving">省钱</option></select>
+      <small>决定主脑把多少活交给帮手。自动：主脑用订阅时质量优先，用 API 时均衡。质量优先：主脑能做的都自己做。均衡：主脑想和审，粗活和长文交给帮手。省钱：主脑只出方案和验收。</small>
     </div>
     <div class="field">
       <label><input type="checkbox" id="sMem" style="width:auto;margin:0 4px 0 0">每轮结束后自动整理对话记忆</label>
@@ -257,6 +265,7 @@
         <div class="field"><label for="mName">名字</label><input id="mName" placeholder="比如 DeepSeek" maxlength="20"><small>在群里 @ 它时用这个名字，不能有空格</small></div>
         <div class="field"><label>颜色</label><div class="swatches" id="mColors"></div></div>
       </div>
+      <div class="field"><label for="mRole">角色</label><select id="mRole"><option value="brain">大脑：参与开会讨论</option><option value="helper">帮手：不参与讨论，只接活（做表、搜资料、排版……）</option></select><small>帮手适合用便宜、快的模型；交出去的活由主脑验收。</small></div>
       <div class="field"><label for="mStrengths">擅长什么</label><textarea id="mStrengths" placeholder="比如：中文写作、数学推理、代码"></textarea><small>大家会按这里分工，写具体一点。</small></div>
       <div class="field" id="viaField" hidden>
         <label>接入方式</label>

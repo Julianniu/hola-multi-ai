@@ -140,9 +140,23 @@ Gemini 和 Claude 认为不先看真实反馈，成本也估不准；Codex 认�
 @Codex 把结论要点整理成一张表格。`;
   }
 
+  // 主脑验收：问题里带"退回"时演示退回重做（用来测"退回太多次就停下"）
+  if (p.includes('你是主脑，负责验收')) {
+    if (/退回/.test(q)) return `【验收】退回\n表格少了预算一列。\n\n@Codex 补上预算这一列。`;
+    return `【验收】通过\n结论要点.csv 核对过了，三条要点和负责人都对，可以直接用。`;
+  }
+  // 主脑直接回答：要做表时交给帮手
+  if (p.includes('由你（主脑）直接回答')) {
+    if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return `老板好，${name} 在线，随时可以开工。`;
+    const helper = (p.match(/@帮手（([^）、]+)/) || [])[1];
+    if (/表格|做表/.test(q) && helper) return `要点我来定：明确目标人群、设定成本上限、参考外部反馈。\n\n@${helper} 把这三条要点做成表格。`;
+    return `${(VIEWS[name] || VIEWS.Claude)(q)}\n\n（演示模式：这是主脑的示范回答。）`;
+  }
+
   if (p.includes('@ 了你')) {
     fs.writeFileSync('结论要点.csv', '﻿要点,负责人\n明确目标人群,团队\n设定成本上限,Codex\n参考外部反馈,Gemini\n');
-    return '表格做好了：**结论要点.csv**，三条要点和负责人都列在里面。';
+    // 问题里带"请主脑验收"时，交付的人顺手 @ 主脑（用来测：这种情况也只走一次正式验收）
+    return '表格做好了：**结论要点.csv**，三条要点和负责人都列在里面。' + (/请主脑验收/.test(q) ? '\n\n@Claude 请验收。' : '');
   }
 
   return `收到，${name} 来处理。（演示模式：这是示范回复，接入真实 AI 后就是真正的工作结果。）`;
@@ -232,6 +246,11 @@ The key trade-off in the discussion: Gemini insisted on checking outside feedbac
 (Demo mode: with real AIs connected, this would be a specific answer to your question.)
 
 @Codex turn the key points into a table.`;
+  }
+  if (p.includes('你是主脑，负责验收')) return `【验收】通过\nI checked key-points.csv: the three points and owners are right and ready to use.`;
+  if (p.includes('由你（主脑）直接回答')) {
+    if (/^(hi|hello|hey)\b/i.test(q)) return `Hi boss, ${name} is online and ready.`;
+    return `${(VIEWS_EN[name] || VIEWS_EN.Claude)(q)}\n\n(Demo mode: this is the main brain's scripted answer.)`;
   }
   if (p.includes('@ 了你')) {
     fs.writeFileSync('key-points.csv', 'Point,Owner\nDefine the target audience,Team\nSet a cost ceiling,Codex\nCheck outside feedback,Gemini\n');

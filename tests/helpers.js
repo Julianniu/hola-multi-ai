@@ -67,9 +67,10 @@ async function startHola(opts = {}) {
     throw new Error('等太久了，对话还没结束：' + id + '\n' + log.slice(-2000));
   }
   // 发一条消息并等大家做完，返回这次新增的消息
-  async function ask(id, text) {
+  // extra：比如 { mode: 'discuss' } = 点"开会讨论"
+  async function ask(id, text, extra = {}) {
     const before = (await conv(id)).messages.length;
-    const r = await post('send', { conv: id, text });
+    const r = await post('send', { conv: id, text, ...extra });
     if (r.status !== 200) throw new Error('发送失败：' + JSON.stringify(r));
     const c = await waitIdle(id);
     return { conv: c, added: c.messages.slice(before) };

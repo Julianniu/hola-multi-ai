@@ -342,6 +342,17 @@ details.proc[open] summary svg{transform:rotate(90deg)}
 .ibtn:hover{background:var(--wash);color:var(--ink)}
 .send{width:38px;height:38px;border-radius:11px;background:var(--night);color:#fff;display:grid;place-items:center;flex:none}
 .send:disabled{opacity:.3;cursor:default}
+.meet{height:38px;padding:0 12px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;white-space:nowrap;flex:none}
+.meet:hover:not(:disabled){border-color:var(--ink3)}
+.meet:disabled{opacity:.35;cursor:default}
+.notice{max-width:760px;width:calc(100% - 32px);margin:0 auto 8px;padding:10px 14px;border-radius:12px;background:var(--wash);border:1px solid var(--line);font-size:13px;line-height:1.6;color:var(--ink2)}
+.notice b{color:var(--ink);margin-right:8px}
+.notice .btn{margin-left:10px;padding:3px 10px;font-size:12.5px}
+.escalate{margin-top:8px;font-size:12.5px;padding:4px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink2)}
+.escalate:hover{color:var(--ink);border-color:var(--ink3)}
+.review{font-size:11.5px;padding:1px 7px;border-radius:9px;background:var(--wash)}
+.review.pass,.review.fixed{color:var(--ok)} .review.redo{color:var(--bad)}
+.part em{font-style:normal;font-size:10.5px;margin-left:4px;opacity:.7}
 .stop{height:38px;padding:0 13px;border-radius:11px;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);font-weight:600;font-size:13.5px;display:none;align-items:center;gap:6px;flex:none}
 .stop.show{display:flex}
 .under{max-width:var(--feed-w);margin:7px auto 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--ink3)}

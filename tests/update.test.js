@@ -198,7 +198,7 @@ describe('自动更新', () => {
     const h = await startHola({ root: path.join(appsDir, v) });
     try {
       const id = await h.newConv();
-      const { added } = await h.ask(id, '大家好');
+      const { added } = await h.ask(id, '大家好', { mode: 'discuss' });
       assert.equal(added.filter((m) => m.reason === 'initial').length, 3);
       assert.equal((await fetch(h.base + '/app.js')).status, 200);
     } finally { await h.stop(); }

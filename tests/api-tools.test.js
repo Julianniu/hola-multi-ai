@@ -128,7 +128,7 @@ describe('API 队友能动手', () => {
       say('我的看法：先定预算。\n\n【需要讨论】否'),
     );
     const n0 = seen.length;
-    await h.post('send', { conv, text: '新品耳机怎么推广' });
+    await h.post('send', { conv, text: '新品耳机怎么推广', mode: 'discuss' });
     await h.waitIdle(conv);
     assert.match(toolMsgs(seen[n0 + 1]).find((x) => x.tool_call_id === 'd1').content, /讨论阶段/);
     assert.ok(!fs.existsSync(path.join(h.workspace, conv, '草稿.md')));

@@ -63,7 +63,9 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 
 <h2>怎么派活</h2>
 <ul>
-<li><b>不点名</b>：参与的队友同时独立作答。只要有人认为值得讨论，他们就会自己多轮讨论，直到都同意，再给你一个<b>团队结论</b>。讨论轮数、结论由谁整理，可以在"设置"里改。</li>
+<li><b>直接发送</b>：由<b>主脑</b>（在"设置"里指定，比如 Claude Opus）一个人回答，最快。主脑会把粗活交给帮手，帮手交回来的东西由主脑验收。</li>
+<li><b>开会讨论</b>：点输入框旁的<b>开会讨论</b>（或者写 <code>@大家</code>），几位"大脑"先各自独立作答，再讨论至少一轮，最后由主脑写团队结论。也可以先直接发送，看了主脑的回答觉得需要，再点下面的<b>让大家讨论一下</b>。</li>
+<li><b>大脑和帮手</b>：在 <b>队友</b> → "编辑" 里选角色。大脑参与开会；帮手不开会、只接活，适合用便宜快速的模型（比如 DeepSeek-flash）。<b>干活策略</b>（设置里）决定主脑交多少活给帮手：自动、质量优先、均衡、省钱。</li>
 <li><b>谈不拢时你来拍板</b>：达成共识的话，队友直接按结论分工开干。讨论到轮数上限还有分歧，结论下面会列出几个方案，写明谁支持哪个；点一个方案，或者直接在输入框里说你的决定（不用 @），队友再按你的决定分工。</li>
 <li><b>@ 谁就让谁来</b>：比如"@Codex 把这个表格做成 Excel"。@ 多位时按 @ 的先后顺序依次来。</li>
 <li><b>队友之间接力</b>：队友在回复里 @ 别人，就会自动交接。为了防止来回空转，最多自动接力 10 次（设置里可以改）。</li>
@@ -172,7 +174,9 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 
 <h2>Giving out work</h2>
 <ul>
-<li><b>No @</b>: the working teammates answer independently, at the same time. If anyone thinks it's worth discussing, they discuss over several rounds until everyone agrees, then give you a <b>team conclusion</b>. The round limit and who writes the conclusion are in Settings.</li>
+<li><b>Just send</b>: the <b>main brain</b> (set in Settings, say Claude Opus) answers alone, which is fastest. It hands routine work to helpers and reviews whatever they hand back.</li>
+<li><b>Meet</b>: click <b>Meet</b> next to the input box (or write <code>@all</code>). The "brains" answer independently, discuss for at least one round, and the main brain writes the team conclusion. You can also just send first and, if the answer needs more thought, click <b>Ask the team to discuss</b> under it.</li>
+<li><b>Brains and helpers</b>: choose a role under <b>Teammates</b> → "Edit". Brains join meetings; helpers don't, and only take work, which suits cheap, fast models (such as DeepSeek-flash). The <b>work strategy</b> (in Settings) decides how much the main brain hands to helpers: automatic, quality first, balanced, or save money.</li>
 <li><b>You decide when they can't agree</b>: with consensus, the team goes ahead and divides up the work. If they're still split at the round limit, the conclusion lists a few options and who supports each; pick one, or just type your decision in the box (no @ needed), and the team divides the work accordingly.</li>
 <li><b>@ someone to assign it</b>: e.g. "@Codex turn this table into Excel". With several @s, they go in @ order.</li>
 <li><b>Hand-offs</b>: when a teammate @s someone in a reply, the work is handed over automatically, up to 10 times in a row (changeable in Settings) so nobody loops forever.</li>

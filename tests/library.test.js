@@ -36,7 +36,7 @@ describe('图片库 / 文件库', () => {
   it('对话里的附件和队友做出来的文件，自动出现在库里，标明来自哪个对话', async () => {
     const id = await h.newConv();
     await h.upload(id, '截图.png', PNG);
-    await h.post('send', { conv: id, text: '新品耳机首发该怎么推广', attachments: [{ path: '附件/截图.png' }] });
+    await h.post('send', { conv: id, text: '新品耳机首发该怎么推广', attachments: [{ path: '附件/截图.png' }], mode: 'discuss' });
     await h.waitIdle(id);
     const list = await items();
     const shot = list.find((x) => x.conv && x.conv.id === id && x.name === '截图.png');
