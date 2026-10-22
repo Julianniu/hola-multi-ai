@@ -4,11 +4,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('holaDesktop', {
-  shell: 2, // 外壳能力的版本：1.1 起有标题栏和内置浏览器
+  shell: 3, // 外壳能力的版本：1.1 起有标题栏和内置浏览器；2.0 起有托盘和页面画的更新提示
   platform: process.platform,
   setTitleBarColors: (bg, fg) => ipcRenderer.send('hola:titlebar', { bg: String(bg), fg: String(fg) }),
   // 有事等老板（比如队友要点网页）而 Hola 不在前台：任务栏图标闪一闪
   attention: () => ipcRenderer.send('hola:attention'),
+  // 外壳 2.0 起：更新提示交给页面自己画（页面先说一声自己会画）
+  ui: (info) => ipcRenderer.send('hola:ui', { updates: !!(info && info.updates) }),
+  onUpdate: (fn) => ipcRenderer.on('hola:update', (_, u) => fn(u)),
+  updateAnswer: (a) => ipcRenderer.send('hola:update-answer', String(a)),
   browser: {
     // 告诉外壳浏览器区域在窗口里的位置（外壳把真正的网页摆在那儿）；null = 收起
     setBounds: (rect) => ipcRenderer.send('hola:browser-bounds', rect),

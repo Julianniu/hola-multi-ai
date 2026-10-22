@@ -108,7 +108,9 @@
     '老板叫停了，大家先停手。': 'You stopped the team. Everyone has paused.',
     // 主脑、大脑 / 帮手、开会讨论、验收
     '开会讨论': 'Meet', '让几位大脑开会讨论，得出团队结论': 'Have the brains discuss and reach a team conclusion', '发送：由主脑回答': 'Send: the main brain answers',
-    '新的用法': "What's new", '知道了': 'Got it', '主脑': 'Main brain', '验收': 'Review', '帮手': 'Helper',
+    '新的用法': "What's new", '知道了': 'Got it', '好': 'OK', '退出': 'Quit', '打开完全权限': 'Turn on full access',
+    '开会讨论 · 正在进行': 'Meeting in progress', '大家达成共识': 'Consensus reached', '验收通过': 'Approved', '改好后通过': 'Fixed and approved',
+    '新版本已经下载好': 'A new version is ready', '立即重启': 'Restart now', '稍后': 'Later', '去下载': 'Download', '主脑': 'Main brain', '验收': 'Review', '帮手': 'Helper',
     '直接发送，由主脑一个人回答，更快。想听大家一起讨论，点输入框旁的「开会讨论」，或者在主脑的回答下面点「让大家讨论一下」。主脑、干活策略在"设置"里改，大脑 / 帮手在"队友 → 编辑"里改。': 'Sending a message now gets an answer from the main brain alone, which is faster. To hear the whole team, click "Meet" next to the input box, or "Ask the team to discuss" under the main brain\'s answer. Change the main brain and work strategy in Settings, and brains / helpers under Teammates → Edit.',
     '直接发送时由主脑回答；开会时由主脑写团队结论；队友交付的东西由主脑验收。': 'The main brain answers when you just send, writes the team conclusion in meetings, and reviews what teammates deliver.',
     '干活策略': 'Work strategy', '自动（推荐）': 'Automatic (recommended)', '质量优先': 'Quality first', '均衡': 'Balanced', '省钱': 'Save money',
@@ -185,7 +187,7 @@
   };
 
   const P = [
-    [/^删除项目「(.+)」？[\s\S]*$/, (m, n) => `Delete the project "${n}"? Its chats won't be deleted; they move to Chats.`],
+    [/^删除项目「(.+)」？[\s\S]*$/, (m, n) => `Delete the project "${n}"?\n\nIts chats won't be deleted; they move to Chats.`],
     [/^用过 (\d+) 次$/, (m, n) => `Used ${n} time${n === '1' ? '' : 's'}`],
     [/^附带 (\d+) 个文件$/, (m, n) => `${n} file${n === '1' ? '' : 's'} included`],
     [/^(.+) 正在把这次的做法整理成技能…$/, (m, n) => `${n} is turning this into a skill…`],
@@ -235,8 +237,10 @@
     [/^「(.+)」· (.+) 做的$/, (m, t, n) => `"${t}" · made by ${n}`],
     [/^删除「(.+)」？会从资料库文件夹里永久删除。$/, (m, n) => `Delete "${n}"? It will be permanently removed from the library folder.`],
     [/^(.+) 正在帮看不到图片的队友看图…$/, (m, n) => `${n} is describing the image for teammates who can't see it…`],
-    [/^删除队友「(.+)」？[\s\S]*$/, (m, n) => `Delete teammate "${n}"? Past chats aren't affected.`],
-    [/^退出 Hola？[\s\S]*$/, () => 'Quit Hola? Anything in progress will be stopped. Double-click the desktop icon to open it again.'],
+    [/^删除队友「(.+)」？[\s\S]*$/, (m, n) => `Delete teammate "${n}"?\n\nPast chats aren't affected.`],
+    [/^Hola (\S+) 已经准备好\n\n[\s\S]*$/, (m, v) => `Hola ${v} is ready\n\nThe new version has been downloaded and its official signature verified. It takes effect when Hola restarts. Work in progress will be stopped.`],
+    [/^Hola (\S+) 发布了\n\n[\s\S]*$/, (m, v) => `Hola ${v} is out\n\nThis update needs the new installer. "Download" opens the download page; your chats and settings are kept when you install it.`],
+    [/^退出 Hola？[\s\S]*$/, () => 'Quit Hola?\n\nAnything in progress will be stopped. Double-click the desktop icon to open it again.'],
   ];
 
   function tr(s) {

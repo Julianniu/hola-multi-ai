@@ -6,9 +6,6 @@
 <title>Hola</title>
 <link rel="icon" href="/favicon.png">
 <script src="/i18n.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -316,10 +313,19 @@
 </dialog>
 
 
+<dialog id="askDlg">
+  <div class="dlg">
+    <div class="ah"><span class="ai"></span><h3 data-raw></h3></div>
+    <p class="ab" data-raw></p>
+    <div class="dfoot"><button type="button" class="btn" data-no>取消</button><button type="button" class="btn pri" data-ok>好</button></div>
+  </div>
+</dialog>
+
 <div class="lightbox" id="lightbox"><img alt=""></div>
 <div class="toast" id="toast"></div>
 <div class="conn" id="conn">Hola 后台断开了，正在重连…</div>
 
+<script src="/mercury.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

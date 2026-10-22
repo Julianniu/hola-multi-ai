@@ -39,6 +39,25 @@ function dur(ms){const s=Math.max(0,Math.round(ms/1000));return String(Math.floo
 function size(n){return n>1e6?(n/1e6).toFixed(1)+' MB':n>1e3?Math.round(n/1e3)+' KB':n+' B'}
 function fileUrl(p,dl){return `/files/${S.cur}/${p.split('/').map(encodeURIComponent).join('/')}${dl?'?download':''}`}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
+// 自己画的确认窗，代替系统自带的 confirm / alert：第一段是标题，空一行之后是说明。
+// ask('删除…？\n\n说明', { ok:'删除', tone:'danger' }) → Promise<true/false>；cancel:null 时只有一个按钮（相当于 alert）
+const ASK_ICON={update:'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/>',danger:'<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',warn:'<path d="M12 3.5l7 2.8v5.5c0 4.3-3 7.6-7 8.7-4-1.1-7-4.4-7-8.7V6.3z"/>',info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.01"/>'};
+function ask(msg, o={}){
+  const d=$('#askDlg'), full=t(String(msg)), cut=full.indexOf('\n\n');
+  const tone=o.tone||'info';
+  d.className=tone;
+  d.querySelector('.ai').innerHTML=`<svg class="i" viewBox="0 0 24 24">${ASK_ICON[tone]||ASK_ICON.info}</svg>`;
+  d.querySelector('h3').textContent = cut<0 ? full : full.slice(0,cut);
+  const body=d.querySelector('.ab'); body.textContent = cut<0 ? '' : full.slice(cut+2); body.hidden = cut<0;
+  const ok=d.querySelector('[data-ok]'), no=d.querySelector('[data-no]');
+  ok.textContent=t(o.ok||'好'); ok.className='btn '+(tone==='danger'?'danger solid':'pri');
+  no.hidden = o.cancel===null; no.textContent=t(o.cancel||'取消');
+  return new Promise(res=>{
+    const done=v=>{ d.onclose=null; if(d.open) d.close(); res(v) };
+    ok.onclick=()=>done(true); no.onclick=()=>done(false); d.onclose=()=>res(false);
+    d.showModal(); (tone==='danger'?no:ok).focus();
+  });
+}
 async function api(p, body){
   const r = await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json','X-Hola':'1'},body:JSON.stringify(body||{})});
   let j=null; try{ j=await r.json() }catch(_){}
@@ -181,7 +200,7 @@ function convMenu(btn, c){
   m.querySelector('[data-st]').onclick=()=>{ closeMenu(); api('conv/status',{conv:c.id,status:c.status==='done'?'doing':'done'}) };
   m.querySelector('[data-rn]').onclick=()=>{ closeMenu(); const d=$('#convs').querySelector(`.conv[data-id="${c.id}"]`); if(d) renameInline(d) };
   m.querySelector('[data-dl]').onclick=async()=>{ closeMenu();
-    if(!confirm(`彻底删除「${c.title}」？\n\n聊天记录、对话记忆、附件和队友做出来的文件都会一起永久删除，无法恢复。`))return;
+    if(!await ask(`彻底删除「${c.title}」？\n\n聊天记录、对话记忆、附件和队友做出来的文件都会一起永久删除，无法恢复。`,{ok:'删除',tone:'danger'}))return;
     await api('conv/delete',{conv:c.id}); if(S.cur===c.id){S.cur=null;S.conv=null;store.set('hola.cur','');renderConv()} };
 }
 let editingProj=null, projMoveConv=null;
@@ -202,7 +221,7 @@ $('#pSave').onclick=async()=>{
 };
 $('#pDelete').onclick=async()=>{
   if(!editingProj) return;
-  if(!confirm(`删除项目「${editingProj.name}」？\n\n项目里的对话不会被删除，会移到"对话"里。`)) return;
+  if(!await ask(`删除项目「${editingProj.name}」？\n\n项目里的对话不会被删除，会移到"对话"里。`,{ok:'删除',tone:'danger'})) return;
   await api('projects/delete',{id:editingProj.id}); $('#projDlg').close(); toast('已删除');
 };
 function renameInline(d){
@@ -341,6 +360,38 @@ function decideHTML(m){
   const hint = open ? `<small>${opts.length?'点一个方案，或者直接在下面输入框里说你的决定（不用 @）。':'直接在下面输入框里说你的决定（不用 @）。'}</small>` : '';
   return `<div class="decide${open?' open':''}">${head}${list}${hint}</div>`;
 }
+// ---------- 水银：只在开会交融和验收通过两处出现（画法在 mercury.js）
+const isMeetStart=x=>x.reason==='initial'||(x.reason==='main'&&x.escalated);
+// 这场会有哪几位大脑（按出场顺序，最多画 3 滴）
+function meetMembers(m){
+  const list=S.conv?S.conv.messages:[]; let i=list.findIndex(x=>x.id===m.id); if(i<0) i=list.length;
+  let from=0; for(let j=i-1;j>=0;j--) if(list[j].reason==='conclusion'){ from=j+1; break }
+  const ids=[]; list.slice(from,i).forEach(x=>{ if(isMeetStart(x)&&x.from&&!ids.includes(x.from)) ids.push(x.from) });
+  return ids;
+}
+function mercMeet(m,state,ids){
+  ids=(ids||meetMembers(m)).slice(0,3);
+  if(ids.length<2) enabledMembers().filter(x=>x.role!=='helper'&&!ids.includes(x.id)).forEach(x=>{ if(ids.length<2) ids.push(x.id) });
+  const n=Math.max(2,Math.min(3,ids.length)), colors=ids.slice(0,n).map(colorOf);
+  while(colors.length<n) colors.push(['#FF5A4E','#3D7BFF','#22D39A'][colors.length]);
+  return `<canvas class="merc" data-merc="meet" data-state="${state}" data-n="${n}" data-colors="${colors.join(',')}" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas>`;
+}
+// 开会进行中：在这场会的开头放一条正在流动的水银（会开完就收起，结论卡上换成融合 / 没谈拢的样子）
+function syncMeet(){
+  const feed=$('#feed'); let el=feed.querySelector('.mlive');
+  const cs=S.conv&&S.convs.find(c=>c.id===S.cur), list=S.conv?S.conv.messages:[];
+  let lastConcl=-1; list.forEach((x,i)=>{ if(x.reason==='conclusion') lastConcl=i });
+  const first=list.findIndex((x,i)=>i>lastConcl&&x.reason==='initial');
+  const anchor=first>=0&&nodes.get(list[first].id);
+  if(!anchor||!cs||!['initial','discuss'].includes(cs.phase)){ if(el) el.remove(); return }
+  const ids=[]; list.slice(lastConcl+1).forEach(x=>{ if(isMeetStart(x)&&!ids.includes(x.from)) ids.push(x.from) });
+  // 已经有了、位置对、人数也对：不动它（重画会让水银跳一下）
+  if(el&&el.nextElementSibling===anchor&&el.dataset.who===ids.join(',')) return;
+  if(el) el.remove();
+  el=document.createElement('div'); el.className='mlive divider live'; el.dataset.who=ids.join(',');
+  el.innerHTML=mercMeet({id:'live-'+list[first].id},'live',ids)+'<span>开会讨论 · 正在进行</span>';
+  anchor.before(el); if(window.Merc) Merc.scan(el);
+}
 function msgHTML(m){
   const running=m.status==='running';
   if(m.from==='system'&&!m.divider) return `<div class="sys">${esc(m.text)}</div>`;
@@ -360,16 +411,19 @@ function msgHTML(m){
   }
   if(m.from==='system'&&m.divider) return `<div class="divider"><span><i></i>${esc(m.text)}</span></div>`;
   const tag = m.from==='boss' ? '' : ({main:'主脑',review:'验收',mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言'})[m.reason]||'';
-  const reviewTag = m.reason==='review'&&m.status==='done'&&m.review ? `<span class="review ${m.review}">${({pass:'✓ 验收通过',fixed:'✓ 改好后通过',redo:'退回重做'})[m.review]}</span>` : '';
+  // 退回重做是一个红色小标签；通过时在正文上面流出一个水银对勾
+  const reviewTag = m.reason==='review'&&m.status==='done'&&m.review==='redo' ? `<span class="review redo">退回重做</span>` : '';
+  const passed = m.reason==='review'&&m.status==='done'&&(m.review==='pass'||m.review==='fixed');
+  const reviewHead = passed ? `<div class="rv"><canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas><b class="review ${m.review}">${m.review==='pass'?'验收通过':'改好后通过'}</b></div>` : '';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
-  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
+  const conclHead = concl&&!running ? (m.status==='done'?`<div class="mstrip">${mercMeet(m,m.consensus?'merge':'split')}</div>`:'')+`<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
   const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
   const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
-  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
-  else body=conclHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)
+  if(running&&!m.text) body=(concl?`<div class="mstrip">${mercMeet(m,'live')}</div>`:'')+`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
+  else body=conclHead+reviewHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)
     // 主脑的回答下面：老板觉得需要，再请大家开会
     +(m.reason==='main'&&m.status==='done'&&!m.escalated?`<button class="escalate" data-escalate="${m.id}" title="其他大脑先各自独立作答，再和主脑一起讨论出团队结论">让大家讨论一下</button>`:'');
   const last=m.process.length?m.process[m.process.length-1]:null;
@@ -396,6 +450,8 @@ function putMsg(m, stick){
   if(old){ const od=old.querySelector('details.proc'), nd=el.querySelector('details.proc'); if(od&&nd){nd.open=od.open; nd.querySelector('.steps').scrollTop=od.querySelector('.steps').scrollTop} old.replaceWith(el) }
   else $('#feed').appendChild(el);
   nodes.set(m.id,el); bindFiles(el);
+  if(window.Merc) Merc.scan(el);
+  syncMeet();
   if(keep) scrollDown();
 }
 function addStep(id,item){
@@ -445,7 +501,7 @@ function renderBuild(b){
     : st==='dev' ? (en?"Development copy on the author's computer: free to modify, not checked against the official release.":'作者本机的开发版：可以随意修改，不做官方校验。')
     : (en?`This copy of Hola is not the official release${files?' (changed files: '+files+')':''}. Someone may have modified it. To get the official version, download it again from github.com/Julianniu/hola-multi-ai.`
          :`这份 Hola 不是官方发布的版本${files?'（被改动的文件：'+files+'）':''}，可能被人改过。想用官方版，请到 github.com/Julianniu/hola-multi-ai 重新下载。`);
-  tag.title=msg; tag.onclick=()=>alert(msg);
+  tag.title=msg; tag.onclick=()=>ask(msg,{ok:'知道了',cancel:null,tone:'warn'});
   const label = st==='official' ? (en?'Official release':'官方版') : st==='dev' ? (en?'Development copy':'开发版') : (en?'Not the official release':'非官方版');
   $('#sVersion').textContent = (b.version ? (en?'Version ':'版本 ')+b.version+' · ' : '') + label;
   $('#sVersion').title = msg;
@@ -497,7 +553,7 @@ function renderLib(){
   const find=id=>LIB.items.find(x=>x.id===id);
   box.querySelectorAll('[data-lpv]').forEach(b=>b.onclick=()=>{ const it=find(b.dataset.lpv); if(it) openPreviewUrl(it.name, it.image?it.url:it.previewUrl, it.url, it.image) });
   box.querySelectorAll('[data-lconv]').forEach(b=>b.onclick=()=>openConv(b.dataset.lconv));
-  box.querySelectorAll('[data-ldel]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.ldel); if(!it||!confirm(`删除「${it.name}」？会从资料库文件夹里永久删除。`)) return; const r=await api('library/delete',{id:it.id}); if(r.error) toast(r.error); else libReload() });
+  box.querySelectorAll('[data-ldel]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.ldel); if(!it||!await ask(`删除「${it.name}」？会从资料库文件夹里永久删除。`,{ok:'删除',tone:'danger'})) return; const r=await api('library/delete',{id:it.id}); if(r.error) toast(r.error); else libReload() });
   box.querySelectorAll('[data-lsend]').forEach(b=>b.onclick=()=>libSend(find(b.dataset.lsend)));
   box.querySelectorAll('[data-lpin]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.lpin); if(!it) return; const r=await api('library/pin',{id:it.id,on:!it.pinned}); if(r.error) toast(r.error); else { toast(it.pinned?'已取消常驻':'已设为常驻：队友每次都会参考'); libReload() } });
 }
@@ -748,19 +804,32 @@ function applyTheme(t){ if(t) document.documentElement.dataset.theme=t; else del
 applyTheme(store.get('hola.theme'));
 $('#toggleTheme').onclick=()=>{
   const dark=document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
-  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t); syncTitleBar();
+  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t); syncTitleBar(); if(window.Merc) Merc.redraw();
 };
 
 // ---------- 桌面版：自己画的标题栏（拖动区域、给窗口按钮留位置、按钮颜色跟着深浅色走）
 const DESKTOP = window.holaDesktop || null;
 if (DESKTOP) document.body.classList.add('desktop', 'os-' + DESKTOP.platform);
+// 新版本准备好了：用 Hola 自己的弹窗问老板（外壳 2.0 起；老外壳没有 onUpdate，照旧弹系统窗口）
+if (DESKTOP && DESKTOP.onUpdate) {
+  DESKTOP.onUpdate(async (u) => {
+    const ready = u.status === 'ready', v = String(u.version || '');
+    const ok = await ask(ready ? `Hola ${v} 已经准备好\n\n新版本已下载并通过官方签名核对，重启 Hola 后生效。正在干的活会被叫停。`
+      : `Hola ${v} 发布了\n\n这次更新需要下载新的安装包。点"去下载"会打开下载页，安装新版本时你的对话和设置都会保留。`, { ok: ready ? '立即重启' : '去下载', cancel: '稍后', tone: 'update' });
+    DESKTOP.updateAnswer(ok ? (ready ? 'restart' : 'download') : 'later');
+  });
+  DESKTOP.ui({ updates: true });
+}
 function syncTitleBar(){
   if(!DESKTOP||!DESKTOP.setTitleBarColors) return;
   const hex=(c)=>'#'+(c.match(/\d+/g)||[]).slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
-  DESKTOP.setTitleBarColors(hex(getComputedStyle($('header')).backgroundColor), hex(getComputedStyle($('header .hbtn')).color));
+  // 右上角窗口按钮盖在顶栏上：分屏开着时盖在预览区（深一档）上，否则盖在聊天区上
+  const cs=getComputedStyle(document.documentElement), v=(k)=>{ const x=cs.getPropertyValue(k).trim(); return /^#[0-9a-f]{6}$/i.test(x)?x.toLowerCase():hex(x) };
+  DESKTOP.setTitleBarColors(v($('#split').hidden?'--paper':'--pane'), v('--ink2'));
 }
 syncTitleBar();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTitleBar);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ syncTitleBar(); if(window.Merc) Merc.redraw() });
+new MutationObserver(syncTitleBar).observe($('#split'), { attributes: true, attributeFilter: ['hidden'] });
 // 弹窗打开时整页都不当作拖动区域（不然点到标题栏那一条会变成拖窗口）
 new MutationObserver(()=>{ document.body.classList.toggle('no-drag', !!document.querySelector('dialog[open]')); if(typeof syncWeb==='function') syncWeb() }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 
@@ -781,7 +850,7 @@ $('#sSave').onclick=async()=>{
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
 };
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
-$('#quitApp').onclick=async()=>{ if(!confirm('退出 Hola？正在进行的工作会被叫停。下次双击桌面图标即可重新打开。'))return; await api('quit'); document.body.innerHTML='<div style="margin:auto;text-align:center;color:#888;font-size:15px">Hola 已退出，可以关掉这个窗口了。</div>' };
+$('#quitApp').onclick=async()=>{ if(!await ask('退出 Hola？\n\n正在进行的工作会被叫停。下次双击桌面图标即可重新打开。',{ok:'退出',tone:'warn'}))return; await api('quit'); document.body.innerHTML='<div style="margin:auto;text-align:center;color:#888;font-size:15px">Hola 已退出，可以关掉这个窗口了。</div>' };
 
 // ---------- team manager
 // ---------------- 技能库
@@ -838,7 +907,7 @@ $('#kSave').onclick=async()=>{
 };
 $('#kDelete').onclick=async()=>{
   if(!editingSkill) return;
-  if(!confirm(`删除技能「${editingSkill.name}」？`)) return;
+  if(!await ask(`删除技能「${editingSkill.name}」？`,{ok:'删除',tone:'danger'})) return;
   await api('skills/delete',{id:editingSkill.id}); $('#skillDlg').close(); toast('已删除');
 };
 
@@ -975,8 +1044,8 @@ function renderEfforts(keep){
 $('#mModelSel').onchange=()=>{ $('#mModelCustom').hidden = $('#mModelSel').value!=='__custom'; renderEfforts($('#mEffortSel').value) };
 const pickedModel=()=> $('#mModelSel').value==='__custom' ? $('#mModelCustom').value.trim() : $('#mModelSel').value;
 $('#mParser').addEventListener('change', showAccess);
-$('#mFull').onchange = ()=>{
-  if($('#mFull').checked && !confirm('打开完全权限？\n\n这位队友将能运行任何命令、修改或删除你电脑上任何地方的文件，而且不会先问你。请只给你信任的 AI 打开，重要文件记得备份。')) $('#mFull').checked = false;
+$('#mFull').onchange = async()=>{
+  if($('#mFull').checked && !await ask('打开完全权限？\n\n这位队友将能运行任何命令、修改或删除你电脑上任何地方的文件，而且不会先问你。请只给你信任的 AI 打开，重要文件记得备份。',{ok:'打开完全权限',tone:'warn'})) $('#mFull').checked = false;
 };
 function applyPreset(){
   const p = PRESETS.find(x=>x.k===$('#mPreset').value); if(!p) return;
@@ -993,7 +1062,7 @@ $('#teamRecheck').onclick = ()=>{api('recheck');toast('正在重新检查队友'
 $('#addMember').onclick = ()=>openMember(null);
 $('#mCancel').onclick = ()=>$('#memberDlg').close();
 $('#mDelete').onclick = async()=>{
-  if(!editing||!confirm(`删除队友「${editing.name}」？之前的聊天记录不受影响。`)) return;
+  if(!editing||!await ask(`删除队友「${editing.name}」？\n\n之前的聊天记录不受影响。`,{ok:'删除',tone:'danger'})) return;
   await api('members/delete',{id:editing.id}); $('#memberDlg').close(); toast('已删除');
 };
 $('#mSave').onclick = async()=>{
@@ -1098,7 +1167,7 @@ function connect(){
       openConv(S.convs.some(c=>c.id===want)?want:(S.convs[0]?.id||null));
     }
     else if(ev.type==='convs'){ S.convs=ev.convs; renderConvs(); if(S.conv){const c=S.convs.find(x=>x.id===S.cur); if(c){S.conv.title=c.title;$('#title').textContent=c.title}} renderRun() }
-    else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder() } }
+    else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder(); syncMeet() } }
     else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss'); if(LIB.kind&&(ev.msg.files||ev.msg.attachments)) libReload() }
     else if(ev.type==='library'){ if(LIB.kind) libReload() }
     else if(ev.type==='browser'){ S.browser=ev.browser; renderBrowser() }

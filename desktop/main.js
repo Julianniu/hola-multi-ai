@@ -1,7 +1,7 @@
 // Hola 桌面版外壳（Electron）：在本机启动 Hola 的后台，再用独立窗口打开界面。
 // 后台代码（server.js、lib/、public/）和压缩包版完全一样，这里只负责：选数据放哪、找空闲端口、开窗口、管外链。
 'use strict';
-const { app, BrowserWindow, Menu, shell, dialog, net } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, dialog, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const nodeNet = require('net'); // 查空闲端口用（Electron 的 net 用来联网）
@@ -22,7 +22,9 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let win = null;
-  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.on('second-instance', () => showWin());
+  // 窗口可能缩在右下角托盘里（看不见）：拿出来、还原、放到最前面
+  function showWin() { if (!win) return; if (!win.isVisible()) win.show(); if (win.isMinimized()) win.restore(); win.focus(); }
 
   // 数据放哪：设置、API Key 等在系统的应用数据目录；对话文件夹在"文档/Hola"，方便自己找到和备份。
   // 应用数据目录里的 location.json 可以改到别处，比如继续用压缩包版 Hola 的文件夹：
@@ -76,7 +78,7 @@ if (!app.requestSingleInstanceLock()) {
   function createWindow(base) {
     win = new BrowserWindow({
       width: 1300, height: 880, minWidth: 720, minHeight: 520, title: 'Hola', show: false,
-      icon: path.join(CODE_DIR, 'public', 'icon-192.png'), autoHideMenuBar: true,
+      icon: WIN_ICON, autoHideMenuBar: true,
       // 不用系统自带的标题栏：Windows 只保留右上角的最小化 / 最大化 / 关闭（颜色跟着 Hola 的主题），Mac 保留左上角的红黄绿三个按钮
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
       ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 18 } } : { titleBarOverlay: { color: '#F6F6FB', symbolColor: '#4A4D68', height: 44 } }),
@@ -86,7 +88,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!process.env.HOLA_TEST_HIDDEN) win.once('ready-to-show', () => win.show());
     // 外部网址用系统浏览器打开；Hola 自己的页面（比如"在新窗口打开"预览）开在新窗口里
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith(base + '/')) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: path.join(CODE_DIR, 'public', 'icon-192.png') } };
+      if (url.startsWith(base + '/')) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: WIN_ICON } };
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
       return { action: 'deny' };
     });
@@ -96,11 +98,77 @@ if (!app.requestSingleInstanceLock()) {
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     });
     win.on('focus', () => win.flashFrame(false));
+    // Windows：点右上角的 X 只是缩到右下角托盘，后台继续干活；真正退出用托盘图标的右键菜单
+    win.on('close', (e) => {
+      if (quitting || !tray) return;
+      e.preventDefault();
+      win.hide();
+      if (!hintShown) { hintShown = true; balloon(T('Hola 还在右下角运行，队友会继续干活。右键托盘图标可以退出。', 'Hola is still running in the tray and your teammates keep working. Right-click the tray icon to quit.')); }
+    });
     win.on('closed', () => { win = null; });
     win.loadURL(base + '/');
   }
 
   app.on('window-all-closed', () => app.quit());
+  app.on('before-quit', () => { quitting = true; });
+  // 设置里点"退出 Hola"时后台直接结束进程：顺手把托盘图标收掉，免得右下角留个点不动的空图标
+  process.on('exit', () => { try { if (tray) tray.destroy(); } catch (_) {} });
+
+  // ---------------- 右下角托盘（只在 Windows）：关窗口 = 缩到这里；单击打开；右键 → 打开 / 退出
+  const WIN_ICON = process.platform === 'win32' ? path.join(__dirname, 'hola.ico') : path.join(CODE_DIR, 'public', 'icon-192.png');
+  let tray = null, quitting = false, hintShown = false, baseUrl = '';
+  function balloon(content) {
+    if (!tray || process.env.HOLA_TEST_HIDDEN) return;
+    try { tray.displayBalloon({ title: 'Hola', content, iconType: 'none', noSound: true }); } catch (_) {}
+  }
+  // 启动前出问题时的提示窗：不用系统自带的对话框，画一个和 Hola 弹窗一样的小窗口（浮层玻璃）。
+  // 关掉（点按钮、按 Esc 或回车）后才继续；自动测试时不弹
+  function shellBox(title, body, detail) {
+    return new Promise((resolve) => {
+      if (process.env.HOLA_TEST_HIDDEN) return resolve();
+      try {
+        const { nativeTheme } = require('electron');
+        const dark = nativeTheme.shouldUseDarkColors;
+        const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const c = dark ? { bg: 'rgba(38,39,43,.94)', ink: '#ECECEE', ink2: '#A3A6AE', ring: 'rgba(255,255,255,.12)', btn: '#ECECEE', btnTx: '#17181A', pre: 'rgba(255,255,255,.06)' }
+          : { bg: 'rgba(255,255,255,.96)', ink: '#1A1C1F', ink2: '#5E626A', ring: 'rgba(26,28,31,.12)', btn: '#1A1C1F', btnTx: '#FFFFFF', pre: 'rgba(26,28,31,.05)' };
+        const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;height:100%;background:transparent;font:13.5px/1.6 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",system-ui,sans-serif;color:${c.ink};overflow:hidden}
+.box{position:absolute;inset:14px;border-radius:16px;background:${c.bg};box-shadow:0 0 0 .5px ${c.ring},0 12px 30px rgba(0,0,0,.25);padding:20px 22px 16px;display:flex;flex-direction:column;-webkit-app-region:drag}
+h1{margin:0 0 8px;font-size:15px;font-weight:600}p{margin:0;color:${c.ink2}}
+pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-radius:10px;background:${c.pre};font:11.5px/1.5 Consolas,monospace;white-space:pre-wrap;-webkit-app-region:no-drag}
+.f{display:flex;justify-content:flex-end;margin-top:14px}a{-webkit-app-region:no-drag;text-decoration:none;background:${c.btn};color:${c.btnTx};padding:6px 16px;border-radius:999px;font-weight:500;outline:none}a:focus-visible{box-shadow:0 0 0 3px ${c.ring}}
+</style></head><body><div class="box"><h1>${esc(title)}</h1><p>${esc(body)}</p>${detail ? `<pre>${esc(detail)}</pre>` : '<div style="flex:1"></div>'}<div class="f"><a href="hola:close" id="ok">${esc(T('知道了', 'OK'))}</a></div></div>
+<script>document.getElementById('ok').focus();addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Enter')location.href='hola:close'})</script></body></html>`;
+        const w = new BrowserWindow({ width: 500, height: detail ? 380 : 230, frame: false, transparent: true, resizable: false, show: false, icon: WIN_ICON, title: 'Hola', webPreferences: { sandbox: true, contextIsolation: true } });
+        w.webContents.on('will-navigate', (e) => { e.preventDefault(); w.close(); });
+        w.once('ready-to-show', () => w.show());
+        w.on('closed', () => resolve());
+        w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      } catch (_) { dialog.showErrorBox(title, [body, detail].filter(Boolean).join('\n\n')); resolve(); }
+    });
+  }
+  // 彻底退出：先请后台把正在跑的队友（claude / codex / agy 进程）都叫停，再关掉整个程序
+  async function quitAll() {
+    quitting = true;
+    if (tray) { tray.destroy(); tray = null; }
+    try { if (baseUrl) await fetch(baseUrl + '/api/quit', { method: 'POST', headers: { 'X-Hola': '1', 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(2000) }); } catch (_) {}
+    setTimeout(() => app.exit(0), 1500);
+  }
+  function createTray() {
+    if (process.platform !== 'win32' || tray) return;
+    tray = new Tray(path.join(__dirname, 'tray.ico'));
+    tray.setToolTip('Hola');
+    const menu = () => Menu.buildFromTemplate([
+      { label: T('打开 Hola', 'Open Hola'), click: showWin },
+      { type: 'separator' },
+      { label: T('退出 Hola', 'Quit Hola'), click: quitAll },
+    ]);
+    tray.on('click', showWin);
+    tray.on('balloon-click', showWin);
+    // 右键时再生成菜单：界面语言可能刚换过
+    tray.on('right-click', () => tray.popUpContextMenu(menu()));
+  }
 
   // 页面换了深浅色：标题栏右上角按钮的颜色跟着换（只接受 #RRGGBB）
   const { ipcMain } = require('electron');
@@ -118,7 +186,20 @@ if (!app.requestSingleInstanceLock()) {
     const ok = rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]));
     browser.setBounds(ok ? rect : null, win.webContents.getZoomFactor());
   });
-  ipcMain.on('hola:attention', (e) => { if (fromMain(e) && !win.isFocused()) win.flashFrame(true); });
+  ipcMain.on('hola:attention', (e) => {
+    if (!fromMain(e) || win.isFocused()) return;
+    if (!win.isVisible()) balloon(T('有事需要你看一下，点这里打开 Hola。', 'Something needs your attention. Click to open Hola.'));
+    else win.flashFrame(true);
+  });
+  // 更新提示用 Hola 自己画的弹窗：页面说"我会画"，外壳就把消息交给页面；老版本的页面不会说，外壳照旧用系统弹窗
+  let pageUpdates = false, pendingUpdate = null;
+  ipcMain.on('hola:ui', (e, info) => { if (fromMain(e) && info && info.updates) pageUpdates = true; });
+  ipcMain.on('hola:update-answer', (e, a) => {
+    if (!fromMain(e) || !pendingUpdate) return;
+    const r = pendingUpdate; pendingUpdate = null;
+    if (a === 'restart' && r.status === 'ready') { quitting = true; app.relaunch(); app.exit(0); }
+    else if (a === 'download' && r.status === 'needs-shell' && /^https:\/\//.test(String(r.page || ''))) shell.openExternal(r.page);
+  });
   ipcMain.handle('hola:browser', async (e, a) => {
     if (!browser || !fromMain(e) || !a) return null;
     if (a.op === 'open') {
@@ -152,8 +233,8 @@ if (!app.requestSingleInstanceLock()) {
       const l = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'hola.lock'), 'utf8'));
       const j = await (await fetch(`http://127.0.0.1:${l.port}/api/ping`, { signal: AbortSignal.timeout(1500) })).json();
       if (j.app === 'hola' && path.resolve(String(j.data || '')) === path.resolve(DATA_DIR)) {
-        dialog.showErrorBox('Hola', T(`Hola 已经在运行了（可能是压缩包版的 Hola，地址 http://localhost:${l.port}）。同一份数据不能同时开两个，请先退出另一个（设置 → 退出 Hola）。`,
-          `Hola is already running (perhaps the zip version, at http://localhost:${l.port}). The same data can't be open twice; quit the other one first (Settings → Quit Hola).`));
+        await shellBox(T('Hola 已经开着了', 'Hola is already running'), T(`可能是压缩包版的 Hola（地址 http://localhost:${l.port}）。同一份资料不能同时开两个，请先退出另一个（设置 → 退出 Hola）。`,
+          `Perhaps the zip version, at http://localhost:${l.port}. The same data can't be open twice; quit the other one first (Settings → Quit Hola).`));
         return app.quit();
       }
     } catch (_) {}
@@ -167,7 +248,7 @@ if (!app.requestSingleInstanceLock()) {
       require(path.join(code.dir, 'server.js'));
     } catch (e) {
       if (code.updated) return rollback();
-      dialog.showErrorBox('Hola', `Hola 没能启动 / Hola could not start:\n\n${e && e.stack || e}`);
+      await shellBox(T('Hola 没能启动', 'Hola could not start'), T('出错的详细信息在下面，可以截图发给作者。', 'Details are below; you can send a screenshot to the author.'), String(e && e.stack || e));
       return app.quit();
     }
     const base = `http://127.0.0.1:${port}`;
@@ -175,11 +256,13 @@ if (!app.requestSingleInstanceLock()) {
       if (code.updated) return rollback();
       let log = '';
       try { log = fs.readFileSync(path.join(DATA_DIR, 'hola.log'), 'utf8').slice(-1500); } catch (_) {}
-      dialog.showErrorBox('Hola', `Hola 的后台没有响应 / Hola's backend did not respond.\n\n${log}`);
+      await shellBox(T('Hola 的后台没有响应', "Hola's backend did not respond"), T('最近的日志在下面，可以截图发给作者。', 'The latest log is below; you can send a screenshot to the author.'), log);
       return app.quit();
     }
     if (UPDATES) updater.markStarted(APPS_DIR);
+    baseUrl = base;
     createWindow(base);
+    createTray();
     // 把内置浏览器交给后台（用后台所在那份程序里的 lib/browser.js；老版本程序没有这个文件就算了）
     browser = createBrowser(() => win);
     try { require(path.join(code.dir, 'lib', 'browser.js')).setBackend(browser); } catch (_) {}
@@ -201,6 +284,12 @@ if (!app.requestSingleInstanceLock()) {
     if (process.env.HOLA_TEST_HIDDEN) return; // 自动测试点不了系统弹窗
     if (!win || r.version === asked || (r.status !== 'ready' && r.status !== 'needs-shell')) return;
     asked = r.version;
+    if (pageUpdates) {
+      pendingUpdate = r;
+      win.webContents.send('hola:update', { status: r.status, version: String(r.version) });
+      if (!win.isVisible()) balloon(T(`Hola ${r.version} 已经准备好，点这里打开 Hola。`, `Hola ${r.version} is ready. Click to open Hola.`));
+      return;
+    }
     if (r.status === 'ready') {
       const { response } = await dialog.showMessageBox(win, {
         type: 'info', buttons: [T('立即重启', 'Restart now'), T('稍后', 'Later')], defaultId: 0, cancelId: 1,

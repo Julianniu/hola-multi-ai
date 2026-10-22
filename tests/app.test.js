@@ -344,6 +344,39 @@ describe('桌面版', { skip }, () => {
     assert.equal(await page.locator('#side').isVisible(), true);
   });
 
+  it('水银：开会的结论卡和验收通过上各有一块水银画布', async () => {
+    // 上一个用例开过会、验收过：结论上方是融合后的水银，验收通过前面是水银对勾
+    assert.ok(await page.locator('.row.concl .mstrip canvas.merc[data-merc="meet"]').count() >= 1);
+    assert.ok(await page.locator('.rv canvas.merc[data-merc="check"]').count() >= 1);
+    assert.equal(await page.locator('.mlive').count(), 0, '会开完了，开会中的水银要收起');
+  });
+
+  it('自己画的弹窗：更新提示不用系统对话框，点"稍后"告诉外壳', async () => {
+    await app.evaluate(({ ipcMain, BrowserWindow }) => {
+      global.__ans = [];
+      ipcMain.on('hola:update-answer', (e, a) => global.__ans.push(a));
+      BrowserWindow.getAllWindows()[0].webContents.send('hola:update', { status: 'ready', version: '9.9.9' });
+    });
+    await page.waitForSelector('#askDlg[open]');
+    assert.match(await page.locator('#askDlg h3').innerText(), /9\.9\.9 已经准备好/);
+    await page.click('#askDlg [data-no]');
+    await page.waitForFunction(() => !document.querySelector('#askDlg').open);
+    await page.waitForTimeout(200);
+    assert.deepEqual(await app.evaluate(() => global.__ans), ['later']);
+  });
+
+  it('点右上角的 X：Windows 上缩到右下角托盘，程序不退出；再打开还是原来的窗口', async () => {
+    if (process.platform !== 'win32') return; // Mac 照旧：关窗口就退出（托盘只在 Windows）
+    const r = await app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows()[0];
+      w.close();
+      return { alive: !w.isDestroyed(), visible: w.isVisible() };
+    });
+    assert.deepEqual(r, { alive: true, visible: false });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].show());
+    assert.equal(await page.evaluate(() => document.body.dataset.ready), '1');
+  });
+
   it('切到英文：界面上不应留下没翻译的中文', async () => {
     await page.evaluate(async () => { await api('settings', { uiLang: 'en' }); window.setHolaLang('en'); });
     await page.reload();
