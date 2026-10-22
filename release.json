@@ -1,5 +1,5 @@
 {
-  "version": "1.1.1",
+  "version": "1.1.2",
   "date": "2026-10-22",
   "minShell": "1.1.0",
   "files": {
@@ -17,24 +17,24 @@
     "lib/convs.js": "48d78815fef7ef0e765d7b111f41481b95bd0846b22f91cfef8d1097e0dd5c93",
     "lib/core.js": "e8a74ad21c5276c25bec961f0036ee0c5a0e1f2dc6d673387ec880ff090162a6",
     "lib/engine.js": "4b26e69e0f96c4a7c3ae0426bfb5df297eca33d0ba7d7c5d99e186deb3248f2b",
-    "lib/http.js": "98b6e25d2b06af19c325455c61eb701cb99c610d59dbfe6b6cea5b4ac311c8b5",
+    "lib/http.js": "3f07de641c89ea5a4aa5b0124fef7a64afb99703b89e0bb861b8681abad960e6",
     "lib/library.js": "c88b070e8712740c74fb8a93f547fba5829e7b67458e264e6f9108f8df9ac8d2",
-    "lib/members.js": "df6d1ebfe01af987f9621ff0b4d23f410a4ccef7d3b36c63ddbd1e9e8c11d3df",
+    "lib/members.js": "11e5a635e96f3e143a40bf0d3cbece30f56746070867ec7b1c15914173457be7",
     "lib/office-write.js": "2863416e3df21efb740bce6e48e35adffa4790bb25a1459e511969fdd2469cd0",
     "lib/prompts.js": "dba6e28183fc4141e12af1410a9e0f36e55f875b2cd1b2ecb7177ef201446ec4",
-    "lib/run.js": "6a03e193c33fd46263726902ea7510dd6a6c6bdf2e4e01c4d3a2370e5e26f8ec",
+    "lib/run.js": "da7c64b05822ed5bebef71cf506bdf26f62707c5fa3d96d62341bf6a1def17ac",
     "lib/skills.js": "776b2aed651ffa3eb2010f8fb994c40be88554febea5ed8748778ef34909f84b",
     "lib/tools.js": "c075ac1fd391b137ae276e5e24c86e350ea863422c220fcb0d25ce0c5d58d4ea",
     "office.js": "3c195bfac7e4567214c0a836937ad83e63311d63abb64f8a96ebe47f71b1fef0",
-    "public/app.css": "224887d2c197d40ca921dc26c4d4b093f6afca321b3bef14a2416b6379058302",
-    "public/app.js": "885ff989c540e8af2b8ad0ba9fc50a73daa3380961a373eaf180d72b02e9788d",
+    "public/app.css": "6a7bf9ce5ed6c855065eb9df05833ac192410364651f868d7a668ce9cdd606c2",
+    "public/app.js": "0277cf1abb2b6d8bed0d73196920d2a025b59c4cca9e65b25d357d1f087eff11",
     "public/favicon.png": "7d2c46cfa6d42ea7ebf869eba02871b256fcf7904d7672b2eb73407c03c43cf1",
-    "public/i18n.js": "88a4cf4e0bc14f56df7520a9b7ce0e863a92f604aee22c2672b18764551b9db2",
+    "public/i18n.js": "42ea6ec85e264b4812d9efd92d0bbfcd519125bbc6568dceed49201b7aa2e305",
     "public/icon-192.png": "58bebeacd8e6079b16733a689f678dfa7377bbdcc28ab3c9d12e9614383f7f62",
-    "public/index.html": "aad745b98af77d9b149ebeedb98bdcebabaf911242c73b33ed3ca1dd4d1b641a",
+    "public/index.html": "c8763c1e1a9300e3d03061f3182385c5c316aac1ca7689d7c918f28fc8a0dc90",
     "public/logo.svg": "6083467759a04e1664d712d1052bfc842df0e924f4b0f9f704fdce7a0999eaba",
     "server.js": "8e51ac630eb62d6cdff979c0788116b4b61512d3269a64de04205750f2ce147d",
     "tools/release-files.js": "a1102a908d854ef91e88fb3605a5253c42274f2e1499f96ee52d34a87b4b3d0b"
   },
-  "sig": "WDQlpqqfgb/9VirnfAq+sN1zrWSOVwTLRs3Sonvvru9fPh8rOj0Tot+SlPF9CgcGIaHeXLrRVLQQWvFFtxKGAg=="
+  "sig": "FypNYjh+NI0ArwNuprDVTCqSrYI1v+kFTbj0Rt6Em6TXSVDmrB+75syu+ixxyvKGChWNWEtzni+vCc7i2E2XDg=="
 }

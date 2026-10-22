@@ -106,6 +106,12 @@
     '现在没有在线的队友可以执行。': 'No teammate is online to carry this out.',
     '没有在线的队友，没法整理技能。': 'No teammate is online to write the skill.',
     '老板叫停了，大家先停手。': 'You stopped the team. Everyone has paused.',
+    // 内置队友改走中转站、读取可用模型、思考深度
+    '接入方式': 'How it connects', '订阅登录（命令行）': 'Subscription (command line)', '中转站 / API': 'Relay / API', '中转站': 'Relay',
+    '订阅登录：用这台电脑上登录好的命令行工具和你自己的订阅。中转站 / API：填公司或第三方给的接口地址和 Key，不用装命令行工具、不用订阅。': 'Subscription: uses the command-line tool signed in on this PC and your own subscription. Relay / API: enter the address and key from your company or a third party; no command-line tool or subscription needed.',
+    '读取可用模型': 'Load available models', '正在读取可用模型…': 'Loading available models…', '— 从列表里选一个 —': '— Pick one from the list —', '其他模型': 'Other models',
+    '读取失败': 'Could not load',
+    '请填写中转站的接口地址和模型名（可以点"读取可用模型"）': 'Fill in the relay address and model name (you can click "Load available models")',
     // API 队友能动手、常驻资料
     '能动手：读写文件、做 Word / Excel / PPT、上网查资料': 'Can do work: read and write files, make Word / Excel / PowerPoint, look things up online',
     '需要模型支持"工具调用"。点"保存并测试"会自动试一下，不支持的话它就只动脑。': 'Needs a model that supports tool calling. "Save and test" checks it; if not supported, it only thinks.',

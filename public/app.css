@@ -368,6 +368,9 @@ details.proc[open] summary svg{transform:rotate(90deg)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:14px}
 .seg button{padding:6px 14px;font-size:13.5px;color:var(--ink2)}
 .seg button.on{background:var(--night);color:#fff}
+.btn.small{padding:4px 10px;font-size:12.5px;margin-top:6px}
+#mModelPick{margin-top:6px}
+.testres{white-space:pre-wrap!important;overflow:visible!important;text-overflow:clip!important;max-height:9em;overflow-y:auto!important}
 .seg button:disabled{opacity:.4;cursor:default}
 .swatches{display:flex;gap:7px;flex-wrap:wrap}
 .swatches button{width:22px;height:22px;border-radius:50%;border:2px solid transparent}

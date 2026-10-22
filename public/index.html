@@ -258,12 +258,17 @@
         <div class="field"><label>颜色</label><div class="swatches" id="mColors"></div></div>
       </div>
       <div class="field"><label for="mStrengths">擅长什么</label><textarea id="mStrengths" placeholder="比如：中文写作、数学推理、代码"></textarea><small>大家会按这里分工，写具体一点。</small></div>
+      <div class="field" id="viaField" hidden>
+        <label>接入方式</label>
+        <div class="seg" id="mVia"><button type="button" data-v="sub">订阅登录（命令行）</button><button type="button" data-v="relay">中转站 / API</button></div>
+        <small>订阅登录：用这台电脑上登录好的命令行工具和你自己的订阅。中转站 / API：填公司或第三方给的接口地址和 Key，不用装命令行工具、不用订阅。</small>
+      </div>
       <div id="apiFields">
-        <div class="field"><label for="mPreset">服务商</label><select id="mPreset"></select><small id="mPresetNote"></small></div>
+        <div class="field" id="presetField"><label for="mPreset">服务商</label><select id="mPreset"></select><small id="mPresetNote"></small></div>
         <div class="field"><label for="mBase">接口地址</label><input id="mBase" placeholder="https://api.deepseek.com"><small>OpenAI 兼容格式，会自动在后面加上 /chat/completions</small></div>
         <div class="row2">
-          <div class="field"><label for="mModel">模型名</label><input id="mModel" placeholder="deepseek-v4-pro"></div>
-          <div class="field"><label for="mTemp">温度（可不填）</label><input id="mTemp" placeholder="默认"></div>
+          <div class="field"><label for="mModel">模型名</label><input id="mModel" placeholder="deepseek-v4-pro"><button type="button" class="btn small" id="mLoadModels">读取可用模型</button><select id="mModelPick" hidden></select></div>
+          <div class="field"><label for="mTemp">温度（可不填）</label><input id="mTemp" placeholder="默认"><label for="mApiEffort" style="margin-top:10px">思考深度</label><select id="mApiEffort"><option value="">默认</option><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div>
         </div>
         <label class="check"><input type="checkbox" id="mVision">这个模型能看图片（会把图片一起发给它）</label>
         <small class="hint" style="display:block;margin:-2px 0 10px 24px;color:var(--ink3);font-size:12px">不勾也没关系：有图片时，会请能看图的队友先把图片写成文字说明给它。</small>

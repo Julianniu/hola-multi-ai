@@ -73,7 +73,7 @@ describe('桌面版', { skip }, () => {
         HOLA_BROWSER_ALLOW: `http://127.0.0.1:${site.address().port}` },
     });
     page = await app.firstWindow();
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text() + (m.location() && m.location().url ? ' @ ' + m.location().url : '')); });
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.waitForSelector('body[data-ready="1"]', { timeout: 30000 });
   });
@@ -375,6 +375,7 @@ describe('桌面版', { skip }, () => {
   });
 
   it('整个过程没有脚本报错', () => {
-    assert.deepEqual(errors, []);
+    // 网上的字体（Google Fonts）连不上不算错：国内经常连不上，页面会自动换成系统字体
+    assert.deepEqual(errors.filter((e) => !/fonts\.(googleapis|gstatic)\.com/.test(e)), []);
   });
 });

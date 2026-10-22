@@ -848,7 +848,7 @@ let editing = null, mType = 'api', mColor = SWATCHES[0];
 function openTeam(){ renderTeam(); if(!$('#teamDlg').open) $('#teamDlg').showModal() }
 function renderTeam(){
   $('#teamList').innerHTML = S.members.map(m=>{
-    const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.access==='full' ? '</span><span class="tag">完全权限' : '') + (m.type==='api' && m.edit && (m.edit.hands===false || m.edit.toolsOk===false) ? '</span><span class="tag">只动脑' : '');
+    const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.via==='relay' ? '</span><span class="tag">中转站' : '') + (m.access==='full' ? '</span><span class="tag">完全权限' : '') + (m.type==='api' && m.edit && (m.edit.hands===false || m.edit.toolsOk===false) ? '</span><span class="tag">只动脑' : '');
     const sub = (!m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线')) + (m.model && m.model!==m.version ? ` · <span data-raw>${esc(m.model)}</span>` : '');
     return `<div class="team-row${m.enabled?'':' disabled'}"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span>
       <div class="info"><b>${esc(m.name)}</b><span class="tag">${kind}</span><small>${esc(m.strengths)}</small><small class="${m.enabled&&!m.online?'bad':''}">${sub}</small></div>
@@ -888,8 +888,12 @@ function openMember(m){
   setType(m ? m.type : 'api');
   $('#mType').querySelectorAll('button').forEach(b=>b.disabled=builtin);
   $('#mType').hidden = builtin; $('#apiFields').hidden = builtin || mType!=='api'; $('#cliFields').hidden = builtin || mType!=='cli';
-  const e = (m && m.edit) || {};
-  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision; $('#mHands').checked = e.hands !== false;
+  // 内置的 Claude / Codex / Gemini：接入方式（订阅登录 / 中转站）
+  editVia = m && m.via ? m.via : null;
+  $('#viaField').hidden = !editVia;
+  $('#presetField').hidden = builtin;
+  const e = (m && m.via === 'relay' ? m.edit : m && m.relay) || (m && m.edit) || {};
+  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision; $('#mHands').checked = e.hands !== false; $('#mApiEffort').value = e.effort || ''; $('#mModelPick').hidden = true;
   $('#mKey').value = ''; $('#mKey').placeholder = e.keyHint ? `已保存（${e.keyHint}），留空表示不改` : 'sk-...';
   $('#mCmd').value = e.cmd || ''; $('#mArgs').value = e.argsText || ''; $('#mParser').value = e.parser || 'plain';
   $('#mReadOnly').checked = !!e.readOnly; $('#mVer').checked = e.versionCheck !== false;
@@ -897,15 +901,40 @@ function openMember(m){
   $('#mPreset').value = m ? (PRESETS.find(p=>p.base && p.base===e.baseUrl)||{k:'custom'}).k : 'deepseek-pro';
   if(!m) applyPreset();
   $('#mDelete').hidden = !m || builtin;
+  if(editVia) setVia(editVia);
   $('#mRes').textContent=''; $('#mRes').className='testres';
   showAccess();
   if(m && m.modelPick) loadModels(m);
   $('#memberDlg').showModal();
 }
+let editVia = null;
+function setVia(v){
+  editVia=v; $('#mVia').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $('#apiFields').hidden = v!=='relay';
+  // "完全权限"跟着接入方式走：中转站 = API 队友能不能运行命令；订阅 = 命令行的权限
+  if(editing) $('#mFull').checked = v==='relay' ? !!(editing.via==='relay' ? editing.access==='full' : (editing.relay||{}).full) : (editing.via==='relay' ? editing.cliAccess==='full' : editing.access==='full');
+  showAccess();
+  if(v==='sub' && editing && editing.modelPick) loadModels(editing);
+}
+$('#mVia').querySelectorAll('button').forEach(b=>b.onclick=()=>setVia(b.dataset.v));
+// 读出这把 Key 能用的模型，内置队友把自家的模型排在前面
+$('#mLoadModels').onclick=async()=>{
+  const res=$('#mRes'); res.className='testres'; res.textContent='正在读取可用模型…';
+  const r=await api('members/remote-models',{ id: editing&&editing.id, baseUrl:$('#mBase').value.trim(), apiKey:$('#mKey').value.trim() });
+  if(!r||r.error){ res.className='testres bad'; res.textContent=(r&&r.error)||'读取失败'; return }
+  if(r.base && r.base!==$('#mBase').value.trim()) $('#mBase').value=r.base;
+  const fam={claude:/claude/i,codex:/gpt|codex|^o\d/i,gemini:/gemini/i}[editing&&editing.builtin?editing.id:''];
+  const mine=fam?r.models.filter(x=>fam.test(x)):r.models, other=fam?r.models.filter(x=>!fam.test(x)):[];
+  const opt=x=>`<option value="${esc(x)}">${esc(x)}</option>`;
+  $('#mModelPick').innerHTML='<option value="">— 从列表里选一个 —</option>'+mine.map(opt).join('')+(other.length?`<optgroup label="其他模型">${other.map(opt).join('')}</optgroup>`:'');
+  $('#mModelPick').hidden=false; $('#mModelPick').value=r.models.includes($('#mModel').value.trim())?$('#mModel').value.trim():'';
+  res.className='testres ok'; res.textContent=`读到 ${r.models.length} 个可用模型，在下面的列表里选一个`;
+};
+$('#mModelPick').onchange=e=>{ if(e.target.value) $('#mModel').value=e.target.value };
 // 认得的三种命令行（Claude / Codex / Antigravity）才能一键切换权限
 const ACCESS_PARSERS = ['claude-stream','codex-json','agy-json'];
 const accessShown = ()=> editing && editing.builtin ? !!editing.access : mType==='api' || (mType==='cli' && ACCESS_PARSERS.includes($('#mParser').value));
-function showAccess(){ $('#accessField').hidden = !accessShown(); $('#modelField').hidden = !(editing && editing.id && accessShown() && mType!=='api') }
+function showAccess(){ $('#accessField').hidden = !accessShown(); $('#modelField').hidden = !(editing && editing.id && accessShown() && (editing.builtin ? editVia!=='relay' : mType!=='api') && editing.modelPick) }
 // 模型下拉：列表从各家工具实时读取；"默认"表示用工具自己的设置
 async function loadModels(m){
   const sel=$('#mModelSel'), note=$('#mModelNote');
@@ -965,9 +994,17 @@ $('#mSave').onclick = async()=>{
   if(accessShown()) member.access = $('#mFull').checked ? 'full' : 'safe';
   const modelsLoaded = !!$('#mModelSel').querySelector('option[value="__custom"]');
   if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }
+  const apiPart = ()=>({ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked, hands:$('#mHands').checked, apiEffort:$('#mApiEffort').value });
+  if(builtin && editVia){
+    member.via = editVia;
+    if(editVia==='relay'){
+      Object.assign(member, apiPart());
+      if(!member.baseUrl || !member.model){ res.className='testres bad'; res.textContent='请填写中转站的接口地址和模型名（可以点"读取可用模型"）'; return }
+    }
+  }
   if(!builtin){
     member.type = mType;
-    if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked, hands:$('#mHands').checked });
+    if(mType==='api') Object.assign(member, apiPart());
     else Object.assign(member,{ cmd:$('#mCmd').value.trim(), argsText:$('#mArgs').value, parser:$('#mParser').value, readOnly:$('#mReadOnly').checked, versionCheck:$('#mVer').checked });
     if(!member.name){ res.className='testres bad'; res.textContent='请填写名字'; return }
     if(mType==='api' && (!member.baseUrl || !member.model)){ res.className='testres bad'; res.textContent='请填写接口地址和模型名'; return }
