@@ -93,4 +93,27 @@ describe('图片库 / 文件库', () => {
     const noHeader = await fetch(`${h.base}/api/library/upload?name=x.txt`, { method: 'POST', body: 'x' });
     assert.equal(noHeader.status, 403);
   });
+
+  it('常驻资料：设为常驻后所有队友每次都看到，取消后就没有；图片不能常驻；删掉文件自动取消', async () => {
+    await libUpload('品牌调性.md', '# 品牌调性\n说话要年轻、不用"家人们"这类词。');
+    await libUpload('合作伙伴.docx', makeDocx(['合作伙伴：某某音频']));
+    const pin = (id, on) => h.post('library/pin', { id, on });
+    assert.equal((await pin('lib:品牌调性.md', true)).ok, true);
+    assert.equal((await pin('lib:合作伙伴.docx', true)).ok, true);
+    assert.equal((await pin('lib:海报.png', true)).status, 400, '图片不能常驻');
+    const it1 = (await items()).find((x) => x.id === 'lib:品牌调性.md');
+    assert.ok(it1.pinned && it1.chars > 10);
+    const prompts = async (text) => {
+      const id = await h.newConv();
+      await h.ask(id, text);
+      return fs.readFileSync(path.join(h.workspace, id, '.hola', 'prompts.log'), 'utf8');
+    };
+    const p1 = await prompts('@Claude 写一句开场白');
+    assert.match(p1, /【团队常驻资料】[\s\S]*不用"家人们"这类词[\s\S]*合作伙伴：某某音频/);
+    await pin('lib:品牌调性.md', false);
+    await h.post('library/delete', { id: 'lib:合作伙伴.docx' });
+    assert.ok(!(await items()).some((x) => x.pinned), '删掉的文件也不再常驻');
+    const p2 = await prompts('@Claude 再写一句');
+    assert.ok(!p2.includes('团队常驻资料'), '没有常驻资料时，提示词里没有这一段');
+  });
 });

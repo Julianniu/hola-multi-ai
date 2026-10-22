@@ -69,7 +69,11 @@ process.stdin.on('data', (d) => {
     if (!line) continue;
     let m;
     try { m = JSON.parse(line); } catch (_) { send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }); continue; }
-    handle(m).catch((e) => fail(m.id, -32603, String(e && e.message || e)));
+    const p = handle(m).catch((e) => fail(m.id, -32603, String(e && e.message || e)));
+    pending.add(p);
+    p.finally(() => pending.delete(p));
   }
 });
-process.stdin.on('end', () => process.exit(0));
+// 输入结束：等还在进行的调用回完话再退出
+const pending = new Set();
+process.stdin.on('end', () => Promise.allSettled([...pending]).then(() => process.exit(0)));

@@ -207,6 +207,24 @@ describe('桌面版', { skip }, () => {
       return { args: br.args, cwd: convs.convDir(c) };
     }, { conv, memberId, name });
     const done = (memberId) => app.evaluate((_, id) => global.__br[id].done(), memberId);
+    // Codex：用 -c 临时加工具服务（放在最前面），路径和通行证都在
+    const cx = await app.evaluate((_, a) => {
+      const req = process.mainModule.require;
+      const cache = req('module')._cache;
+      const loaded = (name) => cache[Object.keys(cache).find((k) => new RegExp(`[\\\\/]lib[\\\\/]${name}\\.js$`).test(k))].exports;
+      const br = loaded('browser').withBrowser(loaded('convs').convs.get(a.conv), { id: 'codex', name: 'Codex', parser: 'codex-json' }, ['exec', '--json', '-']);
+      const out = br.args;
+      br.done();
+      return out;
+    }, { conv });
+    assert.equal(cx[0], '-c');
+    assert.deepEqual(cx.slice(-3), ['exec', '--json', '-']);
+    const tomlVal = (key) => cx.find((x) => x.startsWith(`mcp_servers.hola_browser.${key}=`)).split('=').slice(1).join('=');
+    assert.ok(fs.existsSync(tomlVal('command').replace(/^'|'$/g, '')), 'Codex 启动的是 Hola 自己');
+    assert.ok(fs.existsSync(tomlVal('args').replace(/^\['|'\]$/g, '')), '工具服务的脚本存在');
+    assert.match(tomlVal('env'), /^\{ELECTRON_RUN_AS_NODE='1',HOLA_URL='http:\/\/127\.0\.0\.1:\d+',HOLA_BROWSER_TOKEN='[0-9a-f]{48}'\}$/);
+    assert.ok(Number(tomlVal('tool_timeout_sec')) > 180, '工具时限要比等老板点头的 3 分钟长');
+
     const { args, cwd } = await issue('claude', 'Claude');
     assert.equal(args[2], 'Read,Write,mcp__hola-browser', '安全模式的白名单里加上浏览器工具');
     assert.equal(args.at(-2), '--mcp-config');
@@ -261,6 +279,45 @@ describe('桌面版', { skip }, () => {
       assert.match(textOf(await mcp.call('read')), /已经结束/);
       await page.waitForSelector('#bDriver', { state: 'hidden' });
     } finally { mcp.close(); }
+    if (await page.locator('#bClose').isVisible()) await page.click('#bClose');
+  });
+
+  it('API 队友也能用内置浏览器（在 Hola 里直接调用）', { skip: PACKAGED && '安装版不放行本机测试网站' }, async () => {
+    const siteUrl = `http://127.0.0.1:${site.address().port}/`;
+    const seen = [], queue = [
+      { tool_calls: [{ id: 'b1', type: 'function', function: { name: 'browser_open', arguments: JSON.stringify({ url: siteUrl }) } }] },
+      { tool_calls: [{ id: 'b2', type: 'function', function: { name: 'browser_read', arguments: '{}' } }] },
+      { content: '看完了' },
+    ];
+    const port = await freePort();
+    const srv = http.createServer((req, res) => {
+      let b = '';
+      req.on('data', (d) => { b += d; });
+      req.on('end', () => {
+        seen.push(JSON.parse(b));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ choices: [{ message: queue.shift() || { content: '（没了）' } }] }));
+      });
+    }).listen(port, '127.0.0.1');
+    let r;
+    try {
+      r = await page.evaluate((p) => api('members/save', { member: { name: 'BW', type: 'api', baseUrl: `http://127.0.0.1:${p}/v1`, model: 'bw', apiKey: 'sk-t', strengths: 'web' } }), port);
+      const conv = await page.evaluate(async () => (await api('conv/new', {})).id);
+      await page.waitForFunction((id) => S.members.some((m) => m.id === id && m.online), r.id, { timeout: 15000 });
+      await page.evaluate((c) => api('send', { conv: c, text: '@BW 看看这个网页' }), conv);
+      for (let i = 0; i < 150; i++) {
+        const j = await page.evaluate(async (c) => (await fetch('/api/conv/' + c)).json(), conv);
+        if (!j.running && j.messages.some((m) => m.text === '看完了')) break;
+        await page.waitForTimeout(200);
+      }
+      assert.equal(seen.length, 3);
+      assert.ok(seen[0].tools.some((t) => t.function.name === 'browser_open'), '桌面版里 API 队友有浏览器工具');
+      assert.match(seen[1].messages.at(-1).content, /已打开：测试网页/);
+      assert.match(seen[2].messages.at(-1).content, /这是一段正文/);
+    } finally {
+      srv.close();
+      if (r && r.id) await page.evaluate((id) => api('members/delete', { id }), r.id);
+    }
     if (await page.locator('#bClose').isVisible()) await page.click('#bClose');
   });
 

@@ -81,6 +81,7 @@
       <input type="file" id="libFile" multiple hidden>
     </div>
     <p class="libhint" id="libHint"></p>
+    <p class="libpins" id="libPins" hidden data-raw></p>
     <div class="libitems" id="libItems"></div>
   </section>
 
@@ -266,6 +267,8 @@
         </div>
         <label class="check"><input type="checkbox" id="mVision">这个模型能看图片（会把图片一起发给它）</label>
         <small class="hint" style="display:block;margin:-2px 0 10px 24px;color:var(--ink3);font-size:12px">不勾也没关系：有图片时，会请能看图的队友先把图片写成文字说明给它。</small>
+        <label class="check"><input type="checkbox" id="mHands" checked>能动手：读写文件、做 Word / Excel / PPT、上网查资料</label>
+        <small class="hint" style="display:block;margin:-2px 0 10px 24px;color:var(--ink3);font-size:12px">需要模型支持"工具调用"。点"保存并测试"会自动试一下，不支持的话它就只动脑。</small>
         <div class="field"><label for="mKey">API Key</label><input id="mKey" type="password" autocomplete="off" placeholder="sk-..."><small id="mKeyNote">只保存在你电脑的 Hola 文件夹里（data\members.json），不会显示在页面上。</small></div>
       </div>
       <div id="cliFields" hidden>

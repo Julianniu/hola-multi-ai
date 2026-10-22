@@ -99,6 +99,9 @@ body.view-lib #scroll, body.view-lib .composer-wrap{display:none}
 .libbar{max-width:var(--feed-w);margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .libbar #libSearch{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .libhint{max-width:var(--feed-w);margin:10px auto 14px;font-size:12.5px;color:var(--ink3)}
+.libpins{max-width:var(--feed-w);margin:-6px auto 14px;font-size:12.5px;padding:8px 12px;border-radius:9px;background:var(--wash);color:var(--ink2)}
+.libpins.over{color:var(--bad)}
+.librow .pin{color:var(--ink);font-weight:600}
 .libitems{max-width:var(--feed-w);margin:0 auto}
 .libitems.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
 .libcard{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;min-width:0}

@@ -460,7 +460,7 @@ async function openLib(kind){
   await libReload();
 }
 let libT=null;
-function libReload(){ clearTimeout(libT); return new Promise(r=>{ libT=setTimeout(async()=>{ try{ LIB.items=(await (await fetch('/api/library')).json()).items||[] }catch(_){ LIB.items=[] } renderLib(); r() }, 120) }) }
+function libReload(){ clearTimeout(libT); return new Promise(r=>{ libT=setTimeout(async()=>{ try{ const j=await (await fetch('/api/library')).json(); LIB.items=j.items||[]; LIB.pinBudget=j.pinBudget||12000 }catch(_){ LIB.items=[] } renderLib(); r() }, 120) }) }
 // 来源说明（里面有对话标题，所以整段不交给翻译，直接按界面语言写）
 function libSource(it){
   const en=EN_UI();
@@ -476,16 +476,24 @@ function renderLib(){
     .filter(it=>!q||it.name.toLowerCase().includes(q)||(it.conv&&it.conv.title.toLowerCase().includes(q)));
   const box=$('#libItems');
   box.className='libitems '+(LIB.kind==='images'?'grid':'list');
+  // 常驻资料：每次干活所有队友都会看到，所以提醒一下字数
+  const pins=LIB.items.filter(it=>it.pinned), total=pins.reduce((n,it)=>n+(it.chars||0),0), en=EN_UI(), fmt=n=>n.toLocaleString();
+  $('#libPins').hidden = LIB.kind!=='files' || !pins.length;
+  $('#libPins').classList.toggle('over', total>LIB.pinBudget);
+  $('#libPins').textContent = en
+    ? `Pinned: ${pins.length} file(s), ${fmt(total)} characters. Every teammate reads them in every chat.${total>LIB.pinBudget?` Over the ${fmt(LIB.pinBudget)}-character limit: each file will be cut short.`:''}`
+    : `常驻资料 ${pins.length} 份，共 ${fmt(total)} 字：所有对话的队友每次都会看到。${total>LIB.pinBudget?`超过了 ${fmt(LIB.pinBudget)} 字的上限，每份会被截短。`:''}`;
   if(!list.length){ box.innerHTML=`<div class="libempty">${LIB.items.length?'没有符合条件的文件':'这里还是空的。点右上角"上传"，或者把文件拖进来。'}</div>`; return }
-  const acts=it=>`<div class="libacts"><button class="libsend" data-lsend="${esc(it.id)}">发到对话</button>${(it.preview||it.image)?`<button data-lpv="${esc(it.id)}">预览</button>`:''}<a href="${it.url}?download" title="下载">下载</a>${it.conv?`<button data-lconv="${esc(it.conv.id)}">打开对话</button>`:`<button data-ldel="${esc(it.id)}">删除</button>`}</div>`;
+  const acts=it=>`<div class="libacts"><button class="libsend" data-lsend="${esc(it.id)}">发到对话</button>${it.pinnable?`<button data-lpin="${esc(it.id)}" title="所有对话的队友每次都会参考这份资料">${it.pinned?'取消常驻':'设为常驻'}</button>`:''}${(it.preview||it.image)?`<button data-lpv="${esc(it.id)}">预览</button>`:''}<a href="${it.url}?download" title="下载">下载</a>${it.conv?`<button data-lconv="${esc(it.conv.id)}">打开对话</button>`:`<button data-ldel="${esc(it.id)}">删除</button>`}</div>`;
   box.innerHTML = list.map(it=> LIB.kind==='images'
     ? `<div class="libcard"><button class="ph" data-lpv="${esc(it.id)}" aria-label="预览"><img src="${it.url}" alt="" loading="lazy"></button><div class="mt"><b data-raw>${esc(it.name)}</b><small data-raw>${esc(libSource(it))}</small></div>${acts(it)}</div>`
-    : `<div class="librow"><svg class="i"><use href="#i-file"/></svg><div class="nm"><b data-raw>${esc(it.name)}</b><small data-raw>${esc(size(it.size))} · ${esc(libSource(it))}</small></div>${acts(it)}</div>`).join('');
+    : `<div class="librow"><svg class="i"><use href="#i-file"/></svg><div class="nm"><b data-raw>${esc(it.name)}</b><small data-raw>${esc(size(it.size))} · ${esc(libSource(it))}${it.pinned?` · <span class="pin">${EN_UI()?`pinned, ${(it.chars||0).toLocaleString()} chars`:`常驻 · ${(it.chars||0).toLocaleString()} 字`}</span>`:''}</small></div>${acts(it)}</div>`).join('');
   const find=id=>LIB.items.find(x=>x.id===id);
   box.querySelectorAll('[data-lpv]').forEach(b=>b.onclick=()=>{ const it=find(b.dataset.lpv); if(it) openPreviewUrl(it.name, it.image?it.url:it.previewUrl, it.url, it.image) });
   box.querySelectorAll('[data-lconv]').forEach(b=>b.onclick=()=>openConv(b.dataset.lconv));
   box.querySelectorAll('[data-ldel]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.ldel); if(!it||!confirm(`删除「${it.name}」？会从资料库文件夹里永久删除。`)) return; const r=await api('library/delete',{id:it.id}); if(r.error) toast(r.error); else libReload() });
   box.querySelectorAll('[data-lsend]').forEach(b=>b.onclick=()=>libSend(find(b.dataset.lsend)));
+  box.querySelectorAll('[data-lpin]').forEach(b=>b.onclick=async()=>{ const it=find(b.dataset.lpin); if(!it) return; const r=await api('library/pin',{id:it.id,on:!it.pinned}); if(r.error) toast(r.error); else { toast(it.pinned?'已取消常驻':'已设为常驻：队友每次都会参考'); libReload() } });
 }
 // 发到对话：复制进当前对话（没有就新建一个），放进输入框上方，写上要做什么再发
 async function libSend(it){
@@ -840,7 +848,7 @@ let editing = null, mType = 'api', mColor = SWATCHES[0];
 function openTeam(){ renderTeam(); if(!$('#teamDlg').open) $('#teamDlg').showModal() }
 function renderTeam(){
   $('#teamList').innerHTML = S.members.map(m=>{
-    const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.access==='full' ? '</span><span class="tag">完全权限' : '');
+    const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.access==='full' ? '</span><span class="tag">完全权限' : '') + (m.type==='api' && m.edit && (m.edit.hands===false || m.edit.toolsOk===false) ? '</span><span class="tag">只动脑' : '');
     const sub = (!m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线')) + (m.model && m.model!==m.version ? ` · <span data-raw>${esc(m.model)}</span>` : '');
     return `<div class="team-row${m.enabled?'':' disabled'}"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span>
       <div class="info"><b>${esc(m.name)}</b><span class="tag">${kind}</span><small>${esc(m.strengths)}</small><small class="${m.enabled&&!m.online?'bad':''}">${sub}</small></div>
@@ -881,7 +889,7 @@ function openMember(m){
   $('#mType').querySelectorAll('button').forEach(b=>b.disabled=builtin);
   $('#mType').hidden = builtin; $('#apiFields').hidden = builtin || mType!=='api'; $('#cliFields').hidden = builtin || mType!=='cli';
   const e = (m && m.edit) || {};
-  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision;
+  $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision; $('#mHands').checked = e.hands !== false;
   $('#mKey').value = ''; $('#mKey').placeholder = e.keyHint ? `已保存（${e.keyHint}），留空表示不改` : 'sk-...';
   $('#mCmd').value = e.cmd || ''; $('#mArgs').value = e.argsText || ''; $('#mParser').value = e.parser || 'plain';
   $('#mReadOnly').checked = !!e.readOnly; $('#mVer').checked = e.versionCheck !== false;
@@ -896,8 +904,8 @@ function openMember(m){
 }
 // 认得的三种命令行（Claude / Codex / Antigravity）才能一键切换权限
 const ACCESS_PARSERS = ['claude-stream','codex-json','agy-json'];
-const accessShown = ()=> editing && editing.builtin ? !!editing.access : mType==='cli' && ACCESS_PARSERS.includes($('#mParser').value);
-function showAccess(){ $('#accessField').hidden = !accessShown(); $('#modelField').hidden = !(editing && editing.id && accessShown()) }
+const accessShown = ()=> editing && editing.builtin ? !!editing.access : mType==='api' || (mType==='cli' && ACCESS_PARSERS.includes($('#mParser').value));
+function showAccess(){ $('#accessField').hidden = !accessShown(); $('#modelField').hidden = !(editing && editing.id && accessShown() && mType!=='api') }
 // 模型下拉：列表从各家工具实时读取；"默认"表示用工具自己的设置
 async function loadModels(m){
   const sel=$('#mModelSel'), note=$('#mModelNote');
@@ -959,7 +967,7 @@ $('#mSave').onclick = async()=>{
   if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }
   if(!builtin){
     member.type = mType;
-    if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked });
+    if(mType==='api') Object.assign(member,{ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked, hands:$('#mHands').checked });
     else Object.assign(member,{ cmd:$('#mCmd').value.trim(), argsText:$('#mArgs').value, parser:$('#mParser').value, readOnly:$('#mReadOnly').checked, versionCheck:$('#mVer').checked });
     if(!member.name){ res.className='testres bad'; res.textContent='请填写名字'; return }
     if(mType==='api' && (!member.baseUrl || !member.model)){ res.className='testres bad'; res.textContent='请填写接口地址和模型名'; return }
@@ -973,7 +981,7 @@ $('#mSave').onclick = async()=>{
   try{
     const t = await api('members/test',{id:saved.id});
     res.className = 'testres ' + (t.ok?'ok':'bad'); res.title = t.ok ? t.text : t.error;
-    res.textContent = t.ok ? `连上了：${t.text}` : `没连上：${t.error}`;
+    res.textContent = t.ok ? `连上了：${t.text}` + (t.hands===true?' · 能动手':t.hands===false?' · 这个模型不支持工具调用，只能动脑':'') : `没连上：${t.error}`;
     if(t.ok) setTimeout(()=>{ if($('#memberDlg').open) $('#memberDlg').close() }, 1200);
   }catch(e){ res.className='testres bad'; res.textContent='测试失败：'+e.message }
 };

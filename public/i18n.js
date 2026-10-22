@@ -106,6 +106,12 @@
     '现在没有在线的队友可以执行。': 'No teammate is online to carry this out.',
     '没有在线的队友，没法整理技能。': 'No teammate is online to write the skill.',
     '老板叫停了，大家先停手。': 'You stopped the team. Everyone has paused.',
+    // API 队友能动手、常驻资料
+    '能动手：读写文件、做 Word / Excel / PPT、上网查资料': 'Can do work: read and write files, make Word / Excel / PowerPoint, look things up online',
+    '需要模型支持"工具调用"。点"保存并测试"会自动试一下，不支持的话它就只动脑。': 'Needs a model that supports tool calling. "Save and test" checks it; if not supported, it only thinks.',
+    '只动脑': 'Thinking only', '设为常驻': 'Pin', '取消常驻': 'Unpin', '所有对话的队友每次都会参考这份资料': 'Every teammate refers to this file in every chat',
+    '已取消常驻': 'Unpinned', '已设为常驻：队友每次都会参考': 'Pinned: teammates will refer to it every time',
+    '只有资料库里的文字类文件（Word、Excel、PPT、Markdown、文本、CSV）能设为常驻': 'Only text-type files you uploaded (Word, Excel, PowerPoint, Markdown, text, CSV) can be pinned',
     // 内置浏览器
     '浏览器': 'Browser', '内置浏览器：你和队友都能用': 'Built-in browser: for you and your teammates', '后退': 'Back', '前进': 'Forward', '刷新': 'Reload',
     '输入网址或要搜索的内容': 'Enter an address or search', '关闭浏览器': 'Close browser',
@@ -184,7 +190,7 @@
     [/^在线 · (.*)$/, (m, v) => `Online · ${v}`],
     [/^在线 (.*)$/, (m, v) => `Online ${v}`],
     [/^已保存（(.+)），留空表示不改$/, (m, k) => `Saved (${k}). Leave blank to keep it`],
-    [/^连上了：([\s\S]*)$/, (m, v) => `Connected: ${v}`],
+    [/^连上了：([\s\S]*)$/, (m, v) => `Connected: ${v.replace(/ · 能动手$/, ' · can do work').replace(/ · 这个模型不支持工具调用，只能动脑$/, " · this model doesn't support tool calling, so it only thinks")}`],
     [/^没连上：([\s\S]*)$/, (m, v) => `Not connected: ${v}`],
     [/^测试失败：([\s\S]*)$/, (m, v) => `Test failed: ${v}`],
     [/^上传失败：([\s\S]*)$/, (m, v) => `Upload failed: ${v}`],
