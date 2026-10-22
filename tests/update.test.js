@@ -179,8 +179,9 @@ describe('自动更新', () => {
   // 发版时（HOLA_BUNDLE_DIR=dist）：拿刚打出来的、用作者真钥匙签名的更新包，按桌面版的流程装一遍，再跑起来
   it('发布用的程序更新包：能通过官方签名核对，装好能用', { skip: !process.env.HOLA_BUNDLE_DIR && '只在发版时测' }, async () => {
     fresh();
-    const zipName = fs.readdirSync(process.env.HOLA_BUNDLE_DIR).find((f) => /^hola-app-\d+\.\d+\.\d+\.zip$/.test(f));
-    assert.ok(zipName, '没找到 hola-app-x.y.z.zip');
+    // 文件夹里可能留着以前版本的更新包：只测这次版本号的那个
+    const zipName = `hola-app-${require('../package.json').version}.zip`;
+    assert.ok(fs.existsSync(path.join(process.env.HOLA_BUNDLE_DIR, zipName)), '没找到 ' + zipName);
     const v = up.installBundle(fs.readFileSync(path.join(process.env.HOLA_BUNDLE_DIR, zipName)), { appsDir, shellVersion: '999.0.0', currentVersion: '0.0.0' });
     assert.equal(zipName, `hola-app-${v}.zip`);
     assert.ok(verifyDir(path.join(appsDir, v)).ok, '用内置的作者公钥核对');
@@ -188,7 +189,7 @@ describe('自动更新', () => {
     try {
       assert.equal((await h.init()).build.status, 'official');
       const id = await h.newConv();
-      assert.equal((await h.ask(id, '大家好')).added.filter((m) => m.reason === 'initial').length, 3);
+      assert.equal((await h.ask(id, '大家好', { mode: 'discuss' })).added.filter((m) => m.reason === 'initial').length, 3);
     } finally { await h.stop(); }
   });
 
