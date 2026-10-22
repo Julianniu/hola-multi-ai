@@ -55,6 +55,9 @@ jobs:
           HOLA_APP_EXE: ${{ github.workspace }}\dist\win-unpacked\Hola.exe
           HOLA_BUNDLE_DIR: ${{ github.workspace }}\dist
           HOLA_REQUIRE_APP: '1'
+      - name: 安装版测试失败时，把原因写成公开的错误提示
+        if: failure()
+        run: node tools/ci-annotate.js test-results.tap
       - uses: actions/upload-artifact@v5
         with:
           name: windows
