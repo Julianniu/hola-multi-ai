@@ -119,7 +119,7 @@
     '✓ 验收通过': '✓ Approved', '✓ 改好后通过': '✓ Fixed and approved', '退回重做': 'Sent back', '思考中': 'Thinking', '验收中': 'Reviewing',
     '发送：主脑回答 · 开会讨论：大脑们讨论出团队结论 · @ 某人：按 @ 的顺序来': 'Send: the main brain answers · Meet: the brains discuss and reach a team conclusion · @ someone: in @ order',
     '直接发送，由主脑回答，最快。值得多想想的问题，点「开会讨论」：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。': 'Just send for the fastest answer, from the main brain. For questions worth thinking through, click "Meet": the brains answer independently, then discuss, challenge each other and give you a team conclusion once they agree. Use @ to choose who works and in what order. Drag in or paste images and files.',
-    '只能把主脑的回答拿去讨论': "Only the main brain's answer can be taken to a meeting", '等这一轮做完再开会': 'Wait until the current work finishes', '这条回答已经讨论过了': 'This answer has already been discussed',
+    '只能把主脑的回答拿去讨论': "Only the main brain's answer can be taken to a meeting", '等这一轮做完再开会': 'Wait until the current work finishes', '等这一轮讨论结束再开会': 'Wait until the current discussion ends', '已经排好队，马上开会': 'A meeting is already queued', '这条回答已经讨论过了': 'This answer has already been discussed',
     // 内置队友改走中转站、读取可用模型、思考深度
     '接入方式': 'How it connects', '订阅登录（命令行）': 'Subscription (command line)', '中转站 / API': 'Relay / API', '中转站': 'Relay',
     '订阅登录：用这台电脑上登录好的命令行工具和你自己的订阅。中转站 / API：填公司或第三方给的接口地址和 Key，不用装命令行工具、不用订阅。': 'Subscription: uses the command-line tool signed in on this PC and your own subscription. Relay / API: enter the address and key from your company or a third party; no command-line tool or subscription needed.',

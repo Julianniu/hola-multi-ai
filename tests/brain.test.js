@@ -98,6 +98,20 @@ describe('主脑、大脑和帮手', () => {
     assert.ok(ps.every((x) => !/干活分工|帮手：/.test(x)), '没有帮手时，提示词里不出现分工和帮手');
   });
 
+  it('主脑刚答完、还在整理记忆时点"让大家讨论一下"：排队，整理完自动开会', async () => {
+    const h2 = await startHola({ settings: { autoMemory: true }, env: { HOLA_DEMO_SLOW_MEMORY: '1500' } });
+    try {
+      const id = await h2.newConv();
+      await h2.post('send', { conv: id, text: '新品耳机首发该怎么推广' });
+      let main;
+      for (let i = 0; i < 100 && !main; i++) { const c = await h2.conv(id); main = c.messages.find((m) => m.reason === 'main' && m.status === 'done'); if (!main) await new Promise((r) => setTimeout(r, 50)); }
+      assert.equal((await h2.conv(id)).running, true, '这时还在整理记忆');
+      assert.equal((await h2.post('discuss', { conv: id, msg: main.id })).status, 200);
+      const c = await h2.waitIdle(id, 60000);
+      assert.ok(c.messages.some((m) => m.reason === 'conclusion'), '整理完记忆后开了会');
+    } finally { await h2.stop(); }
+  });
+
   it('只有一位大脑能参加：说清楚开不成会', async () => {
     const id = await h.newConv();
     await h.post('conv/active', { conv: id, active: ['claude'] });

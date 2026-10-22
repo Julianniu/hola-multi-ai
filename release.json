@@ -6,7 +6,7 @@
     "LICENSE": "fde7b1f052d2ff8a71e8b1c2ec071c697d37f3a0fae906931f27d6c6e44373ea",
     "config.json": "596590c09cd247b21c347eb5a35a4fd76d0117c4a36e395455116a3ed4eaba81",
     "demo/config.json": "77fc91d41efa4fa136a034ea4095a38133ace5db0f648df9bc4d4305ba5abe4d",
-    "demo/fake-ai.js": "f508de6d72b5e02597700655c51bae3ab18e153d1590376f80d68d0c992103a9",
+    "demo/fake-ai.js": "c1104f163859ab4ad21a71688b21956d4a0cdbcf0e9f6f8b4550a8c8a3b121ba",
     "desktop/browser-mcp.js": "c64c52be9988fbe62f6cc711f99eac906dffa8c90d015fbc67e5e9f7b0f960f5",
     "desktop/browser.js": "1c00ef9793f5dc1a1929a13b2c13d5d2e4ac72df53adfb301040dbfdacefdd85",
     "desktop/main.js": "c94af55448358c17c07a1e5fb4119f3b2da47f5bbbf689990e974ce51aceaa55",
@@ -16,7 +16,7 @@
     "lib/build-check.js": "cfa9747c37f2b3af350cfab4c110d9e9ea499657125063bc12c0371a31ccd2dc",
     "lib/convs.js": "48d78815fef7ef0e765d7b111f41481b95bd0846b22f91cfef8d1097e0dd5c93",
     "lib/core.js": "9248f189133370d62603e2559719e5197a8c83023bc691fdbad85a2b0aa0df3f",
-    "lib/engine.js": "0f93896d2cacf8200f872e2bd288e2f9088edda111c795311c43c0eefb1f4ca8",
+    "lib/engine.js": "fa74c390b20052cd16a9f0277ffab1f0fc1feee04496e5ce68d42f47ca112aa8",
     "lib/http.js": "1f4a01711e7ddb807f3ef0f4c34d6de681511d7061f296f0ff0146b761e69e73",
     "lib/library.js": "c88b070e8712740c74fb8a93f547fba5829e7b67458e264e6f9108f8df9ac8d2",
     "lib/members.js": "2032f29dd0f9d7b564739de12759e95cd14271c8f026b1e219ac900026005655",
@@ -29,12 +29,12 @@
     "public/app.css": "7b3f676da53b041e8e5c21fca57f5e8b2b6d85d98ccdcd4e0ab5312f723b5552",
     "public/app.js": "91bee773b357a761487f027181616f5553922694e06fbc0a8cade3f32ac134d3",
     "public/favicon.png": "7d2c46cfa6d42ea7ebf869eba02871b256fcf7904d7672b2eb73407c03c43cf1",
-    "public/i18n.js": "7cf58744e3db8b023eeff3a0de3b4fcd6d690455da413c35471d857b10709524",
+    "public/i18n.js": "e7415b62906e334fa9b9f3e601b900ce9f3a1331f986cc5a678460e6b9579d0b",
     "public/icon-192.png": "58bebeacd8e6079b16733a689f678dfa7377bbdcc28ab3c9d12e9614383f7f62",
     "public/index.html": "f081a106c9b761324ed86058a0cfea07b6218db93c092e7e945fd3ea781bfe69",
     "public/logo.svg": "6083467759a04e1664d712d1052bfc842df0e924f4b0f9f704fdce7a0999eaba",
     "server.js": "8e51ac630eb62d6cdff979c0788116b4b61512d3269a64de04205750f2ce147d",
     "tools/release-files.js": "a1102a908d854ef91e88fb3605a5253c42274f2e1499f96ee52d34a87b4b3d0b"
   },
-  "sig": "n/GVAFW/7k5R10aU4Ht3HvPc6GlsJwBjGqOdBZV/VohgpBl0U7zrq8JmuH0T3YKGobwX9Lz5JW8p/TSMDiqBAg=="
+  "sig": "K4GSuwy7fgAnq7bufDd2jg+3IkJL4wA2ro5hWHRKxRdvmHMwTRRLgH/5jyEyuJy8fRgJqFn1C9uGZfqQG+HQDQ=="
 }

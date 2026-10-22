@@ -19,6 +19,8 @@ process.stdin.on('end', async () => {
   }
   // HOLA_DEMO_FAST：自动测试时不用"假装思考"，马上回答
   await sleep(process.env.HOLA_DEMO_FAST ? 20 : 900 + Math.random() * 1400);
+  // HOLA_DEMO_SLOW_MEMORY=毫秒：整理记忆故意慢一点（测"整理记忆时点了让大家讨论一下"）
+  if (process.env.HOLA_DEMO_SLOW_MEMORY && prompt.includes('记忆整理员')) await sleep(Number(process.env.HOLA_DEMO_SLOW_MEMORY));
   process.stderr.write(`（演示模式）${name} 在按剧本回答\n`);
   process.stdout.write(reply(prompt) + '\n');
 });
