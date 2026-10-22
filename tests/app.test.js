@@ -344,11 +344,11 @@ describe('桌面版', { skip }, () => {
     assert.equal(await page.locator('#side').isVisible(), true);
   });
 
-  it('水银：开会的结论卡和验收通过上各有一块水银画布', async () => {
-    // 上一个用例开过会、验收过：结论上方是融合后的水银，验收通过前面是水银对勾
-    assert.ok(await page.locator('.row.concl .mstrip canvas.merc[data-merc="meet"]').count() >= 1);
+  it('水银：顶栏"在线"那颗水银在画，验收通过前面是水银对勾，聊天里没有别的水银', async () => {
+    assert.equal(await page.locator('#lights.merc #lightsMerc').isVisible(), true);
+    assert.ok(await page.evaluate(() => document.querySelector('#lightsMerc').width > 0));
     assert.ok(await page.locator('.rv canvas.merc[data-merc="check"]').count() >= 1);
-    assert.equal(await page.locator('.mlive').count(), 0, '会开完了，开会中的水银要收起');
+    assert.equal(await page.locator('#feed canvas.merc:not([data-merc="check"])').count(), 0);
   });
 
   it('自己画的弹窗：更新提示不用系统对话框，点"稍后"告诉外壳', async () => {

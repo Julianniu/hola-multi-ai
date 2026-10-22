@@ -1,15 +1,16 @@
-// 水银（WebGL）。整个界面只有两处用到：开会时几位大脑的交融（kind=meet），和主脑验收通过时流成的对勾（kind=check）。
+// 水银（WebGL）。整个界面只有两处用到：顶栏"在线"那颗水银（每位队友一滴：平时分开、开会时融了又分、得出结论融成一滩，Merc.lights），
+// 和主脑验收通过时流成的对勾（canvas.merc data-merc="check"）。
 // 原理：很多个小液团叠成一个"场"，场值过 1 的地方就是水银，所以轮廓不规则、会牵出液桥、会融合；
 // 表面张力让顶面几乎是平的镜子，只有边缘是圆弧；镜面反射一个慢慢转动的摄影棚（柔光箱 + 红 / 蓝 / 绿三束光）。
 // 只用一个隐藏的 WebGL 画布画所有水银，画完复制到页面上的普通画布里（浏览器同时能开的 WebGL 数量有限）。
 // 动画只在状态刚发生时播一次，播完停在最后一帧；翻聊天记录、换深浅色、系统要求"减少动画"时直接画最后一帧。
-// 页面里：<canvas class="merc" data-merc="meet|check" data-state="live|merge|split|pass" data-n="3" data-colors="#FF5A4E,#3D7BFF" data-key="消息id" data-ts="毫秒">
-// 然后 Merc.scan(容器)。电脑不支持 WebGL 时：对勾画成一笔普通的勾，开会的水银不画（不报错）。
+// 对勾：<canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="消息id" data-ts="毫秒">，然后 Merc.scan(容器)。
+// 电脑不支持 WebGL 时：对勾画成一笔普通的勾，顶栏画几个普通的彩色圆点（不报错）。
 (function () {
   'use strict';
   const FRAG = (N) => `
 precision highp float;
-uniform vec2 uRes;uniform float uTime;uniform float uDark;uniform float uTint;uniform vec3 uB[${N}];uniform vec3 uC[${N}];
+uniform vec2 uRes;uniform float uTime;uniform float uDark;uniform float uTint;uniform float uPersp;uniform float uGlow;uniform vec3 uB[${N}];uniform vec3 uC[${N}];
 float fieldOnly(vec2 p){float f=0.0;for(int i=0;i<${N};i++){vec2 d=p-uB[i].xy;float r2=uB[i].z*uB[i].z;f+=r2/(dot(d,d)+0.06*r2+1e-7);}return f;}
 float hgt(float f){return 0.068*sqrt(clamp(1.0-exp(-3.6*(f-1.0)),0.0,1.0));}
 vec3 env(vec3 r){
@@ -46,39 +47,22 @@ void main(){
   float gx=(hgt(fieldOnly(p+vec2(e,0.0)))-hgt(fieldOnly(p-vec2(e,0.0))))/(2.0*e);
   float gy=(hgt(fieldOnly(p+vec2(0.0,e)))-hgt(fieldOnly(p-vec2(0.0,e))))/(2.0*e);
   vec3 n=normalize(vec3(-gx,-gy,1.0));
-  vec3 r=reflect(normalize(vec3(p*0.55,-1.0)),n);
+  vec3 r=reflect(normalize(vec3(p*uPersp,-1.0)),n);
   vec3 c=env(normalize(vec3(r.x,r.y+0.12,abs(r.z))));
   float fr=pow(1.0-n.z,3.0);
   if(uDark>0.5){c=mix(c,env(normalize(vec3(r.x,r.y+0.6,0.25)))*1.15,fr*0.55);}else{c=mix(c,c*0.42,fr*0.85);}
   vec3 L=normalize(vec3(-0.45,0.65,0.62));
   c+=vec3(1.0)*pow(max(dot(reflect(-L,n),vec3(0.0,0.0,1.0)),0.0),140.0)*1.6;
   c=mix(c,c*(0.6+tint*0.7),uTint*0.22);
+  c+=tint*uGlow*(0.55+0.45*fr);
   c=c/(1.0+c*0.10);
   float a=smoothstep(0.96,1.04,f);
   gl_FragColor=vec4(c*a,a+sa*(1.0-a));
 }`;
-  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const clamp = (x) => Math.max(0, Math.min(1, x));
   const spring = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.exp(-6 * t) * Math.cos(10 * t));
   const rgb = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return [0.8, 0.82, 0.86]; const v = parseInt(m[1], 16); return [(v >> 16 & 255) / 255, (v >> 8 & 255) / 255, (v & 255) / 255]; };
 
-  // 开会：每位大脑一滴，带着自己的颜色；k = 靠近的程度（0 各自，1 融成一滩），m = 融合后收紧，shiver = 没谈拢时的轻颤
-  function meetBlobs(t, n, k, m, shiver, colors) {
-    const base = n === 2 ? [[-0.2, 0.02], [0.2, -0.02]] : [[0, 0.2], [-0.23, -0.13], [0.23, -0.13]];
-    const out = [];
-    base.forEach(([x, y], i) => {
-      const bob = 1 - k;
-      const cx = x * (1 - 0.78 * k) + Math.sin(t * 1.3 + i * 2.1) * 0.012 * bob + Math.sin(t * 23 + i) * shiver;
-      const cy = y * (1 - 0.78 * k) + Math.cos(t * 1.1 + i * 1.7) * 0.016 * bob;
-      const R = [0.060, 0.047, 0.040, 0.020];
-      for (let j = 0; j < 4; j++) {
-        const ph = i * 2.4 + j * 2.1, sp = 0.55 + 0.27 * j + 0.15 * i;
-        const orbit = (j === 3 ? 0.085 + 0.03 * Math.sin(t * 0.9 + ph) : 0.034 + 0.016 * Math.sin(t * 0.7 + ph)) * (1 - 0.12 * k);
-        out.push({ p: [cx + Math.cos(t * sp + ph) * orbit * 1.25, cy + Math.sin(t * sp * 1.17 + ph) * orbit * 0.85, (R[j] + 0.007 * Math.sin(t * 1.4 + ph)) * m * (j === 3 ? 1 : 1.05)], c: rgb(colors[i]) });
-      }
-    });
-    return out;
-  }
   // 验收通过：一滴水银落下，顺着笔画流成一个对勾
   const CHECK = [[-0.23, 0.0], [-0.075, -0.15], [0.235, 0.17]];
   function checkPoint(u) {
@@ -110,7 +94,7 @@ void main(){
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link');
     const U = (n) => gl.getUniformLocation(p, n);
-    progs[N] = { p, a: gl.getAttribLocation(p, 'a'), res: U('uRes'), time: U('uTime'), dark: U('uDark'), tint: U('uTint'), b: U('uB'), c: U('uC'), B: new Float32Array(N * 3), C: new Float32Array(N * 3) };
+    progs[N] = { p, a: gl.getAttribLocation(p, 'a'), res: U('uRes'), time: U('uTime'), dark: U('uDark'), tint: U('uTint'), persp: U('uPersp'), glow: U('uGlow'), b: U('uB'), c: U('uC'), B: new Float32Array(N * 3), C: new Float32Array(N * 3) };
     return progs[N];
   }
   function ready() {
@@ -128,7 +112,7 @@ void main(){
   }
   const isDark = () => getComputedStyle(document.documentElement).getPropertyValue('--blend').trim() === 'screen';
 
-  function paint(el, list, N, t, tint, scale) {
+  function paint(el, list, N, t, tint, scale, look) {
     const w = el.width, h = el.height, ctx = el.getContext('2d');
     if (!ctx || !w || !h) return;
     if (!ready()) return fallback(el);
@@ -143,7 +127,7 @@ void main(){
         const b = list[i] || { p: [9, 9, 0], c: [0, 0, 0] };
         pr.B.set([b.p[0] * scale, b.p[1] * scale, b.p[2] * scale], i * 3); pr.C.set(b.c, i * 3);
       }
-      gl.uniform2f(pr.res, w, h); gl.uniform1f(pr.time, t); gl.uniform1f(pr.dark, isDark() ? 1 : 0); gl.uniform1f(pr.tint, tint);
+      gl.uniform2f(pr.res, w, h); gl.uniform1f(pr.time, t); gl.uniform1f(pr.dark, isDark() ? 1 : 0); gl.uniform1f(pr.tint, tint); gl.uniform1f(pr.persp, look ? look.persp : 0.55); gl.uniform1f(pr.glow, look ? look.glow : 0);
       gl.uniform3fv(pr.b, pr.B); gl.uniform3fv(pr.c, pr.C);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       ctx.clearRect(0, 0, w, h);
@@ -160,23 +144,15 @@ void main(){
   }
 
   // ---------- 每个画布的状态：e = 状态发生后过了几秒（播完就停在 END）
-  const END = { merge: 2.4, split: 2.0, pass: 2.4 };
-  const seed = (k) => { let h = 7; for (const ch of String(k || '')) h = (h * 31 + ch.charCodeAt(0)) % 997; return h / 997; };
+  const END = { pass: 2.4 };
   function frame(el, now) {
-    const d = el.dataset, kind = d.merc, st = d.state || 'pass';
+    const d = el.dataset, st = d.state || 'pass';
     // 画布实际大小 × 屏幕缩放
     const dpr = Math.min(window.devicePixelRatio || 1, 2), cw = Math.round(el.clientWidth * dpr), ch = Math.round(el.clientHeight * dpr);
     if (!cw || !ch) return;
     if (el.width !== cw || el.height !== ch) { el.width = cw; el.height = ch; }
-    const e = st === 'live' ? 0 : Math.min((now - el._start) / 1000, END[st] || 2.4);
-    if (kind === 'check') return paint(el, checkBlobs(e, 30, d.colors || '#22D39A'), 30, 3 + e, 1.4, 1.7);
-    const n = +d.n === 2 ? 2 : 3, colors = String(d.colors || '').split(','), scale = n === 2 ? 2.2 : 1.8;
-    const flow = st === 'live' ? now / 1000 : 3 + seed(d.key) * 20 + e;
-    let k = 0.18, m = 1, tint = 1, shiver = 0;
-    if (st === 'live') k = 0.18 + 0.05 * Math.sin(now / 2000);
-    else if (st === 'merge') { k = 0.18 + 0.82 * ease(clamp(e / 1.2)); m = 1 - 0.30 * spring(clamp((e - 0.9) / 1.0)); tint = 1 - ease(clamp(e / 1.5)); }
-    else if (st === 'split') { k = 0.18 + 0.06 * ease(clamp(e / 1.0)); shiver = e > 0.6 && e < 1.9 ? 0.006 * (1 - (e - 0.6) / 1.3) : 0; }
-    paint(el, meetBlobs(flow, n, k, m, shiver, colors), 12, flow, tint, scale);
+    const e = Math.min((now - el._start) / 1000, END[st] || 2.4);
+    paint(el, checkBlobs(e, 30, d.colors || '#22D39A'), 30, 3 + e, 1.4, 1.7);
   }
 
   const live = new Set(), played = new Map();
@@ -190,7 +166,7 @@ void main(){
       if (r.bottom < 0 || r.top > innerHeight) continue; // 不在屏幕上就先不画
       frame(el, now);
       const st = el.dataset.state;
-      if (st !== 'live' && (now - el._start) / 1000 >= (END[st] || 2.4)) live.delete(el);
+      if ((now - el._start) / 1000 >= (END[st] || 2.4)) live.delete(el);
     }
     if (live.size) raf = requestAnimationFrame(loop);
   }
@@ -199,14 +175,83 @@ void main(){
     el._merc = true;
     const d = el.dataset, st = d.state || 'pass', key = (d.key || '') + ':' + st, now = performance.now();
     const ts = +d.ts || 0, fresh = ts && Date.now() - ts < 15000;
-    if (st === 'live' && !reduce()) { el._start = now; live.add(el); }
-    else if (played.has(key)) { el._start = played.get(key); if ((now - el._start) / 1000 < (END[st] || 2.4)) live.add(el); }
+    if (played.has(key)) { el._start = played.get(key); if ((now - el._start) / 1000 < (END[st] || 2.4)) live.add(el); }
     else if (fresh && !reduce()) { el._start = now; played.set(key, now); live.add(el); }
     else { el._start = now - 1e6; played.set(key, el._start); }
     requestAnimationFrame((t) => frame(el, t));
     if (live.size && !raf) raf = requestAnimationFrame(loop);
   }
+  // ---------- 顶栏"在线"那颗水银：每位队友一滴，带着自己的颜色
+  // 三种状态：idle = 各自分开、慢慢流动；meet = 开会中，参会的几滴融在一起又分开、反复；merge = 得出结论，融成一滩
+  // 不在线的那滴缩小、变淡；不参会的（帮手、这次没选上的）开会时待在原地不动
+  function lights(el) {
+    let drops = [], mode = 'idle', last = 0, raf = 0, t0 = performance.now();
+    const LAYOUT = (n) => {
+      if (n <= 1) return [[0, 0]];
+      if (n === 2) return [[-0.3, 0], [0.3, 0]];
+      if (n === 3) return [[0, 0.12], [-0.3, -0.1], [0.3, -0.1]];
+      if (n === 4) return [[-0.24, 0.11], [0.24, 0.11], [-0.24, -0.11], [0.24, -0.11]];
+      return Array.from({ length: n }, (_, i) => { const a = Math.PI / 2 - (2 * Math.PI * i) / n; return [Math.cos(a) * 0.42, Math.sin(a) * 0.12]; });
+    };
+    function tick(now) {
+      raf = 0;
+      if (!el.isConnected) return;
+      if (!document.hidden && now - last > 33) { // 大约每秒 30 帧就够了
+        const dt = Math.min(0.1, (now - (last || now)) / 1000); last = now;
+        const t = (now - t0) / 1000, cyc = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / 4.2);
+        for (const d of drops) {
+          const target = !d.join || mode === 'idle' ? 0 : mode === 'merge' ? 1 : cyc;
+          d.k += (target - d.k) * (1 - Math.exp(-dt * (mode === 'meet' ? 6 : 2.2)));
+        }
+        draw(t);
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    function draw(t) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2), cw = Math.round(el.clientWidth * dpr), ch = Math.round(el.clientHeight * dpr);
+      if (!cw || !ch || !drops.length) return;
+      if (el.width !== cw || el.height !== ch) { el.width = cw; el.height = ch; }
+      const base = LAYOUT(drops.length), out = [];
+      drops.forEach((d, i) => {
+        const [bx, by] = base[i], sp = d.on ? 1 : 0.3, k = d.k;
+        const cx = bx * (1 - 0.92 * k) + Math.sin(t * 0.9 * sp + i * 2.1) * 0.02 * (1 - k);
+        const cy = by * (1 - 0.92 * k) + Math.cos(t * 0.8 * sp + i * 1.7) * 0.025 * (1 - k);
+        const m = (d.on ? 1 : 0.62) * (1 - 0.22 * Math.max(0, (k - 0.75) / 0.25));
+        const R = [0.060, 0.047, 0.040, 0.016];
+        for (let j = 0; j < 4; j++) {
+          const ph = i * 2.4 + j * 2.1, s = (0.45 + 0.22 * j + 0.1 * i) * sp;
+          const orbit = (j === 3 ? 0.07 : 0.03 + 0.012 * Math.sin(t * 0.6 + ph)) * (1 - 0.3 * k);
+          out.push({ p: [cx + Math.cos(t * s + ph) * orbit * 1.2, cy + Math.sin(t * s * 1.17 + ph) * orbit * 0.85, (R[j] + 0.006 * Math.sin(t * 1.2 + ph)) * m], c: rgb(d.color) });
+        }
+      });
+      paint(el, out, out.length, t, mode === 'merge' ? 1.2 : 1.6, 1.85, { persp: 0.12, glow: mode === 'merge' ? 0.10 : 0.16 });
+      if (broken) fallbackLights();
+    }
+    // 没有 WebGL：画几个普通的彩色圆点（和以前一样）
+    function fallbackLights() {
+      const ctx = el.getContext('2d'); if (!ctx) return;
+      const base = LAYOUT(drops.length), w = el.width, h = el.height;
+      ctx.clearRect(0, 0, w, h);
+      drops.forEach((d, i) => {
+        const k = d.k, x = w / 2 + base[i][0] * (1 - 0.9 * k) * h * 1.85, y = h / 2 - base[i][1] * (1 - 0.9 * k) * h * 1.85;
+        ctx.globalAlpha = d.on ? 0.95 : 0.3; ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(x, y, h * 0.2, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+    return {
+      // list: [{ id, color, on, join }]；mode: idle / meet / merge
+      set(list, m) {
+        const old = new Map(drops.map((d) => [d.id, d]));
+        drops = list.map((x) => Object.assign(old.get(x.id) || { k: 0 }, x));
+        mode = m || 'idle';
+        if (!raf) raf = requestAnimationFrame(tick);
+      },
+      redraw() { draw((performance.now() - t0) / 1000); },
+    };
+  }
+
   window.Merc = {
+    lights,
     scan(root) { try { (root || document).querySelectorAll('canvas.merc').forEach(bind); } catch (_) {} },
     // 换深浅色后：把停在最后一帧的都按新颜色重画一遍
     redraw() { try { const now = performance.now(); document.querySelectorAll('canvas.merc').forEach((el) => { if (el._merc) frame(el, now); }); } catch (_) {} },

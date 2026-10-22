@@ -233,6 +233,24 @@ function renameInline(d){
 }
 
 // ---------- lights / members
+// 顶栏"在线"那颗水银（mercury.js）：每位队友一滴。平时各自分开慢慢流动；开会时参会的几滴融了又分；
+// 得出共识（写结论时、结论刚出来的 12 秒里）融成一滩，然后慢慢分开。帮手、这次没选上的、不在线的不参与融合。
+let LM=null;
+function syncLights(cs, working, act, list){
+  if(!window.Merc) return;
+  if(!LM){ LM=Merc.lights($('#lightsMerc')); $('#lights').classList.add('merc') }
+  const ph=cs&&cs.phase;
+  let mode='idle';
+  if(working.length&&(ph==='initial'||ph==='discuss')) mode='meet';
+  else if(working.length&&ph==='conclusion') mode='merge';
+  else {
+    const lc=S.conv&&[...S.conv.messages].reverse().find(x=>x.reason==='conclusion');
+    const left=lc&&lc.status==='done'&&lc.consensus&&lc.endedAt ? 12000-(Date.now()-lc.endedAt) : 0;
+    clearTimeout(syncLights._t);
+    if(left>0){ mode='merge'; syncLights._t=setTimeout(renderLights,left+50) }
+  }
+  LM.set(list.map(m=>({id:m.id,color:m.color,on:!!m.online,join:act.includes(m.id)&&m.role!=='helper'&&!!m.online})), mode);
+}
 function renderLights(){
   const cs = S.conv && S.convs.find(c=>c.id===S.cur);
   const working = (cs && cs.working) || [];
@@ -243,6 +261,7 @@ function renderLights(){
     const cls=!m.online?'off':working.includes(m.id)?'work':working.length||!act.includes(m.id)?'dim':'';
     return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${m.color}" style="color:${m.color}" class="${cls}"/>`;
   }).join('');
+  syncLights(cs, working, act, list);
   const on=list.filter(m=>m.online).length;
   const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',decided:'按你的拍板分工中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
@@ -360,38 +379,6 @@ function decideHTML(m){
   const hint = open ? `<small>${opts.length?'点一个方案，或者直接在下面输入框里说你的决定（不用 @）。':'直接在下面输入框里说你的决定（不用 @）。'}</small>` : '';
   return `<div class="decide${open?' open':''}">${head}${list}${hint}</div>`;
 }
-// ---------- 水银：只在开会交融和验收通过两处出现（画法在 mercury.js）
-const isMeetStart=x=>x.reason==='initial'||(x.reason==='main'&&x.escalated);
-// 这场会有哪几位大脑（按出场顺序，最多画 3 滴）
-function meetMembers(m){
-  const list=S.conv?S.conv.messages:[]; let i=list.findIndex(x=>x.id===m.id); if(i<0) i=list.length;
-  let from=0; for(let j=i-1;j>=0;j--) if(list[j].reason==='conclusion'){ from=j+1; break }
-  const ids=[]; list.slice(from,i).forEach(x=>{ if(isMeetStart(x)&&x.from&&!ids.includes(x.from)) ids.push(x.from) });
-  return ids;
-}
-function mercMeet(m,state,ids){
-  ids=(ids||meetMembers(m)).slice(0,3);
-  if(ids.length<2) enabledMembers().filter(x=>x.role!=='helper'&&!ids.includes(x.id)).forEach(x=>{ if(ids.length<2) ids.push(x.id) });
-  const n=Math.max(2,Math.min(3,ids.length)), colors=ids.slice(0,n).map(colorOf);
-  while(colors.length<n) colors.push(['#FF5A4E','#3D7BFF','#22D39A'][colors.length]);
-  return `<canvas class="merc" data-merc="meet" data-state="${state}" data-n="${n}" data-colors="${colors.join(',')}" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas>`;
-}
-// 开会进行中：在这场会的开头放一条正在流动的水银（会开完就收起，结论卡上换成融合 / 没谈拢的样子）
-function syncMeet(){
-  const feed=$('#feed'); let el=feed.querySelector('.mlive');
-  const cs=S.conv&&S.convs.find(c=>c.id===S.cur), list=S.conv?S.conv.messages:[];
-  let lastConcl=-1; list.forEach((x,i)=>{ if(x.reason==='conclusion') lastConcl=i });
-  const first=list.findIndex((x,i)=>i>lastConcl&&x.reason==='initial');
-  const anchor=first>=0&&nodes.get(list[first].id);
-  if(!anchor||!cs||!['initial','discuss'].includes(cs.phase)){ if(el) el.remove(); return }
-  const ids=[]; list.slice(lastConcl+1).forEach(x=>{ if(isMeetStart(x)&&!ids.includes(x.from)) ids.push(x.from) });
-  // 已经有了、位置对、人数也对：不动它（重画会让水银跳一下）
-  if(el&&el.nextElementSibling===anchor&&el.dataset.who===ids.join(',')) return;
-  if(el) el.remove();
-  el=document.createElement('div'); el.className='mlive divider live'; el.dataset.who=ids.join(',');
-  el.innerHTML=mercMeet({id:'live-'+list[first].id},'live',ids)+'<span>开会讨论 · 正在进行</span>';
-  anchor.before(el); if(window.Merc) Merc.scan(el);
-}
 function msgHTML(m){
   const running=m.status==='running';
   if(m.from==='system'&&!m.divider) return `<div class="sys">${esc(m.text)}</div>`;
@@ -417,12 +404,12 @@ function msgHTML(m){
   const reviewHead = passed ? `<div class="rv"><canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas><b class="review ${m.review}">${m.review==='pass'?'验收通过':'改好后通过'}</b></div>` : '';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
-  const conclHead = concl&&!running ? (m.status==='done'?`<div class="mstrip">${mercMeet(m,m.consensus?'merge':'split')}</div>`:'')+`<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
+  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
   const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
   const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
-  if(running&&!m.text) body=(concl?`<div class="mstrip">${mercMeet(m,'live')}</div>`:'')+`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
+  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
   else body=conclHead+reviewHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)
     // 主脑的回答下面：老板觉得需要，再请大家开会
     +(m.reason==='main'&&m.status==='done'&&!m.escalated?`<button class="escalate" data-escalate="${m.id}" title="其他大脑先各自独立作答，再和主脑一起讨论出团队结论">让大家讨论一下</button>`:'');
@@ -451,7 +438,6 @@ function putMsg(m, stick){
   else $('#feed').appendChild(el);
   nodes.set(m.id,el); bindFiles(el);
   if(window.Merc) Merc.scan(el);
-  syncMeet();
   if(keep) scrollDown();
 }
 function addStep(id,item){
@@ -1167,7 +1153,7 @@ function connect(){
       openConv(S.convs.some(c=>c.id===want)?want:(S.convs[0]?.id||null));
     }
     else if(ev.type==='convs'){ S.convs=ev.convs; renderConvs(); if(S.conv){const c=S.convs.find(x=>x.id===S.cur); if(c){S.conv.title=c.title;$('#title').textContent=c.title}} renderRun() }
-    else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder(); syncMeet() } }
+    else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder() } }
     else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss'); if(LIB.kind&&(ev.msg.files||ev.msg.attachments)) libReload() }
     else if(ev.type==='library'){ if(LIB.kind) libReload() }
     else if(ev.type==='browser'){ S.browser=ev.browser; renderBrowser() }

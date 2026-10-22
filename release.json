@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "date": "2026-10-22",
   "minShell": "2.0.0",
   "files": {
@@ -26,16 +26,16 @@
     "lib/skills.js": "776b2aed651ffa3eb2010f8fb994c40be88554febea5ed8748778ef34909f84b",
     "lib/tools.js": "c075ac1fd391b137ae276e5e24c86e350ea863422c220fcb0d25ce0c5d58d4ea",
     "office.js": "3c195bfac7e4567214c0a836937ad83e63311d63abb64f8a96ebe47f71b1fef0",
-    "public/app.css": "7a6703be6e7b02ade9c58e32c042e8a9af6256bd30fcdf640c1c3b2753acec74",
-    "public/app.js": "303d7921670282e740989873b2116ce68663499f0e6343d79a1cbe38c131fc7c",
+    "public/app.css": "6165a7638d4f2714f951a03b29c2f0711ea45401f8242c48f5dcaef23aefa73e",
+    "public/app.js": "4b58d545550eba84e00701243affd0ffa1e0b27f0e6046d11da55603dc0c9ba8",
     "public/favicon.png": "5bf2bdbd55ca4b83e554e348700452985765238f9f7288ae740f094f7e54d825",
     "public/i18n.js": "103ee9a73731de144922b8412df021cbb1ba8cd0b4e4752704e37958c6fe5095",
     "public/icon-192.png": "58bebeacd8e6079b16733a689f678dfa7377bbdcc28ab3c9d12e9614383f7f62",
-    "public/index.html": "3d02308bd96cd90788d249d56cc665b931cfa149954ef8062b45296513b2fde4",
+    "public/index.html": "b644f8d00d9e2d4d754843ccce2ce3b292f8a250a7a1c5788298c47c3ce23396",
     "public/logo.svg": "6083467759a04e1664d712d1052bfc842df0e924f4b0f9f704fdce7a0999eaba",
-    "public/mercury.js": "ae9e5dd4fbec0f6abc3f551e090266a33ea81d6c685562bbf14540666f5bbca5",
+    "public/mercury.js": "b7730c790e7cb26d47ed67edbebc8cc51b810c13dc17f857513d97a9f0db0147",
     "server.js": "8e51ac630eb62d6cdff979c0788116b4b61512d3269a64de04205750f2ce147d",
     "tools/release-files.js": "a1102a908d854ef91e88fb3605a5253c42274f2e1499f96ee52d34a87b4b3d0b"
   },
-  "sig": "c9sPnM1kGVOYoRID+WPqvwrDOE3NzW4j5T/+N7bBchi10JGBB6W4VLn0T1uWLnMBJrqS83aWvA/UQWAwm/3zBg=="
+  "sig": "+1eN7dxru5EJ0W75mLIJNAcJVghjgE/hrw0FIznlG2GjTs1f3BR6O3ytKRHc5sex8mWKG4KEoLzOokWTzOlNBA=="
 }
