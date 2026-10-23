@@ -21,6 +21,9 @@
   <a href="#add-more-ais">Add DeepSeek and others</a>
 </p>
 
+<p align="center"><img src="docs/en/hola-debate.gif" width="720" alt="A real run: Claude changes its mind and backs Codex, Codex still objects, and the main brain writes the split into the conclusion for the boss to decide"></p>
+<!-- Full demo video link (fill in after publishing): <p align="center"><a href="https://…">▶ All of Hola in 4 minutes</a></p> -->
+
 <p align="center"><img src="docs/en/screenshot-consensus.png" alt="Three AIs reach consensus and write a team conclusion"></p>
 
 ---
@@ -75,7 +78,7 @@ The name means *union of light*: red, green and blue light combined make white l
 
 ## Try it (no account needed)
 
-To see how it works first, use **demo mode**: teammates follow a scripted reply instead of calling real AIs, and you get the whole flow (parallel answers → discussion → team conclusion → hand-off → memory).
+To see how it works first, use **demo mode**: teammates follow a scripted reply instead of calling real AIs. Just send to see the main brain answer alone; click **Meet** next to the input box to get the whole flow (parallel answers → discussion → team conclusion → hand-off → memory).
 
 1. Install [Node.js](https://nodejs.org/) (LTS, 18 or later).
 2. Download this project (green **Code** button → **Download ZIP**) and unzip it.
@@ -136,14 +139,16 @@ Linux: the core also works there. Run `node server.js` and open <http://localhos
 
 | You want | Send |
 |---|---|
-| The team to discuss and reach a conclusion | Just ask, without @-ing anyone |
+| A quick answer | Just send (no @); the main brain answers alone |
+| The team to meet and reach a conclusion | Click **Meet** next to the input box, or write `@all` |
+| The team to take another look at the main brain's answer | Click **Ask the team to discuss** under that answer |
 | One specific teammate to do it | `@Codex turn this data into a chart` |
 | A relay in a set order | `@Gemini read the attached material first, @Claude then write the plan` |
 | To leave someone out this time | Click their name under the input box |
 | Standing rules for the team | Write them in **Memory** (top right), such as brand voice or banned words |
 | To stop mid-way | Click **Stop** |
 
-Under **Settings** (bottom left) you can set the interface language, the maximum number of discussion rounds (default 3), who writes the team conclusion, how many automatic hand-offs are allowed, and whether memory is updated automatically.
+Under **Settings** (bottom left) you can set the interface language, the **main brain** (it answers plain messages, writes the team conclusion in meetings and reviews whatever teammates hand back), the work strategy, the maximum number of discussion rounds (default 3), how many automatic hand-offs are allowed, and whether memory is updated automatically.
 
 <p align="center"><img src="docs/en/screenshot-settings.png" width="720" alt="Settings"></p>
 
@@ -162,14 +167,18 @@ Teammates added through an API can do work by default: read and write files in t
 
 ```
 You send a message
-  ├─ with @ ──→ run in @ order ──→ teammates can @ each other to hand off
-  └─ no @   ──→ working teammates answer independently (each decides: worth discussing?)
-                  ├─ nobody thinks so ──→ done
-                  └─ someone does ──→ internal discussion (each round: agree / object)
-                                         ├─ all agree ──→ team conclusion ──→ @ teammates for hands-on work
-                                         └─ still split at the limit ──→ options ──→ boss decides ──→ @ teammates per the decision
+  ├─ @ someone ──→ run in @ order ──→ teammates can @ each other to hand off
+  ├─ just send ──→ the main brain answers alone (may @ helpers for routine work)
+  │                └─ you click "Ask the team to discuss" ──┐
+  └─ "Meet" / @all ─────────────────────────────────────────┴─→ the brains answer independently, at the same time
+                                                                └─→ internal discussion, at least one round (each round: agree / object)
+                                                                    ├─ all agree ──→ main brain writes the team conclusion ──→ @ teammates for hands-on work
+                                                                    └─ still split at the limit ──→ options ──→ boss decides ──→ @ teammates per the decision
+Work handed back ──→ the main brain reviews it (approve / fix on the spot / send back)
 After each round ──→ the conversation memory is updated automatically
 ```
+
+Helpers never join meetings; they only take work. Meetings are for the "brains".
 
 - Hola itself is a small zero-dependency Node.js app (`server.js` + `public/index.html`) that listens on `127.0.0.1` only.
 - Each teammate is driven through its vendor's **official CLI** (`claude -p` for Claude Code, `codex exec` for Codex, `agy -p` for Antigravity) or through an OpenAI-compatible API.
@@ -190,7 +199,7 @@ After each round ──→ the conversation memory is updated automatically
 
 **Nothing happens when I double-click the icon?** Double-click `START.bat` to see a window with logs, and use the error message to troubleshoot, or attach a screenshot when you open an issue.
 
-**Does it use a lot of quota?** Without @, each working teammate answers at least once; if they discuss, each answers once more per round, plus one conclusion and one memory update. For simple questions they decide no discussion is needed and stop. For hands-on tasks, @ a specific teammate to save quota.
+**Does it use a lot of quota?** A plain send costs one answer from the main brain (plus one memory update), the cheapest option. A meeting costs one answer per brain, one more each per discussion round, then one conclusion and one memory update. When the main brain hands work to a helper, add one turn for the helper and one for the review. So send everyday questions directly and save meetings for the ones worth thinking through; for hands-on tasks you can also @ a specific teammate.
 
 **Can I see the AIs' full reasoning?** You see what they say in the group, which files they read and wrote, which commands they ran, and whatever thinking summaries each vendor exposes. Some vendors don't expose the model's full underlying reasoning.
 
