@@ -11,7 +11,8 @@ const { startHola } = require('./helpers');
 const FIXTURE = path.join(__dirname, 'fixtures', 'meeting-prompts.json');
 const PHASE = [['initial', /同时、独立作答/], ['discuss', /现在是团队内部讨论第/], ['conclusion', /团队讨论结束/], ['decided', /团队讨论没谈拢，老板已经拍板/]];
 // 和机器有关的部分去掉：本机环境卡片
-const norm = (t) => t.replace(/【本机环境】[^\n]*\n\n/, '').replace(/\r\n/g, '\n');
+// 和机器有关的部分去掉：本机环境卡片；拍板后执行（干活的回合）里那条检查命令带着 Hola 装在哪个文件夹，本机有没有 node 也会影响它出不出现
+const norm = (t) => t.replace(/【本机环境】[^\n]*\n\n/, '').replace(/\r\n/g, '\n').replace(/\n- 交付前可以用这条命令再查一遍[^\n]*/g, '');
 
 function meetingPrompts(h, id, scenario) {
   const log = fs.readFileSync(path.join(h.workspace, id, '.hola', 'prompts.log'), 'utf8');
