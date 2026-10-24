@@ -311,7 +311,7 @@ describe('API 队友能动手', () => {
   it('Wick：很长的命令输出只给开头和结尾，全文存起来可以再读', async () => {
     const id = await addMember('WC', { access: 'full' });
     const conv = await h.newConv();
-    const cmd = process.platform === 'win32' ? "'头部' + ('x' * 30000) + '尾部OK'" : "printf '头部'; head -c 30000 /dev/zero | tr '\\\\0' x; printf '尾部OK'";
+    const cmd = process.platform === 'win32' ? "'头部' + ('x' * 30000) + '尾部OK'" : "printf '头部'; head -c 30000 /dev/zero | tr '\\0' x; printf '尾部OK'";
     queue.push((res) => jsonRes(res, { choices: [{ message: { tool_calls: [call('c1', 'run_command', { command: cmd })] } }] }), null);
     // 第二步：读回全文（路径从第一步的结果里取）
     queue[1] = (res, body) => {

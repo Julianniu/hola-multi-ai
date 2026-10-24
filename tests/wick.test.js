@@ -48,7 +48,7 @@ describe('Wick', () => {
     const after = (a, f) => (a.includes(f) ? a[a.indexOf(f) + 1] : null);
 
     it('第一轮送完整提示词并开新会话；第二轮续接，只送新消息', async () => {
-      h = await startHola({ config: CONFIG, settings: { autoMemory: false, wick: { sessions: true, teamMcp: false } }, env: { CODEX_HOME: path.join(__dirname, 'fixtures', 'codex-home') } });
+      h = await startHola({ config: CONFIG, settings: { autoMemory: false, wick: { sessions: true, teamMcp: false, envCard: false } }, env: { CODEX_HOME: path.join(__dirname, 'fixtures', 'codex-home') } });
       hs.push(h);
       id = await h.newConv();
       await h.ask(id, '@Claude 第一句：记住暗号蓝鲸');

@@ -63,7 +63,9 @@ describe('开会的提示词整段不变', () => {
     all.push(...meetingPrompts(h, id, '有帮手'));
 
     const key = (p) => `${p.scenario}|${p.phase}|${p.who}|${p.text.length}`;
-    all.sort((a, b) => key(a).localeCompare(key(b)) || a.text.localeCompare(b.text));
+    // 用最普通的比较排序：localeCompare 跟着系统语言走，中文和英文系统排出来的顺序不一样（GitHub 的机器是英文）
+    const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+    all.sort((a, b) => cmp(key(a), key(b)) || cmp(a.text, b.text));
     for (const s of ['共识', '拍板', '升级开会', '有帮手']) for (const ph of s === '拍板' ? ['initial', 'conclusion', 'decided'] : ['initial', 'conclusion']) assert.ok(all.some((p) => p.scenario === s && p.phase === ph), `${s} 里有 ${ph}`);
     if (process.env.HOLA_UPDATE_MEETING) { fs.writeFileSync(FIXTURE, JSON.stringify(all, null, 1)); return; }
     const want = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
