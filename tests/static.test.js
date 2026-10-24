@@ -25,7 +25,7 @@ describe('代码和文件格式', () => {
   });
 
   it('后台按层拆分：每个模块只依赖更底层的模块', () => {
-    const layers = ['core', 'office-write', 'members', 'convs', 'library', 'browser', 'tools', 'run', 'skills', 'prompts', 'engine', 'build-check', 'http'];
+    const layers = ['core', 'office-write', 'members', 'convs', 'library', 'browser', 'wick-trace', 'wick-guard', 'wick-verify', 'wick-team', 'tools', 'wick-api', 'wick-session', 'wick-env', 'wick-board', 'wick-cards', 'run', 'skills', 'prompts', 'engine', 'build-check', 'http'];
     assert.deepEqual(list('lib', /\.js$/).map((f) => path.basename(f, '.js')).sort(), [...layers].sort());
     for (const [i, name] of layers.entries()) {
       const t = read(`lib/${name}.js`).toString('utf8');

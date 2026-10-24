@@ -87,6 +87,7 @@
   <div class="notice" id="v12Notice" hidden><b>新的用法</b>直接发送，由主脑一个人回答，更快。想听大家一起讨论，点输入框旁的「开会讨论」，或者在主脑的回答下面点「让大家讨论一下」。主脑、干活策略在"设置"里改，大脑 / 帮手在"队友 → 编辑"里改。<button class="btn" id="v12Ok">知道了</button></div>
 
   <div class="composer-wrap">
+    <div class="board" id="board" hidden></div>
     <div class="composer">
       <div class="mpop" id="mpop"></div>
       <div class="tray" id="tray"></div>
@@ -104,8 +105,18 @@
 
   <section class="drawer" id="drawer" aria-label="对话记忆">
     <div class="dh"><b>对话记忆</b><button class="ibtn" id="memClose" aria-label="关闭"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="rules">
+      <b>规矩墙</b>
+      <p class="note">一行一条。每一条都会原样告诉所有队友，聊多久都不会被忘掉，也不会被压缩。</p>
+      <textarea id="rulesText" spellcheck="false" placeholder="比如：价格一律写成 ¥ 加数字，不写“元”"></textarea>
+      <div class="df"><span id="rulesSaved"></span><button class="btn pri" id="rulesSave">保存规矩</button></div>
+      <div class="hints" id="ruleHints" hidden></div>
+      <details id="rulesAuto" hidden><summary>自动收进来的：你较早说过的话（最近 50 条以外）</summary><div id="rulesAutoList" data-raw></div></details>
+    </div>
+    <b class="memh">对话记忆</b>
     <p class="note">只属于这个对话，和其他对话互不相通。每轮讨论或干活结束后会自动整理，队友每次发言前都会先读它。你也可以直接修改，改动会被保留，旧版本存在对话文件夹的 .hola\memory-history 里。</p>
     <textarea id="memText" spellcheck="false"></textarea>
+    <p class="note dest" id="memDest" hidden></p>
     <div class="df"><span id="memSaved"></span><button class="btn" id="memReload">重新读取</button><button class="btn pri" id="memSave">保存</button></div>
   </section>
 
@@ -113,18 +124,25 @@
 </main>
 <div class="grip" id="splitGrip" hidden title="拖动调整预览宽度，双击恢复"></div>
 <section class="split" id="split" hidden aria-label="文件预览">
-  <div class="sph"><b id="spName" data-raw></b><a class="ibtn" id="spOpen" target="_blank" rel="noopener" title="在新窗口打开"><svg class="i"><use href="#i-open"/></svg></a><a class="ibtn" id="spDown" title="下载原文件"><svg class="i"><use href="#i-down"/></svg></a><button class="ibtn" id="spClose" title="关闭预览"><svg class="i"><use href="#i-x"/></svg></button></div>
-  <div class="sph spbar" id="spBar">
+  <!-- 顶上一行：这块面板是什么 + 明确写着"关闭"的按钮（只关这块面板；Windows 右上角的 × 是关整个窗口的，离它远一点、长得也不一样） -->
+  <div class="sph">
+    <span class="spk spk-file"><svg class="i"><use href="#i-file"/></svg></span><span class="spk spk-web"><svg class="i"><use href="#i-globe"/></svg></span>
+    <b id="spName" data-raw></b><b id="spWebName">内置浏览器</b>
+    <a class="ibtn" id="spOpen" target="_blank" rel="noopener" title="在新窗口打开"><svg class="i"><use href="#i-open"/></svg></a><a class="ibtn" id="spDown" title="下载原文件"><svg class="i"><use href="#i-down"/></svg></a>
+    <button class="spx" id="spClose" title="关闭预览（Esc）"><svg class="i"><use href="#i-x"/></svg><span>关闭</span></button>
+    <button class="spx" id="bClose" title="关闭浏览器（Esc）"><svg class="i"><use href="#i-x"/></svg><span>关闭</span></button>
+  </div>
+  <div class="spbar" id="spBar">
     <button class="ibtn" id="bBack" title="后退"><svg class="i"><use href="#i-back"/></svg></button>
     <button class="ibtn" id="bFwd" title="前进"><svg class="i"><use href="#i-fwd"/></svg></button>
     <button class="ibtn" id="bReload" title="刷新"><svg class="i"><use href="#i-reload"/></svg></button>
     <input id="bUrl" spellcheck="false" autocomplete="off" placeholder="输入网址或要搜索的内容">
     <span class="bdrv" id="bDriver" hidden data-raw></span>
-    <button class="ibtn" id="bClose" title="关闭浏览器"><svg class="i"><use href="#i-x"/></svg></button>
   </div>
   <div class="spweb" id="spWeb"><p id="bTip">在上面输入网址打开网页。队友（目前是 Claude）也能用这个浏览器帮你查资料、操作网页，点按钮和填表前会先问你。</p></div>
   <iframe id="spFrame" title="预览"></iframe>
   <div class="spimg" id="spImg" hidden><img alt=""></div>
+  <div class="spmsg" id="spMsg" hidden><p>这里打不开 PDF 预览。点上面的"在新窗口打开"用浏览器看，或者下载原文件。</p></div>
 </section>
 
 <dialog id="settings">
@@ -144,6 +162,7 @@
       <label for="sConcl">主脑</label>
       <select id="sConcl"></select>
       <small>直接发送时由主脑回答；开会时由主脑写团队结论；队友交付的东西由主脑验收。</small>
+      <button type="button" class="btn" id="sRecommend" style="align-self:flex-start;margin-top:6px">按推荐配置团队</button>
     </div>
     <div class="field">
       <label for="sPolicy">干活策略</label>
@@ -158,6 +177,15 @@
       <label><input type="checkbox" id="sProc" style="width:auto;margin:0 4px 0 0">显示后台过程（排查问题时用）</label>
       <small>打开后能看到每位队友读了哪些文件、跑了什么命令，以及原始报错。平时关着就行。</small>
     </div>
+    <div class="field">
+      <label><input type="checkbox" id="sPlanConfirm" style="width:auto;margin:0 4px 0 0">派活给队友前，先请我确认分工（开工）</label>
+      <small>确认一次之后，接力、验收、返工、内置浏览器里的点击都自动进行，不再逐个问你。关掉就全自动。</small>
+    </div>
+    <div class="field" id="sEnvField" hidden>
+      <label>本机经验</label>
+      <div id="sEnvNotes" class="envnotes"></div>
+      <small>队友在这台电脑上踩过两次以上的坑。点"加入"后，以后每个干活的队友都会先知道，少走弯路。</small>
+    </div>
     <div class="field" id="sBrowserField" hidden>
       <label><input type="checkbox" id="sBrowserAsk" style="width:auto;margin:0 4px 0 0">队友在内置浏览器里点按钮、填表前，先问我</label>
       <small>关掉后，队友用内置浏览器时不再逐个征求你同意。浏览器里登录过的网站，队友也能用你的身份操作。</small>
@@ -166,6 +194,11 @@
       <label for="sHops">队友之间最多自动接力几次</label>
       <input id="sHops" type="number" min="0" max="50">
       <small>队友在回复里 @ 别人会自动交接。超过次数就停下来等你看。</small>
+    </div>
+    <div class="field">
+      <label>花费上限（元，0 = 不限）</label>
+      <div class="budget"><span>每个对话</span><input id="sBudgetConv" type="number" min="0" step="0.5"><span>每天</span><input id="sBudgetDay" type="number" min="0" step="1"></div>
+      <small>只算按用量收费的 API 队友（订阅制的 Claude、Codex、Gemini 不按次收钱）。到了上限就停下来告诉你。<span id="sSpent" data-raw></span></small>
     </div>
     <p class="ver" id="sVersion" data-raw></p>
     <div class="dfoot">
@@ -282,6 +315,7 @@
         <label class="check"><input type="checkbox" id="mHands" checked>能动手：读写文件、做 Word / Excel / PPT、上网查资料</label>
         <small class="hint" style="display:block;margin:-2px 0 10px 24px;color:var(--ink3);font-size:12px">需要模型支持"工具调用"。点"保存并测试"会自动试一下，不支持的话它就只动脑。</small>
         <div class="field"><label for="mKey">API Key</label><input id="mKey" type="password" autocomplete="off" placeholder="sk-..."><small id="mKeyNote">只保存在你电脑的 Hola 文件夹里（data\members.json），不会显示在页面上。</small></div>
+        <div class="field"><label>单价（元 / 百万 token，可不填）</label><div class="budget"><span>输入</span><input id="mPriceIn" type="number" min="0" step="0.01"><span>命中缓存</span><input id="mPriceCached" type="number" min="0" step="0.01"><span>输出</span><input id="mPriceOut" type="number" min="0" step="0.01"></div><small>用来算花了多少钱、管花费上限。DeepSeek 的官方价已经内置，不用填。</small></div>
       </div>
       <div id="cliFields" hidden>
         <div class="field"><label for="mCmd">命令</label><input id="mCmd" placeholder="比如 qwen、ollama，或者完整路径"></div>

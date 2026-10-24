@@ -21,6 +21,10 @@ process.stdin.on('end', async () => {
   await sleep(process.env.HOLA_DEMO_FAST ? 20 : 900 + Math.random() * 1400);
   // HOLA_DEMO_SLOW_MEMORY=毫秒：整理记忆故意慢一点（测"整理记忆时点了让大家讨论一下"）
   if (process.env.HOLA_DEMO_SLOW_MEMORY && prompt.includes('记忆整理员')) await sleep(Number(process.env.HOLA_DEMO_SLOW_MEMORY));
+  // 测试任务板用：HOLA_DEMO_QUOTA=名字 → 这位队友"额度用完"直接报错；HOLA_DEMO_SLOW_WORK=毫秒 → 接力和被点名的活做得慢一点（好在中途插话、改派、取消、重启）
+  if (process.env.HOLA_DEMO_CRASH === name) { process.stderr.write('TypeError: Cannot read properties of undefined (reading "x")\n'); process.exit(1); }
+  if (process.env.HOLA_DEMO_QUOTA === name) { process.stderr.write('Error: usage limit reached for this account (429)\n'); process.exit(1); }
+  if (process.env.HOLA_DEMO_SLOW_WORK && /@ 了你|老板点名让你来做|老板按顺序点名/.test(prompt)) await sleep(Number(process.env.HOLA_DEMO_SLOW_WORK));
   process.stderr.write(`（演示模式）${name} 在按剧本回答\n`);
   process.stdout.write(reply(prompt) + '\n');
 });
@@ -51,6 +55,19 @@ function replyInner(p) {
   if (/用英文（English）|英文界面|都用英文写|技能内容用英文写/.test(p)) return replyEn(p);
   const q = lastBoss(p).replace(/@\S+/g, '').trim().slice(0, 40) || '这个问题';
 
+  // 交付前检查（测试用）：问题里带"半成品"就交一份留着 TODO 的文件，带"假装做好"就说保存了其实没写；
+  // 收到 Hola 的返工要求后把文件改好
+  if (p.includes('【交付前自动检查】')) {
+    fs.writeFileSync('活动方案.md', '# 活动方案\n\n目标：GMV 300 万。\n');
+    fs.writeFileSync('报价表.csv', '商品,价格\n云感枕,229\n');
+    return '改好了：活动方案.md 补全了目标，报价表.csv 也写好了。';
+  }
+  if (/半成品/.test(q)) {
+    fs.writeFileSync('活动方案.md', '# 活动方案\n\n目标：TODO\n');
+    return '做好了：活动方案.md。';
+  }
+  if (/假装做好/.test(q)) return '已保存：报价表.csv，老板直接看就行。';
+
   if (p.includes('看不到图片的队友')) return '画面：一张示例图片，中间是三个彩色圆圈。图上没有文字。配色：深蓝底，红绿蓝三色。';
   if (p.includes('技能整理员')) {
     return `【本次变化】把"先定目标人群和结果、再在成本上限内选方案"的决策方法存成了技能
@@ -75,7 +92,9 @@ description: 需要在几个方向里选一个方案（渠道、定价、选题�
   }
   if (p.includes('记忆整理员')) {
     if (/^(hi|hello|你好|大家好|在吗)/i.test(q)) return '【无需更新】';
-    return `【本次变化】记下了关于「${q}」的团队结论和后续分工
+    // 老板说了"以后……"：演示"规矩候选"（测试第 4 阶段的自动沉淀）
+    const rule = /以后/.test(q) ? `\n【规矩候选】\n- ${q}\n` : '';
+    return `【本次变化】记下了关于「${q}」的团队结论和后续分工${rule}
 <<<记忆
 # 对话记忆
 

@@ -95,6 +95,11 @@ describe('桌面版', { skip }, () => {
   it('开会讨论：讨论出结论，接力做出文件，主脑验收，在右侧分屏预览', async () => {
     await ask('新品耳机首发该怎么推广', true);
     await page.waitForSelector('.row.concl .concl-head', { timeout: 30000 });
+    // 结论要派活：先出开工确认卡，点"开工"才接力
+    const goBtn = page.locator('[data-plan][data-act="go"]');
+    await goBtn.waitFor({ timeout: 30000 });
+    await goBtn.click();
+    await page.waitForSelector('.board .bitem', { timeout: 15000 });
     const pv = page.locator('[data-preview]').first();
     await pv.waitFor({ timeout: 30000 });
     await pv.click();
@@ -329,6 +334,7 @@ describe('桌面版', { skip }, () => {
     assert.equal(await page.locator('.row .meta').filter({ hasText: '主脑' }).count(), 1);
     await btn.click();
     await page.waitForSelector('.row.concl .concl-head', { timeout: 30000 });
+    await page.locator('[data-plan][data-act="go"]').click({ timeout: 30000 });
     await page.waitForSelector('.review.pass', { timeout: 30000 });
     await waitIdle();
     assert.equal(await page.locator('[data-escalate]').count(), 0, '讨论过的回答不再显示按钮');

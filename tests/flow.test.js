@@ -39,8 +39,12 @@ describe('核心流程', () => {
 
   it('开会讨论：独立作答 → 讨论 → 达成共识 → 自动接力 → 主脑验收 → 整理记忆', async () => {
     const id = await h.newConv();
-    const { conv, added } = await h.ask(id, '新品耳机首发该怎么推广', { mode: 'discuss' });
+    const { conv, added } = await h.ask(id, '新品耳机首发该怎么推广', { mode: 'discuss', go: true });
     const r = reasons(added);
+    // 结论要派活：先出开工确认卡，老板点开工才接力（h.ask 的 go 就是点开工）
+    const card = added.find((m) => m.plan);
+    assert.ok(card && card.reason === 'conclusion' && card.plan.status === 'approved', '结论派活前先请老板开工');
+    assert.deepEqual(card.plan.steps.map((s) => s.member), ['codex']);
     assert.equal(r.filter((x) => x.endsWith(':initial')).length, 3, r.join(' '));
     assert.ok(r.filter((x) => x.endsWith(':discuss')).length >= 3, r.join(' '));
     const concl = added.find((m) => m.reason === 'conclusion');

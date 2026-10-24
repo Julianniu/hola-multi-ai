@@ -57,7 +57,7 @@ describe('主脑、大脑和帮手', () => {
     const m1 = await meet(id, '新品耳机首发该怎么推广');
     assert.deepEqual(m1.added.filter((m) => m.reason === 'initial').map((m) => m.from).sort(), ['claude', 'gemini'], '帮手不参加开会');
     const id2 = await h.newConv();
-    const { added } = await h.ask(id2, '帮我把推广要点做成表格');
+    const { added } = await h.ask(id2, '帮我把推广要点做成表格', { go: true });
     assert.deepEqual(added.filter((m) => m.from !== 'boss' && m.from !== 'system').map((m) => `${m.from}:${m.reason}`), ['claude:main', 'codex:handoff', 'claude:review']);
     const rv = added.find((m) => m.reason === 'review');
     assert.equal(rv.review, 'pass');
@@ -70,13 +70,14 @@ describe('主脑、大脑和帮手', () => {
 
   it('交付的人顺手 @ 了主脑"请验收"：不当普通接力，只走一次正式验收', async () => {
     const id = await h.newConv();
-    const { added } = await h.ask(id, '把推广要点做成表格，做完请主脑验收');
+    const { added, conv } = await h.ask(id, '把推广要点做成表格，做完请主脑验收', { go: true });
+    assert.deepEqual(conv.board.items.map((x) => `${x.reason}:${x.status}`), ['main:done', 'handoff:done', 'review:done'], '并进验收的那次接力不留在任务板上');
     assert.deepEqual(added.filter((m) => m.from !== 'boss' && m.from !== 'system').map((m) => `${m.from}:${m.reason}`), ['claude:main', 'codex:handoff', 'claude:review']);
   });
 
   it('验收退回太多次：停下来请老板看', async () => {
     const id = await h.newConv();
-    const { added } = await h.ask(id, '做表格，验收时退回');
+    const { added } = await h.ask(id, '做表格，验收时退回', { go: true });
     const reviews = added.filter((m) => m.reason === 'review');
     assert.equal(reviews.length, 3, '退回 2 次后的第 3 次不再派活');
     assert.ok(reviews.every((m) => m.review === 'redo'));

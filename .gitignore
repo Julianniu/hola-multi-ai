@@ -17,3 +17,9 @@ CLAUDE.local.md
 
 # 打包生成的安装包
 dist/
+
+# 评测结果（每次跑分的对话和报告）和本机的 API Key
+evals/results/
+evals/local.json
+# Wick 评测用的基线程序副本（每次和 Wick 改动同一天对比跑分）
+.wick-baseline/

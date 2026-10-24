@@ -38,6 +38,7 @@ describe('图片库 / 文件库', () => {
     await h.upload(id, '截图.png', PNG);
     await h.post('send', { conv: id, text: '新品耳机首发该怎么推广', attachments: [{ path: '附件/截图.png' }], mode: 'discuss' });
     await h.waitIdle(id);
+    await h.go(id);
     const list = await items();
     const shot = list.find((x) => x.conv && x.conv.id === id && x.name === '截图.png');
     const made = list.find((x) => x.conv && x.conv.id === id && x.name === '结论要点.csv');

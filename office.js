@@ -113,6 +113,9 @@ function colIndex(ref) {
 }
 
 function readXlsx(zip, opts = {}) {
+  // 有的工具（比如 Codex 用的 Open XML SDK）写出的 Excel，标签都带 x: 前缀（<x:row>、<x:c>），去掉再读，否则读出来是空的
+  const raw = zip;
+  zip = { ...raw, text: (n) => raw.text(n).replace(/<(\/?)x:/g, '<$1') };
   const maxRows = opts.maxRows || 500;
   const maxCols = opts.maxCols || 40;
   const shared = [];
@@ -179,13 +182,63 @@ function readXlsx(zip, opts = {}) {
 
 // ---------------------------------------------------------------- PowerPoint
 
-function readPptx(zip) {
+// 预览用：一页里的文字框、表格、图片，按在页面上的位置从上到下、从左到右排好（文字版不用这些）
+const PPT_IMG = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml' };
+const IMG_MAX = 8e6, IMGS_MAX = 60e6;
+// 页码是"自动页码"字段，不算这一页的内容
+const noSlideNum = (xml) => xml.replace(/<a:fld\b[^>]*type="slidenum"[^>]*>[\s\S]*?<\/a:fld>/g, '');
+function pptxText(xml) {
+  return (xml.match(/<a:p>[\s\S]*?<\/a:p>|<a:p\b[\s\S]*?<\/a:p>/g) || []).map((p) => ({
+    text: (p.match(/<a:t>[\s\S]*?<\/a:t>/g) || []).map((t) => decode(t.slice(5, -6))).join('').trim(),
+    lvl: Number(attr((p.match(/<a:pPr\b[^>]*>/) || [''])[0], 'lvl')) || 0,
+  })).filter((p) => p.text);
+}
+function pptxItems(zip, path, budget) {
+  const xml = noSlideNum(zip.text(path)).replace(/<mc:Fallback>[\s\S]*?<\/mc:Fallback>/g, '');
+  const r = rels(zip, path.replace(/slides\/(slide\d+\.xml)$/, 'slides/_rels/$1.rels'));
+  const image = (rid) => {
+    const target = r[rid];
+    if (!target) return null;
+    const file = resolve(path, target);
+    const ext = file.split('.').pop().toLowerCase();
+    const name = file.split('/').pop();
+    if (!PPT_IMG[ext]) return { t: 'img', name, skip: 'format' };
+    const b = zip.bytes(file);
+    if (!b) return null;
+    if (b.length > IMG_MAX || budget.left < b.length) return { t: 'img', name, skip: 'size' };
+    budget.left -= b.length;
+    return { t: 'img', name, src: `data:${PPT_IMG[ext]};base64,${b.toString('base64')}` };
+  };
+  const pos = (s) => { const m = s.match(/<a:off\b[^>]*>/); return m ? { x: Number(attr(m[0], 'x')) || 0, y: Number(attr(m[0], 'y')) || 0 } : null; };
+  const items = [];
+  const bg = (xml.match(/<p:bg>[\s\S]*?<\/p:bg>/) || [''])[0].match(/<a:blip\b[^>]*r:embed="([^"]+)"/);
+  if (bg) { const im = image(bg[1]); if (im) items.push({ ...im, bg: true, y: -2, x: 0 }); }
+  for (const m of xml.match(/<p:(sp|pic|graphicFrame)\b[\s\S]*?<\/p:\1>/g) || []) {
+    const kind = m.slice(3, m.search(/[\s>]/));
+    const ph = (m.match(/<p:ph\b[^>]*>/) || [''])[0];
+    const title = /type="(title|ctrTitle)"/.test(ph);
+    // 占位符（标题、正文）的位置写在版式里，这页里没有：标题放最上面，其他放在标题下面
+    const p = pos(m) || (title ? { x: 0, y: -1 } : ph ? { x: 0, y: -0.5 } : { x: 0, y: 1e12 });
+    if (kind === 'graphicFrame') {
+      const tbl = m.match(/<a:tbl>[\s\S]*<\/a:tbl>/);
+      if (tbl) items.push({ t: 'table', ...p, rows: (tbl[0].match(/<a:tr\b[\s\S]*?<\/a:tr>/g) || []).map((tr) => (tr.match(/<a:tc\b[\s\S]*?<\/a:tc>/g) || []).map((tc) => pptxText(tc).map((x) => x.text).join('\n'))) });
+      continue;
+    }
+    const blip = m.match(/<a:blip\b[^>]*r:embed="([^"]+)"/);
+    if (blip) { const im = image(blip[1]); if (im) items.push({ ...im, ...p }); }
+    if (kind === 'sp') { const paras = pptxText(m); if (paras.length) items.push({ t: 'text', ...p, title, paras }); }
+  }
+  return items.map((it, i) => ({ ...it, i })).sort((a, b) => (Math.abs(a.y - b.y) < 2e5 ? a.x - b.x : a.y - b.y) || a.i - b.i);
+}
+
+function readPptx(zip, opts = {}) {
   const pres = zip.text('ppt/presentation.xml');
   const r = rels(zip, 'ppt/_rels/presentation.xml.rels');
   let targets = (pres.match(/<p:sldId\b[^>]*>/g) || []).map((s) => r[attr(s, 'r:id')]).filter(Boolean).map((t) => resolve('ppt/presentation.xml', t));
   if (!targets.length) targets = zip.names().filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
+  const budget = { left: IMGS_MAX };
   const slides = targets.map((path, i) => {
-    const xml = zip.text(path);
+    const xml = noSlideNum(zip.text(path));
     const paras = (xml.match(/<a:p>[\s\S]*?<\/a:p>|<a:p\b[\s\S]*?<\/a:p>/g) || [])
       .map((p) => (p.match(/<a:t>[\s\S]*?<\/a:t>/g) || []).map((t) => decode(t.slice(5, -6))).join('').trim())
       .filter(Boolean);
@@ -196,7 +249,9 @@ function readPptx(zip) {
       const nx = zip.text(resolve(path, notesTarget));
       notes = (nx.match(/<a:t>[\s\S]*?<\/a:t>/g) || []).map((t) => decode(t.slice(5, -6))).join('').replace(/^\d+$/, '').trim();
     }
-    return { n: i + 1, title: paras[0] || '', paras, notes };
+    const slide = { n: i + 1, title: paras[0] || '', paras, notes };
+    if (opts.visual) { try { slide.items = pptxItems(zip, path, budget); } catch (_) {} }
+    return slide;
   });
   return { kind: 'pptx', slides };
 }
@@ -210,7 +265,7 @@ function readOffice(file, opts) {
   const ext = file.toLowerCase().split('.').pop();
   if (ext === 'docx') return readDocx(zip);
   if (ext === 'xlsx') return readXlsx(zip, opts);
-  if (ext === 'pptx') return readPptx(zip);
+  if (ext === 'pptx') return readPptx(zip, opts);
   throw new Error(tt('不支持的格式', 'Unsupported format'));
 }
 
@@ -252,7 +307,26 @@ function htmlTable(rows, header) {
   return `<div class="tw"><table>${h ? `<thead><tr>${h.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>` : ''}<tbody>${rest.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
-function toHtml(doc, title) {
+// PPT 一页的内容：标题、文字（保留层级缩进）、表格、图片（几张挨着的图片排成一组）
+function slideItemsHtml(items) {
+  let out = '', imgs = '';
+  const flush = () => { if (imgs) { out += `<div class="imgs">${imgs}</div>`; imgs = ''; } };
+  for (const it of items) {
+    if (it.t === 'img') {
+      imgs += it.src ? `<img src="${it.src}" alt="${esc(it.name)}">`
+        : `<div class="noimg">${it.skip === 'format' ? tt(`图片 ${esc(it.name)} 的格式在预览里显示不了`, `Picture ${esc(it.name)} can't be shown in the preview`) : tt(`图片 ${esc(it.name)} 太大，预览里没有显示`, `Picture ${esc(it.name)} is too large to show in the preview`)}</div>`;
+      continue;
+    }
+    flush();
+    if (it.t === 'table') out += htmlTable(it.rows, true);
+    else if (it.title) out += `<h2>${it.paras.map((p) => esc(p.text)).join('<br>')}</h2>`;
+    else out += it.paras.map((p) => `<p${p.lvl ? ` style="padding-left:${Math.min(p.lvl, 6) * 18}px"` : ''}>${esc(p.text)}</p>`).join('');
+  }
+  flush();
+  return out;
+}
+
+function toHtml(doc, title, theme) {
   let body = '';
   if (doc.kind === 'docx') {
     let inList = false;
@@ -269,17 +343,20 @@ function toHtml(doc, title) {
     body = `<nav>${doc.sheets.map((s, i) => `<a href="#s${i}">${esc(s.name)}</a>`).join('')}</nav>` +
       doc.sheets.map((s, i) => `<section id="s${i}"><h2>${esc(s.name)}</h2>${htmlTable(s.rows, true)}${s.truncated ? `<p class="muted">${tt('表格太大，这里只显示前 500 行、前 40 列。', 'Sheet too large: showing the first 500 rows and 40 columns.')}</p>` : ''}</section>`).join('');
   } else if (doc.kind === 'pptx') {
-    body = doc.slides.map((s) => `<section class="slide"><span class="no">${s.n}</span>${s.title ? `<h2>${esc(s.title)}</h2>` : ''}${s.paras.slice(s.title ? 1 : 0).map((p) => `<p>${esc(p)}</p>`).join('')}${s.notes ? `<div class="notes">${tt('备注：', 'Notes: ')}${esc(s.notes)}</div>` : ''}</section>`).join('') || `<p class="muted">${tt('没有读到幻灯片内容。', 'No slide content found.')}</p>`;
+    body = doc.slides.map((s) => `<section class="slide"><span class="no">${s.n}</span>${s.items && s.items.length ? slideItemsHtml(s.items) : `${s.title ? `<h2>${esc(s.title)}</h2>` : ''}${s.paras.slice(s.title ? 1 : 0).map((p) => `<p>${esc(p)}</p>`).join('')}`}${s.notes ? `<div class="notes">${tt('备注：', 'Notes: ')}${esc(s.notes)}</div>` : ''}</section>`).join('') || `<p class="muted">${tt('没有读到幻灯片内容。', 'No slide content found.')}</p>`;
+    if (doc.slides.some((s) => s.items)) return previewPage(title, tt(`共 ${doc.slides.length} 页 · 预览显示每页的文字、表格和图片，排版和动画以原文件为准。`, `${doc.slides.length} slides · The preview shows each slide's text, tables and pictures. Layout and animations may differ from the original.`), body, theme);
   }
-  return previewPage(title, tt('预览只显示文字和表格，图片、排版和图表请下载原文件查看。', 'The preview shows text and tables only. Download the original for images, layout and charts.'), body);
+  return previewPage(title, tt('预览只显示文字和表格，图片、排版和图表请下载原文件查看。', 'The preview shows text and tables only. Download the original for images, layout and charts.'), body, theme);
 }
 
-function previewPage(title, note, body) {
-  return `<!doctype html><html lang="${tt('zh-CN', 'en')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+// theme：跟着 Hola 的浅色 / 深色走（不传就跟系统）
+function previewPage(title, note, body, theme) {
+  return `<!doctype html><html lang="${tt('zh-CN', 'en')}"${theme === 'dark' || theme === 'light' ? ` data-theme="${theme}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <style>
-:root{--ink:#1C1E33;--ink2:#575A75;--ink3:#9093AB;--line:#E4E5EE;--wash:#F0F1F6;--paper:#F8F8FB}
-@media (prefers-color-scheme:dark){:root{--ink:#E9E9F4;--ink2:#A9ACC8;--ink3:#71749A;--line:#2C2F55;--wash:#20234A;--paper:#12142A}}
-body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.75 "HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+:root{--ink:#1A1C1F;--ink2:#5E626A;--ink3:#93969F;--line:#E6E7EA;--wash:#F2F3F5;--paper:#F7F7F8;--card:#FFFFFF}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--ink:#ECECEE;--ink2:#A3A6AE;--ink3:#6F737C;--line:#2E2F34;--wash:#26272B;--paper:#17181A;--card:#1F2023}}
+:root[data-theme=dark]{--ink:#ECECEE;--ink2:#A3A6AE;--ink3:#6F737C;--line:#2E2F34;--wash:#26272B;--paper:#17181A;--card:#1F2023}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.75 "Segoe UI Variable Text","Segoe UI","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
 header{position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--line);padding:12px 22px;z-index:2}
 header b{font-size:15px} header small{display:block;color:var(--ink3);font-size:12px}
 main{max-width:960px;margin:0 auto;padding:20px 22px 60px}
@@ -291,9 +368,14 @@ table{border-collapse:collapse;font-size:13.5px;min-width:100%}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:5px 10px;text-align:left;vertical-align:top;white-space:pre-wrap}
 th{background:var(--wash);font-weight:600;position:sticky;top:0}
 nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px} nav a{padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:var(--ink2);text-decoration:none;font-size:13px}
-.slide{position:relative;border:1px solid var(--line);border-radius:12px;padding:18px 22px 14px;margin:0 0 14px;background:color-mix(in srgb,var(--paper) 60%,#fff 40%)}
+.slide{position:relative;border:1px solid var(--line);border-radius:12px;padding:18px 22px 14px;margin:0 0 14px;background:var(--card)}
 .slide .no{position:absolute;right:14px;top:10px;color:var(--ink3);font-size:12px}
 .slide h2{margin:0 0 .6em}
+.slide p{margin:0 0 .45em}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:.4em 0 .9em}
+.imgs:has(>:only-child){grid-template-columns:1fr}
+.imgs img{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:8px;background:var(--wash)}
+.noimg{display:grid;place-items:center;min-height:90px;padding:10px;border:1px dashed var(--line);border-radius:8px;color:var(--ink3);font-size:12.5px;text-align:center}
 .notes{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);color:var(--ink2);font-size:13px}
 pre{white-space:pre-wrap;word-break:break-word;font:13.5px/1.65 Consolas,Menlo,monospace}
 </style></head><body><header><b>${esc(title)}</b><small>${esc(note)}</small></header><main>${body}</main></body></html>`;

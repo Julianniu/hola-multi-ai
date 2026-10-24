@@ -7,7 +7,8 @@ const os = require('os');
 const path = require('path');
 const { ROOT, startHola } = require('./helpers');
 
-const SKIP = /^(\.release|\.hola-dev|\.git|data|data-demo|workspace|demo-workspace|node_modules|dist|tests|CLAUDE\.local\.md)$/;
+// evals（评测结果，可能有好几 GB）、.wick-baseline（A/B 用的程序副本）不是程序文件，模拟下载时不用复制
+const SKIP = /^(\.release|\.hola-dev|\.git|\.wick-baseline|data|data-demo|workspace|demo-workspace|node_modules|dist|tests|evals|CLAUDE\.local\.md)$/;
 
 describe('官方版标识', () => {
   let tmp;

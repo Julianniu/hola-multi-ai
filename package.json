@@ -1,7 +1,7 @@
 {
   "name": "hola",
   "productName": "Hola",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Hola · 光辉联合：把几个 AI 拉进一个群，它们讨论，你拍板",
   "author": "Julianniu",
   "license": "SEE LICENSE IN LICENSE",
@@ -40,7 +40,9 @@
       "public/**",
       "demo/**",
       "desktop/**",
-      "tools/release-files.js"
+      "tools/release-files.js",
+      "tools/hola-doc.js",
+      "tools/hola-team-mcp.js"
     ],
     "win": {
       "target": [

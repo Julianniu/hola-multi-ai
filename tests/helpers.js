@@ -68,12 +68,27 @@ async function startHola(opts = {}) {
   }
   // 发一条消息并等大家做完，返回这次新增的消息
   // extra：比如 { mode: 'discuss' } = 点"开会讨论"
+  // extra.go：遇到开工确认卡就点"开工"（像老板一样），等全部做完
   async function ask(id, text, extra = {}) {
+    const { go: autoGo, ...rest } = extra;
     const before = (await conv(id)).messages.length;
-    const r = await post('send', { conv: id, text, ...extra });
+    const r = await post('send', { conv: id, text, ...rest });
     if (r.status !== 200) throw new Error('发送失败：' + JSON.stringify(r));
-    const c = await waitIdle(id);
+    let c = await waitIdle(id);
+    if (autoGo) c = await go(id);
     return { conv: c, added: c.messages.slice(before) };
+  }
+  // 开工确认：把在等老板开工的方案点"开工"，等这一轮做完（确认一次之后，接力、验收、返工都不再问）
+  async function go(id, max = 5) {
+    let c = await conv(id);
+    for (let i = 0; i < max; i++) {
+      const p = [...c.messages].reverse().find((m) => m.plan && m.plan.status === 'proposed');
+      if (!p) break;
+      const r = await post('plan', { conv: id, msg: p.id, action: 'go' });
+      if (r.status !== 200) throw new Error('开工失败：' + JSON.stringify(r));
+      c = await waitIdle(id);
+    }
+    return c;
   }
   // 页面一打开收到的第一条推送（队友、设置、版本标识等）
   async function init() {
@@ -101,11 +116,13 @@ async function startHola(opts = {}) {
     if (i > 100) throw new Error('队友一直在检查中：' + JSON.stringify(m.map((x) => x.problem)));
     await sleep(100);
   }
+  // 只结束进程、不删数据（测重启后接着做）
+  async function kill() { if (child.exitCode === null && child.signalCode === null) { child.kill(); await new Promise((r) => child.once('exit', r)); } }
   async function stop() {
-    if (child.exitCode === null) { child.kill(); await new Promise((r) => child.once('exit', r)); }
+    if (child.exitCode === null && child.signalCode === null) { child.kill(); await new Promise((r) => child.once('exit', r)); }
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
-  return { base, port, dir, workspace: env.HOLA_WORKSPACE, dataDir: env.HOLA_DATA_DIR, post, conv, newConv, waitIdle, ask, init, upload, stop, log: () => log };
+  return { base, port, dir, workspace: env.HOLA_WORKSPACE, dataDir: env.HOLA_DATA_DIR, post, conv, newConv, waitIdle, ask, go, init, upload, stop, kill, log: () => log };
 }
 
 // Word 测试文件：zip 里装 XML（zip 打包用 tools/zip.js）

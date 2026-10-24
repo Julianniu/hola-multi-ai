@@ -71,16 +71,29 @@ body.dragging,body.dragging *{cursor:col-resize!important;user-select:none}
 body.dragging iframe{pointer-events:none}
 /* 右侧分屏（L2'）：比聊天区深一档，文件像一张白卡片浮在上面 */
 .split{width:calc((100vw - var(--side-w)) * .5);flex:none;min-width:300px;display:flex;flex-direction:column;background:var(--pane);border-left:.5px solid var(--line)}
-.split .sph{display:flex;align-items:center;gap:4px;padding:10px 10px 8px 16px;min-height:52px}
+.split .sph{display:flex;align-items:center;gap:4px;padding:10px 10px 8px 14px;min-height:52px}
 .split .sph b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px;font-weight:600}
+.split .spk{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--wash);color:var(--ink2);flex:none;margin-right:4px}
+.split .spk .i{width:15px;height:15px}
+/* 关闭按钮写着"关闭"、是个胶囊，和窗口右上角的 × 一眼就能分开；中间再隔一道细线 */
+.split .spx{display:flex;align-items:center;gap:5px;height:30px;padding:0 13px 0 10px;margin-left:6px;border-radius:15px;background:var(--wash);box-shadow:inset 0 0 0 .5px var(--line);color:var(--ink);font-size:12.5px;font-weight:500;white-space:nowrap;flex:none}
+.split .spx .i{width:14px;height:14px}
+.split .spx:hover{background:var(--wash2);box-shadow:inset 0 0 0 .5px var(--ring)}
+body.desktop.os-win32 .split .sph{position:relative}
+body.desktop.os-win32 .split .sph::after{content:"";position:absolute;right:142px;top:16px;height:20px;width:.5px;background:var(--line)}
 .split .sph .ibtn{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--ink2)}
 .split .sph .ibtn:hover{background:var(--wash);color:var(--ink)}
-.split iframe{flex:1;border:0;width:auto;margin:0 12px 12px;border-radius:10px;background:#fff;box-shadow:0 0 0 .5px var(--line),var(--cardSh)}
+.split iframe{flex:1;border:0;width:auto;margin:0 12px 12px;border-radius:10px;background:var(--surface);box-shadow:0 0 0 .5px var(--line),var(--cardSh)}
 .split .spimg{flex:1;overflow:auto;display:grid;place-items:center;padding:16px}
 .split .spimg img{max-width:100%;border-radius:8px;box-shadow:var(--cardSh)}
 /* 内置浏览器：和文件预览共用右侧分屏，切换显示 */
-.split:not(.web)>.spbar,.split:not(.web)>.spweb,.split.web>.sph:not(.spbar),.split.web>iframe,.split.web>.spimg{display:none!important}
-.split .spbar{gap:2px;padding-left:8px}
+.split:not(.web)>.spbar,.split:not(.web)>.spweb,.split.web>iframe,.split.web>.spimg,.split.web>.spmsg,
+.split:not(.web) #bClose,.split:not(.web) #spWebName,.split:not(.web) .spk-web,.split.web #spClose,.split.web #spName,.split.web #spOpen,.split.web #spDown,.split.web .spk-file{display:none!important}
+.split .spbar{display:flex;align-items:center;gap:2px;padding:0 12px 8px 8px}
+.split .spbar .ibtn{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--ink2)}
+.split .spbar .ibtn:hover{background:var(--wash);color:var(--ink)}
+.split .spmsg{flex:1;display:grid;place-items:center;padding:24px;margin:0 12px 12px;border-radius:10px;background:var(--surface);box-shadow:0 0 0 .5px var(--line)}
+.split .spmsg p{max-width:320px;color:var(--ink2);font-size:13px;line-height:1.7;text-align:center}
 .split .spbar .ibtn:disabled{opacity:.35;pointer-events:none}
 .split .spbar input{flex:1;min-width:60px;height:32px;margin:0 4px;padding:0 12px;border:0;border-radius:16px;background:var(--wash);box-shadow:inset 0 0 0 .5px var(--line);color:var(--ink);font:inherit;font-size:13px;outline:none}
 .split .spbar input:focus{background:var(--surface);box-shadow:inset 0 0 0 1px var(--ink3)}
@@ -327,27 +340,33 @@ details.proc[open] summary svg{transform:rotate(90deg)}
 .step.error{color:var(--bad)}
 
 /* files */
-.files{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:flex-start}
-.row.boss .files{justify-content:flex-end;margin:0 0 6px}
-.thumb{display:block;border-radius:10px;overflow:hidden;background:var(--wash);max-width:240px;box-shadow:0 0 0 .5px var(--line)}
-.thumb img{display:block;max-width:240px;max-height:180px;object-fit:cover;cursor:zoom-in}
-.thumb{position:relative}
-.thumb .dl{position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:8px;background:rgba(15,16,20,.72);color:#fff;display:none;place-items:center}
-.thumb:hover .dl{display:grid}
-.media{border-radius:12px;overflow:hidden;box-shadow:0 0 0 .5px var(--line);background:#000;max-width:min(480px,100%)}
-.media video{display:block;width:100%;max-height:360px}
-.media .cap,.audiobox .cap{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12.5px;background:var(--surface);color:var(--ink2)}
-.media .cap span,.audiobox .cap span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.media .cap a,.audiobox .cap a{color:var(--ink3);display:flex}
-.chip .pv{font-size:12.5px;color:var(--link);white-space:nowrap}
-.chip .pv:hover{text-decoration:underline}
-.audiobox{border-radius:12px;box-shadow:0 0 0 .5px var(--line);background:var(--surface);max-width:min(420px,100%);padding-top:8px}
-.audiobox audio{display:block;width:calc(100% - 16px);margin:0 8px}
-.chip{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:10px;background:var(--surface);box-shadow:0 0 0 .5px var(--line);font-size:13px;max-width:300px}
-.chip .n{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chip small{color:var(--ink3);flex:none}
-.chip a,.chip button{color:var(--ink3);display:flex}
-.chip a:hover,.chip button:hover{color:var(--ink)}
+/* 附件 / 产出（学 Codex）：图片、视频是一排一样大的缩略图；其他文件是小卡片（类型色块 + 名字 + 大小），操作按钮鼠标移上去才出现 */
+.files{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-start;max-width:100%}
+.files.mine{align-items:flex-end;margin:0 0 6px}
+.files .tiles,.files .cards{display:flex;flex-wrap:wrap;gap:8px;max-width:100%}
+.files.mine .tiles,.files.mine .cards{justify-content:flex-end}
+.tile{position:relative;width:112px;height:112px;border-radius:12px;overflow:hidden;background:var(--wash);box-shadow:0 0 0 .5px var(--line);flex:none;transition:box-shadow .15s}
+.tile .tm{display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.tile img,.tile video{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.tile.vid .tm{cursor:pointer;background:#000}
+.tile .play{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(15,16,20,.55);color:#fff;display:grid;place-items:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.tile .play svg{width:16px;height:16px;margin-left:2px}
+.tile.vid small{position:absolute;left:6px;bottom:6px;font-size:10.5px;line-height:1.5;padding:0 6px;border-radius:6px;background:rgba(15,16,20,.6);color:#fff}
+.tile:hover,.att:hover{box-shadow:0 0 0 .5px var(--ring),var(--cardSh)}
+.att{position:relative;width:236px;max-width:100%;border-radius:12px;background:var(--surface);box-shadow:0 0 0 .5px var(--line);transition:box-shadow .15s}
+.att .am{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px 8px 8px;border:0;border-radius:12px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.att .an{display:flex;flex-direction:column;min-width:0;flex:1}
+.att .an b{font-size:13px;font-weight:500;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.att .an small{font-size:11.5px;line-height:1.4;color:var(--ink3)}
+.ft{flex:none;display:grid;place-items:center;width:32px;height:38px;border-radius:7px;font-size:9px;font-weight:700;letter-spacing:.02em;color:#fff;background:#8A8F98}
+.ft.pdf{background:#E5484D}.ft.ppt{background:#EE6A2C}.ft.doc{background:#3E6FE0}.ft.xls{background:#1F9D5B}.ft.zip{background:#A0785A}.ft.txt{background:#6E7480}.ft.aud{background:#C2418F}.ft.vid{background:#7C4DDB}
+.aa{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--float);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 0 0 .5px var(--ring),var(--floatSh);opacity:0;pointer-events:none;transition:opacity .12s}
+.tile .aa{top:6px;transform:none}
+.att:hover .aa,.att:focus-within .aa,.tile:hover .aa,.tile:focus-within .aa{opacity:1;pointer-events:auto}
+.aa a,.aa button{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;color:var(--ink2)}
+.aa a:hover,.aa button:hover{background:var(--wash2);color:var(--ink)}
+.aa .i{width:15px;height:15px}
+@media (hover:none){.aa{opacity:1;pointer-events:auto}.att{display:flex;align-items:center}.att .aa{position:static;transform:none;background:none;box-shadow:none;margin-right:4px}}
 .filebar{font-size:12px;color:var(--ink3);margin-top:8px}
 
 /* 输入框（L3 浮层玻璃）：聊天内容从它下面滑过去时能看到模糊的影子 */
@@ -552,3 +571,79 @@ canvas.merc{display:block;flex:none}
   .grip{display:none!important}
   .split{position:fixed;inset:0;width:auto!important;min-width:0;z-index:45;border-left:0}
 }
+
+/* 边写边显示：队友正在写的字（还没写完，颜色淡一点） */
+.md.draft{opacity:.72;margin-top:6px}
+.md.draft>*:last-child::after{content:'▍';opacity:.6;animation:draftBlink 1s steps(2) infinite}
+@keyframes draftBlink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.md.draft>*:last-child::after{animation:none}}
+
+/* 设置里的花费上限：两个小输入框一行 */
+.budget{display:flex;align-items:center;gap:8px}
+.budget input{width:90px}
+
+/* 规矩墙（对话记忆抽屉的最上面） */
+.drawer .rules{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid var(--line, rgba(127,127,127,.2))}
+.drawer .rules textarea{min-height:90px;flex:none}
+.drawer .rules details{font-size:12px;color:var(--ink3)}
+.drawer .rules .rauto{padding:4px 0;border-top:1px dashed rgba(127,127,127,.25);white-space:pre-wrap}
+.drawer .memh{display:block;margin-top:2px}
+/* 开工确认卡（主脑 / 团队结论要派活时） */
+.plan{margin-top:12px;padding-top:12px;border-top:.5px solid var(--line);display:flex;flex-direction:column;gap:7px}
+.plan .pstep{display:flex;align-items:baseline;gap:8px;padding:8px 12px;border-radius:10px;background:var(--surface);box-shadow:0 0 0 .5px var(--line);font-size:13.5px;line-height:1.5}
+.plan .pstep i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--mc);transform:translateY(-1px)}
+.plan .pstep b{flex:none;font-weight:600}
+.plan .pstep span{color:var(--ink2)}
+.plan:not(.open) .pstep{opacity:.7}
+.plan .pbtns{display:flex;gap:8px;margin-top:2px}
+.plan small{color:var(--ink3);font-size:12px}
+/* 任务板（输入框上方）：这件事拆成了哪几步、谁在做、做到哪 */
+.board{max-width:var(--feed-w);margin:0 auto 8px;padding:8px 10px;border-radius:14px;background:var(--float);box-shadow:0 0 0 .5px var(--ring),var(--cardSh);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);position:relative;font-size:12.5px}
+.board .bhead{display:flex;align-items:center;gap:10px;padding:0 2px}
+.board .bhead b{font-size:12.5px}
+.board .bsum{color:var(--ink3)}
+.board .bplan{font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--wash);color:var(--ok)}
+.board .bhead .ibtn{margin-left:auto;width:24px;height:24px}
+.board .chev{transform:rotate(90deg);transition:transform .15s} .board .chev.up{transform:rotate(-90deg)}
+.board .bitems{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-height:168px;overflow:auto}
+.board .bitem{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 8px;border-radius:8px;background:transparent;color:var(--ink);font-size:12.5px;cursor:default}
+.board .bitem.s-queued,.board .bitem.s-running{cursor:pointer}
+.board .bitem.s-queued:hover,.board .bitem.s-running:hover{background:var(--wash)}
+.board .bitem i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--mc)}
+.board .bitem.s-queued i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--mc)}
+.board .bitem.s-running i{animation:bpulse 1.4s ease-in-out infinite}
+@keyframes bpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.board .bitem.s-running i{animation:none}}
+.board .bitem .who{flex:none;font-weight:600}
+.board .bitem em{flex:none;font-style:normal;font-size:11px;color:var(--ink3)}
+.board .bitem .what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
+.board .bitem .st{flex:none;color:var(--ink3);font-variant-numeric:tabular-nums}
+.board .bitem.s-running .st{color:var(--ink)}
+.board .bitem.s-done .st{color:var(--ok)}
+.board .bitem.s-error .st{color:var(--bad)}
+.board .bitem.s-cancelled .what,.board .bitem.s-skipped .what,.board .bitem.s-stopped .what{text-decoration:line-through;opacity:.6}
+.board .bnote{flex:none;font-size:11px;color:var(--ink3);max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .blog{margin:4px 2px 0;font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bmenu{position:relative;z-index:6;margin:2px 0 4px 22px;padding:6px;border-radius:12px;background:var(--float);box-shadow:0 0 0 .5px var(--ring),var(--floatSh);display:flex;flex-direction:column;gap:2px;width:max-content;min-width:180px}
+.bmenu .bml{font-size:11.5px;color:var(--ink3);padding:2px 8px}
+.bmenu button{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:transparent;color:var(--ink);font-size:12.5px;text-align:left}
+.bmenu button:hover{background:var(--wash)}
+.bmenu button i{width:7px;height:7px;border-radius:50%;background:var(--mc)}
+.bmenu button.danger{color:var(--bad)}
+/* 能力卡（状态弹窗里每位队友下面一行）、数据去向（对话记忆抽屉） */
+.mem-row p.card{color:var(--ink3);font-size:11.5px}
+.drawer p.note.dest{margin-top:10px;margin-bottom:0}
+.drawer p.note.dest b{color:var(--ink2);margin-right:4px}
+/* 规矩候选（对话记忆抽屉）和"对话记忆"按钮上的小圆点 */
+.drawer .hints{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.drawer .hints small{color:var(--ink3);font-size:12px}
+.drawer .hints .hint{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:10px;background:var(--wash);font-size:13px}
+.drawer .hints .hint span{flex:1}
+#memBtn.hint{position:relative}
+#memBtn.hint::after{content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.rv .save-skill{margin-left:auto}
+.mem-row p.card.bad{color:var(--bad)}
+.envnotes{display:flex;flex-direction:column;gap:6px}
+.envnote{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:10px;background:var(--wash);font-size:13px}
+.envnote span{flex:1}
+.envnote em{font-style:normal;font-size:11.5px;color:var(--ink3)}

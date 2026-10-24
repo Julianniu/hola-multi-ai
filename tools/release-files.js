@@ -15,7 +15,7 @@ MCowBQYDK2VwAyEA2na7U/vJ5Cd/DlMn/WQCJv5sZqBcv79qoj9zV2HgN6U=
 // 桌面版安装包里装的就是这些，程序更新包里也正好是这些。
 // 不在里面的：各系统的启动脚本（.bat / .vbs / mac/，桌面版用不到）、package.json（打包工具会改写它，版本号以 release.json 为准）。
 function RELEASE_FILES(root) {
-  const list = ['server.js', 'office.js', 'config.json', 'LICENSE', 'demo/fake-ai.js', 'demo/config.json', 'tools/release-files.js'];
+  const list = ['server.js', 'office.js', 'config.json', 'LICENSE', 'demo/fake-ai.js', 'demo/config.json', 'tools/release-files.js', 'tools/hola-doc.js', 'tools/hola-team-mcp.js'];
   const add = (dir, re) => { try { for (const f of fs.readdirSync(path.join(root, dir))) if (re.test(f) && fs.statSync(path.join(root, dir, f)).isFile()) list.push(dir ? dir + '/' + f : f); } catch (_) {} };
   add('lib', /\.js$/);
   add('public', /./);

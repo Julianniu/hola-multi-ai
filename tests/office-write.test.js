@@ -42,4 +42,24 @@ describe('生成 Office 文件', () => {
   it('空内容也能生成能打开的文件', () => {
     for (const ext of ['docx', 'xlsx', 'pptx']) assert.ok(roundtrip(ext, ''));
   });
+
+  it('标签带 x: 前缀的 Excel（Codex 用的 Open XML SDK 写法）也能读出内容', () => {
+    // 把 Hola 自己生成的表格改写成 <x:row> 这种写法，再读回来
+    const { readZip } = office;
+    const { makeZip } = require('../lib/office-write');
+    const zip = readZip(writeOffice('xlsx', '| 商品 | 销量 |\n| --- | --- |\n| 乳胶枕 | 392 |'));
+    const files = {};
+    for (const n of zip.names()) {
+      const t = zip.text(n);
+      files[n] = /^xl\/(workbook|worksheets\/|sharedStrings)/.test(n)
+        ? t.replace(/<(\/?)([a-zA-Z])/g, (m, s, ch) => `<${s}x:${ch}`).replace(/<(\/?)x:\?xml/, '<$1?xml').replace(/xmlns=/, 'xmlns:x=')
+        : zip.bytes(n);
+    }
+    const f = path.join(dir, 'prefixed.xlsx');
+    fs.writeFileSync(f, makeZip(files));
+    const sheet = readZip(fs.readFileSync(f)).names().find((n) => /^xl\/worksheets\/.+\.xml$/.test(n));
+    assert.match(readZip(fs.readFileSync(f)).text(sheet), /<x:row/, '确实是带前缀的写法');
+    const rows = office.readOffice(f).sheets[0].rows;
+    assert.deepEqual(rows, [['商品', '销量'], ['乳胶枕', '392']]);
+  });
 });

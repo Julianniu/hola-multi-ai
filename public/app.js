@@ -26,6 +26,8 @@ function usageLine(m){
   const parts=[];
   if(m.model) parts.push(esc(m.model) + (m.effort ? ` (${esc(EN_UI()?m.effort:(EFFORT_LABEL[m.effort]||m.effort))})` : ''));
   if(m.usage) parts.push(`<span title="${esc(usageTip(m.usage))}">${EN_UI()?'in':'输入'} ${fmtTok(m.usage.input)} · ${EN_UI()?'out':'输出'} ${fmtTok(m.usage.output)}</span>`);
+  // 花费（API 队友按用量和单价算的；订阅制的命令行队友不按次收钱，不显示）
+  if(m.cost) parts.push(`<span title="${EN_UI()?'Estimated cost of this reply':'这条回复大约花了多少钱'}">¥${m.cost<0.01?m.cost.toFixed(4):m.cost.toFixed(2)}</span>`);
   return parts.length ? `<span class="usage" data-raw> · ${parts.join(' · ')}</span>` : '';
 }
 // 本对话里每位队友的用量合计（含整理记忆、整理技能）
@@ -266,14 +268,14 @@ function renderLights(){
   const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',decided:'按你的拍板分工中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
     : list.some(m=>m.problem==='检查中…') ? '检查中' : `${on}/${n} 在线`;
-  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}${m.model&&m.model!==m.version?` · <span data-raw>${esc(m.model)}</span>`:''}</p></div></div>`).join('') +
+  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}${m.model&&m.model!==m.version?` · <span data-raw>${esc(m.model)}</span>`:''}</p>${S.cards&&S.cards[m.id]&&S.cards[m.id].line?`<p class="card" data-raw>${esc(S.cards[m.id].line)}</p>`:''}${S.cards&&S.cards[m.id]&&S.cards[m.id].health?healthLine(S.cards[m.id].health):''}</div></div>`).join('') +
     convUsageHTML() +
     `<div style="padding:6px 8px 4px;display:flex;gap:6px"><span class="btn" id="popRecheck" role="button">重新检查</span><span class="btn" id="popTeam" role="button">管理队友</span></div>`;
   const pt=$('#popTeam'); if(pt) pt.onclick=e=>{e.stopPropagation();$('#memberPop').classList.remove('show');openTeam()};
   const rc=$('#popRecheck'); if(rc) rc.onclick=e=>{e.stopPropagation();api('recheck');toast('正在重新检查队友')};
   renderUnder();
 }
-$('#lights').onclick=e=>{ if(e.target.closest('.pop'))return; $('#memberPop').classList.toggle('show') };
+$('#lights').onclick=e=>{ if(e.target.closest('.pop'))return; const show=!$('#memberPop').classList.contains('show'); $('#memberPop').classList.toggle('show'); if(show) fetch('/api/cards').then(r=>r.json()).then(j=>{ S.cards=j.cards||{}; renderLights() }).catch(()=>{}) };
 document.addEventListener('click',e=>{ if(!e.target.closest('#lights')) $('#memberPop').classList.remove('show'); if(!e.target.closest('.composer')) hideMpop(); });
 
 function activeFor(c){ const all=enabledMembers().map(m=>m.id); return c&&Array.isArray(c.active)? all.filter(id=>c.active.includes(id)) : all }
@@ -308,7 +310,7 @@ function renderConv(){
   const feed=$('#feed'); feed.innerHTML=''; nodes.clear();
   $('#title').textContent = S.conv ? S.conv.title : 'Hola';
   if(!S.conv||!S.conv.messages.length){ renderEmpty(); } else { S.conv.messages.forEach(m=>putMsg(m)); scrollDown(); }
-  renderLights(); renderRun(); updateSend(); renderUnder();
+  renderLights(); renderRun(); updateSend(); renderUnder(); renderBoard(); renderHints();
 }
 function renderEmpty(){
   const tries=['新品耳机首发，定价 399 还是 499 更合适？说说理由',
@@ -359,16 +361,25 @@ function friendlyErr(text){
   return String(text||'').replace(/\n\n(错误信息：|Error:)\n[\s\S]*?(?=\n\n(常见原因|Common causes)|$)/,'');
 }
 function stepHTML(it){return `<div class="step ${it.k}"><span class="k">${KIND[it.k]||''}</span><span data-raw>${esc(it.t)}</span></div>`}
+// 附件和队友做的文件（学 Codex）：图片、视频是一排一样大的缩略图；其他文件是小卡片（类型色块 + 名字 + 大小），
+// 点卡片在右边预览（不能预览的用电脑上的软件打开），下载、打开所在位置这些按钮鼠标移上去才出现
+const FT=[[/^pdf$/,'pdf'],[/^pptx?$|^key$/,'ppt'],[/^docx?$|^rtf$|^pages$/,'doc'],[/^xlsx?$|^csv$|^tsv$|^numbers$/,'xls'],[/^(zip|rar|7z|tar|gz)$/,'zip'],[/^(md|txt|json|log)$/,'txt']];
+function fileKind(f){
+  const ext=(f.name.match(/\.([A-Za-z0-9]{1,8})$/)||[,''])[1].toLowerCase();
+  const k=f.video?'vid':f.audio?'aud':(FT.find(x=>x[0].test(ext))||[,'etc'])[1];
+  return {ext, k, label:(ext||'FILE').slice(0,4).toUpperCase()};
+}
 function filesHTML(list, boss){
   if(!list||!list.length) return '';
-  const dl = f => `<a href="${fileUrl(f.path,true)}" title="下载" aria-label="下载 ${esc(f.name)}"><svg class="i" style="width:15px;height:15px"><use href="#i-down"/></svg></a>`;
-  return `<div class="files">${list.map(f=>f.image
-    ? `<div class="thumb"><a href="${fileUrl(f.path)}" data-img="${fileUrl(f.path)}" data-rel="${esc(f.path)}"><img src="${fileUrl(f.path)}" alt="${esc(f.name)}" loading="lazy"></a><a class="dl" href="${fileUrl(f.path,true)}" title="下载" aria-label="下载 ${esc(f.name)}"><svg class="i" style="width:15px;height:15px"><use href="#i-down"/></svg></a></div>`
-    : f.video
-    ? `<div class="media"><video controls preload="metadata" src="${fileUrl(f.path)}"></video><div class="cap"><span title="${esc(f.path)}">${esc(f.name)} · ${size(f.size||0)}</span>${dl(f)}<button data-reveal="${esc(f.path)}" title="在文件夹中显示"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg></button></div></div>`
-    : f.audio
-    ? `<div class="audiobox"><audio controls preload="metadata" src="${fileUrl(f.path)}"></audio><div class="cap"><span title="${esc(f.path)}">${esc(f.name)} · ${size(f.size||0)}</span>${dl(f)}<button data-reveal="${esc(f.path)}" title="在文件夹中显示"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg></button></div></div>`
-    : `<div class="chip"><svg class="i" style="width:16px;height:16px;color:var(--ink3)"><use href="#i-file"/></svg><span class="n" data-raw title="${esc(f.path)}">${esc(f.name)}</span><small>${size(f.size||0)}</small>${f.preview?`<button class="pv" data-preview="${esc(f.path)}">预览</button>`:''}<a href="${fileUrl(f.path)}" target="_blank" title="打开"><svg class="i" style="width:15px;height:15px"><use href="#i-open"/></svg></a>${dl(f)}<button data-reveal="${esc(f.path)}" title="在文件夹中显示"><svg class="i" style="width:15px;height:15px"><use href="#i-folder"/></svg></button></div>`).join('')}</div>`;
+  const icon=(n)=>`<svg class="i"><use href="#i-${n}"/></svg>`;
+  const acts=f=>`<span class="aa"><a href="${fileUrl(f.path,true)}" title="下载">${icon('down')}</a><button data-reveal="${esc(f.path)}" title="在文件夹中显示">${icon('folder')}</button></span>`;
+  const tiles=list.filter(f=>f.image||f.video), cards=list.filter(f=>!f.image&&!f.video);
+  const tile=f=>f.image
+    ? `<div class="tile"><a class="tm" href="${fileUrl(f.path)}" data-img="${fileUrl(f.path)}" data-rel="${esc(f.path)}" title="${esc(f.name)}"><img src="${fileUrl(f.path)}" alt="${esc(f.name)}" loading="lazy"></a>${acts(f)}</div>`
+    : `<div class="tile vid"><button class="tm" data-preview="${esc(f.path)}" title="${esc(f.name)}"><video muted preload="metadata" src="${fileUrl(f.path)}#t=0.1"></video><span class="play"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><small>${size(f.size||0)}</small></button>${acts(f)}</div>`;
+  const card=f=>{ const t=fileKind(f), pv=f.preview||f.audio;
+    return `<div class="att"><button class="am" ${pv?`data-preview="${esc(f.path)}" title="预览"`:`data-reveal="${esc(f.path)}" title="打开"`}><span class="ft ${t.k}" data-raw>${esc(t.label)}</span><span class="an"><b data-raw>${esc(f.name)}</b><small data-raw>${esc(t.ext?t.ext.toUpperCase()+' · ':'')}${size(f.size||0)}</small></span></button>${acts(f)}</div>` };
+  return `<div class="files${boss?' mine':''}">${tiles.length?`<div class="tiles">${tiles.map(tile).join('')}</div>`:''}${cards.length?`<div class="cards">${cards.map(card).join('')}</div>`:''}</div>`;
 }
 // 讨论没谈拢时，结论下面列出方案让老板拍板
 function decideHTML(m){
@@ -379,6 +390,47 @@ function decideHTML(m){
   const hint = open ? `<small>${opts.length?'点一个方案，或者直接在下面输入框里说你的决定（不用 @）。':'直接在下面输入框里说你的决定（不用 @）。'}</small>` : '';
   return `<div class="decide${open?' open':''}">${head}${list}${hint}</div>`;
 }
+// 开工确认卡：主脑 / 团队结论要派活时，先列出分工，老板点"开工"才动（之后全自动）
+function planHTML(m){
+  const p=m.plan; if(!p) return '';
+  const open=p.status==='proposed';
+  const head=open?'分工方案，等你开工':{approved:'已开工',cancelled:'没有开工',changed:'你提了修改意见，正在调整',dropped:'方案没用上'}[p.status]||'';
+  const steps=(p.steps||[]).map(s=>`<div class="pstep" style="--mc:${colorOf(s.member)}"><i></i><b>${esc(nameOf(s.member))}</b><span data-raw>${esc(s.task||'按上面说的分工')}</span></div>`).join('');
+  const btns=open?`<div class="pbtns"><button class="btn pri" data-plan="${m.id}" data-act="go">开工</button><button class="btn" data-plan="${m.id}" data-act="cancel">先不做</button></div><small>开工后接力、验收、返工都自动进行，不再问你。想改分工，直接在下面输入框里说（不用 @）。</small>`:'';
+  return `<div class="plan${open?' open':''}"><div class="decide-h${open?'':' done'}">${head}</div>${steps}${btns}</div>`;
+}
+
+// ---------- 任务板：这件事拆成了哪几步、谁在做、做到哪（输入框上方）
+const B_REASON={main:'主脑',mention:'点名',handoff:'接力',review:'验收',fix:'返工',replan:'调整',decided:'执行',discuss:'开会'};
+const B_STATUS={queued:'排队',running:'进行中',done:'完成',error:'出错',cancelled:'已取消',skipped:'跳过',stopped:'中断'};
+let boardFold=store.get('hola.boardFold')==='1';
+function renderBoard(){
+  const el=$('#board'), b=S.conv&&S.conv.board, items=(b&&b.items)||[];
+  const open=items.filter(x=>x.status==='queued'||x.status==='running');
+  // 只有主脑一步就答完的小事不显示；分了几步、或者还有没做完的才显示
+  if(!items.length||(items.length<2&&!open.length)){ el.hidden=true; el.innerHTML=''; return }
+  el.hidden=false;
+  const n=(s)=>items.filter(x=>x.status===s).length;
+  const sum=[n('running')&&`<span>进行中 ${n('running')}</span>`,n('queued')&&`<span>排队 ${n('queued')}</span>`,n('done')&&`<span>完成 ${n('done')}</span>`].filter(Boolean).join(' · ');
+  const log=((b.log)||[]).slice(-3).map(l=>`<div class="blog" data-raw>${esc(l.t)}</div>`).join('');
+  el.innerHTML=`<div class="bhead"><b>任务板</b><span class="bsum">${sum}</span>${b.plan&&b.plan.status==='approved'?'<span class="bplan">方案已确认</span>':''}<button class="ibtn" id="boardFold" title="${boardFold?'展开':'收起'}" aria-label="${boardFold?'展开':'收起'}"><svg class="i chev${boardFold?'':' up'}"><use href="#i-chev"/></svg></button></div>`+
+    (boardFold?'':`<div class="bitems">${items.map(x=>`<button class="bitem s-${x.status}" data-bitem="${x.id}" style="--mc:${colorOf(x.member)}" ${x.status==='queued'||x.status==='running'?'':'tabindex="-1"'}><i></i><span class="who">${x.reason==='discuss'?'大家':esc(nameOf(x.member))}</span><em>${B_REASON[x.reason]||''}</em><span class="what" data-raw>${esc(x.title||'')}</span><span class="st">${x.status==='running'&&x.start?`<span class="timer" data-start="${x.start}">${dur(Date.now()-x.start)}</span>`:B_STATUS[x.status]||''}</span>${x.note?`<span class="bnote" data-raw>${esc(x.note)}</span>`:''}</button>`).join('')}</div>${log}`);
+  $('#boardFold').onclick=()=>{ boardFold=!boardFold; store.set('hola.boardFold',boardFold?'1':''); renderBoard() };
+  el.querySelectorAll('[data-bitem]').forEach(btn=>btn.onclick=e=>boardMenu(btn, items.find(x=>x.id===btn.dataset.bitem)));
+}
+// 点任务板上的一项：没开始的可以改派、取消；正在做的可以取消
+function boardMenu(btn, it){
+  document.querySelectorAll('.bmenu').forEach(x=>x.remove());
+  if(!it||!['queued','running'].includes(it.status)) return;
+  const cs=S.convs.find(c=>c.id===S.cur), act=activeFor(cs).filter(id=>id!==it.member&&member(id).online);
+  const menu=document.createElement('div'); menu.className='bmenu';
+  menu.innerHTML=(it.status==='queued'&&it.reason!=='discuss'&&act.length?`<div class="bml">改派给</div>`+act.map(id=>`<button data-to="${id}" style="--mc:${colorOf(id)}"><i></i>${esc(nameOf(id))}</button>`).join(''):'')+`<button data-cancel class="danger">${it.status==='running'?'取消这一项（让 Ta 停下）':'取消这一项'}</button>`;
+  btn.after(menu);
+  menu.querySelectorAll('[data-to]').forEach(b=>b.onclick=async()=>{ menu.remove(); const j=await api('board/reassign',{conv:S.cur,item:it.id,member:b.dataset.to}); if(j.error) toast(j.error) });
+  menu.querySelector('[data-cancel]').onclick=async()=>{ menu.remove(); const j=await api('board/cancel',{conv:S.cur,item:it.id}); if(j.error) toast(j.error) };
+  setTimeout(()=>document.addEventListener('click',function off(e){ if(!menu.contains(e.target)){ menu.remove(); document.removeEventListener('click',off) } }),0);
+}
+
 function msgHTML(m){
   const running=m.status==='running';
   if(m.from==='system'&&!m.divider) return `<div class="sys">${esc(m.text)}</div>`;
@@ -397,20 +449,21 @@ function msgHTML(m){
     return `<div class="memline" style="--mc:${colorOf(m.from)}"><svg class="i"><use href="#i-book"/></svg><span><b>${m.skillUpdated?'技能已更新':'已存为技能'}</b>${window.HOLA_LANG==='en'?': ':'：'}<b data-raw>${esc(m.skillName||'')}</b>${m.text?` · <span data-raw>${esc(m.text)}</span>`:''}</span><span class="link" data-openskill="${esc(m.skillId||'')}">查看</span></div>`;
   }
   if(m.from==='system'&&m.divider) return `<div class="divider"><span><i></i>${esc(m.text)}</span></div>`;
-  const tag = m.from==='boss' ? '' : ({main:'主脑',review:'验收',mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言'})[m.reason]||'';
+  const tag = m.from==='boss' ? '' : ({main:'主脑',review:'验收',mention:'被你点名',handoff:`${esc(nameOf(m.by))} 交给 Ta`,initial:'独立作答',discuss:`讨论 · 第 ${m.round} 轮`,conclusion:'',decided:'按你的拍板执行',all:'依次发言',fix:'自查返工',replan:'按你的新要求调整'})[m.reason]||'';
   // 退回重做是一个红色小标签；通过时在正文上面流出一个水银对勾
   const reviewTag = m.reason==='review'&&m.status==='done'&&m.review==='redo' ? `<span class="review redo">退回重做</span>` : '';
   const passed = m.reason==='review'&&m.status==='done'&&(m.review==='pass'||m.review==='fixed');
-  const reviewHead = passed ? `<div class="rv"><canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas><b class="review ${m.review}">${m.review==='pass'?'验收通过':'改好后通过'}</b></div>` : '';
+  const reviewHead = passed ? `<div class="rv"><canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas><b class="review ${m.review}">${m.review==='pass'?'验收通过':'改好后通过'}</b>${m.skillHint&&m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="这次的做法验收通过了：存成技能，下次同类的活直接照着做"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
   const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
-  const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工'};
+  const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工',fix:'返工中',replan:'调整中'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
   const wlabel = !sp&&anySteps ? `<span class="lbl" data-raw data-fun="${m.id}">${esc(funLabel(m))}</span>` : `<span class="lbl">${WK[m.reason]||'正在做'}</span>`;
-  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`;
-  else body=conclHead+reviewHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)
+  // 边写边显示：队友正在写的字（服务器每 0.25 秒推一次），写完换成正式回复
+  if(running&&!m.text) body=`<div class="working"><span class="beam"></span>${wlabel} · <span class="timer" data-start="${m.startedAt}">${dur(Date.now()-m.startedAt)}</span></div>`+(m.draft?`<div class="md draft" data-raw>${md(m.draft)}</div>`:'');
+  else body=conclHead+reviewHead+`<div class="md" data-raw>${md(m.status==='error'&&!sp?friendlyErr(m.text):m.text)}</div>`+decideHTML(m)+planHTML(m)
     // 主脑的回答下面：老板觉得需要，再请大家开会
     +(m.reason==='main'&&m.status==='done'&&!m.escalated?`<button class="escalate" data-escalate="${m.id}" title="其他大脑先各自独立作答，再和主脑一起讨论出团队结论">让大家讨论一下</button>`:'');
   const last=m.process.length?m.process[m.process.length-1]:null;
@@ -466,6 +519,11 @@ function bindFiles(el){
     el.querySelectorAll('[data-decide]').forEach(x=>x.disabled=true);
     const j=await api('decide',{conv:S.cur,msg:b.dataset.decide,option:b.dataset.key}).catch(e=>({error:e.message}));
     if(j.error){ toast(j.error); el.querySelectorAll('[data-decide]').forEach(x=>x.disabled=false); }
+  });
+  el.querySelectorAll('[data-plan]').forEach(b=>b.onclick=async()=>{
+    el.querySelectorAll('[data-plan]').forEach(x=>x.disabled=true);
+    const j=await api('plan',{conv:S.cur,msg:b.dataset.plan,action:b.dataset.act}).catch(e=>({error:e.message}));
+    if(j.error){ toast(j.error); el.querySelectorAll('[data-plan]').forEach(x=>x.disabled=false) }
   });
   el.querySelectorAll('[data-openmem]').forEach(b=>b.onclick=()=>{ if(!$('#drawer').classList.contains('show')) $('#memBtn').click() });
   el.querySelectorAll('[data-img]').forEach(a=>a.onclick=e=>{e.preventDefault(); if(a.dataset.rel&&!matchMedia('(max-width:760px)').matches) return openPreview(a.dataset.rel); const lb=$('#lightbox');lb.querySelector('img').src=a.dataset.img;lb.classList.add('show')});
@@ -575,14 +633,23 @@ function openPreview(p){
   openPreviewUrl(p.split('/').pop(), img?fileUrl(p):`/preview/${S.cur}/${p.split('/').map(encodeURIComponent).join('/')}`, fileUrl(p), img, p);
 }
 // name：显示的名字；viewUrl：预览栏里显示什么；rawUrl：原文件（下载用）；img：是不是图片
+// PDF 直接交给浏览器自带的 PDF 查看器（收起左边的缩略图栏，按宽度铺满）；Word / Excel / PPT 等转好的预览页跟着 Hola 的浅色 / 深色走
+const themeNow=()=>document.documentElement.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+function frameUrl(name, viewUrl, rawUrl){
+  if(/\.pdf$/i.test(name)) return rawUrl+'#navpanes=0&view=FitH';
+  return /^\/(preview|library-preview)\//.test(viewUrl) ? viewUrl+(viewUrl.includes('?')?'&':'?')+'theme='+themeNow() : viewUrl;
+}
 function openPreviewUrl(name, viewUrl, rawUrl, img, title){
   setWebMode(false);
   $('#spName').textContent=name; $('#spName').title=title||name;
   $('#spDown').href=rawUrl+(rawUrl.includes('?')?'&':'?')+'download'; $('#spOpen').href=viewUrl;
-  $('#spImg').hidden=!img; $('#spFrame').hidden=img;
-  if(img){ $('#spImg').querySelector('img').src=viewUrl; $('#spFrame').src='about:blank' } else $('#spFrame').src=viewUrl;
+  const noPdf=/\.pdf$/i.test(name)&&navigator.pdfViewerEnabled===false;
+  $('#spImg').hidden=!img; $('#spFrame').hidden=img||noPdf; $('#spMsg').hidden=!noPdf;
+  if(img||noPdf){ if(img) $('#spImg').querySelector('img').src=viewUrl; $('#spFrame').src='about:blank' } else $('#spFrame').src=frameUrl(name, viewUrl, rawUrl);
   $('#split').hidden=false; $('#splitGrip').hidden=false;
 }
+// 换了浅色 / 深色：开着的预览页也跟着换
+function previewTheme(){ const f=$('#spFrame'), u=f.getAttribute('src')||''; if(!$('#split').hidden&&/[?&]theme=(dark|light)/.test(u)) f.src=u.replace(/([?&]theme=)(dark|light)/,'$1'+themeNow()) }
 function closePreview(){ setWebMode(false); $('#split').hidden=true; $('#splitGrip').hidden=true; $('#spFrame').src='about:blank'; $('#spImg').querySelector('img').removeAttribute('src') }
 $('#spClose').onclick=closePreview;
 
@@ -590,7 +657,7 @@ $('#spClose').onclick=closePreview;
 // 真正的网页由桌面版外壳摆在 #spWeb 的位置上，盖在页面上面；所以有弹窗、看大图时要先把它收起来
 const BR=window.holaDesktop&&window.holaDesktop.browser||null;
 let webOn=false, webHasPage=false, webAsks=0;
-function setWebMode(on){ webOn=on; $('#split').classList.toggle('web',on); syncWeb() }
+function setWebMode(on){ webOn=on; $('#split').classList.toggle('web',on); $('#browserBtn').classList.toggle('on',on); syncWeb() }
 function syncWeb(){
   if(!BR) return;
   const covered=!!document.querySelector('dialog[open]')||$('#lightbox').classList.contains('show');
@@ -779,9 +846,46 @@ $('#memBtn').onclick=async()=>{
   const d=$('#drawer'); const show=!d.classList.contains('show');
   if(show&&!S.cur){toast('先开始一个对话');return}
   d.classList.toggle('show',show); $('#memBtn').classList.toggle('on',show);
-  if(show){const r=await fetch('/api/conv/'+S.cur);const c=await r.json();$('#memText').value=c.memory||'';$('#memSaved').textContent=''}
+  if(show){const r=await fetch('/api/conv/'+S.cur);const c=await r.json();$('#memText').value=c.memory||'';$('#memSaved').textContent='';showRules(c);showDest(c);S.conv.ruleHints=c.ruleHints||[];renderHints()}
 };
 $('#memClose').onclick=()=>{$('#drawer').classList.remove('show');$('#memBtn').classList.remove('on')};
+// 定期体检的结果（每 6 小时一次）
+function healthLine(h){ const ago=Math.max(1,Math.round((Date.now()-h.at)/3600e3)); return `<p class="card ${h.ok?'':'bad'}">${h.ok?`体检正常，响应 ${(h.ms/1000).toFixed(1)} 秒`:'体检没通过：<span data-raw>'+esc(h.note||'')+'</span>'}（${ago} 小时内）</p>` }
+// 设置里的本机经验：候选的可以加入或不用，加入过的可以移除
+async function renderEnvNotes(){
+  const j=await (await fetch('/api/envnotes')).json().catch(()=>({notes:[]})); const ns=j.notes||[];
+  $('#sEnvField').hidden=!ns.length;
+  $('#sEnvNotes').innerHTML=ns.map(n=>`<div class="envnote"><span data-raw>${esc(n.text)}</span>${n.status==='on'?`<em>已加入</em><button type="button" class="btn" data-env="${esc(n.sig)}" data-st="off">移除</button>`:`<em>碰到 ${n.count} 次</em><button type="button" class="btn pri" data-env="${esc(n.sig)}" data-st="on">加入</button><button type="button" class="btn" data-env="${esc(n.sig)}" data-st="off">不用</button>`}</div>`).join('');
+  $('#sEnvNotes').querySelectorAll('[data-env]').forEach(b=>b.onclick=async()=>{ const r=await api('envnotes',{sig:b.dataset.env,status:b.dataset.st}); if(r.error) toast(r.error); renderEnvNotes() });
+}
+// 规矩候选：记忆整理员从对话里发现的、老板说过"以后都这样"的要求；点"加入"才进规矩墙
+function renderHints(){
+  const hs=(S.conv&&S.conv.ruleHints)||[], el=$('#ruleHints');
+  $('#memBtn').classList.toggle('hint',hs.length>0);
+  el.hidden=!hs.length;
+  el.innerHTML=hs.length?`<b>建议加进规矩墙</b><small>队友从对话里发现你说过"以后都这样"的要求：</small>`+hs.map((h,i)=>`<div class="hint"><span data-raw>${esc(h.text)}</span><button class="btn pri" data-hint="${i}" data-add="1">加入</button><button class="btn" data-hint="${i}">不用</button></div>`).join(''):'';
+  el.querySelectorAll('[data-hint]').forEach(b=>b.onclick=async()=>{
+    const h=hs[+b.dataset.hint]; if(!h) return;
+    const j=await api('rules/hint',{conv:S.cur,text:h.text,add:!!b.dataset.add}); if(j.error){ toast(j.error); return }
+    S.conv.ruleHints=j.hints; S.conv.rules=j.rules; showRules(S.conv); renderHints();
+    if(b.dataset.add) $('#rulesSaved').textContent='已加进规矩墙，下一轮起所有队友都会照着做';
+  });
+}
+// 数据去向：这个对话的内容发给过哪些服务商（命令行队友能直接读对话文件夹）
+function showDest(c){
+  const ps=c.providers||[]; $('#memDest').hidden=!ps.length;
+  $('#memDest').innerHTML=ps.length?`<b>数据去向</b> 这个对话的聊天和文件发给过：<span data-raw>${ps.map(p=>esc(p.name+'（'+p.provider+'）')).join('、')}</span>。命令行队友能直接读对话文件夹里的所有文件；只有 API 队友是由 Hola 决定给它看什么。`:'';
+}
+// 规矩墙：老板亲手整理的（可改），和自动收进来的较早的老板原话（只读，最近 50 条以外的）
+function showRules(c){
+  $('#rulesText').value=(c.rules||[]).map(r=>r.text||r).join('\n'); $('#rulesSaved').textContent='';
+  const vis=(c.messages||[]).filter(m=>(m.text||(m.attachments||[]).length)&&m.status!=='running'&&!['memory','skill','describe'].includes(m.reason));
+  const first=vis.find(m=>m.from==='boss');
+  const older=vis.length>50?vis.slice(0,-50).filter(m=>m.from==='boss'&&m!==first&&(m.text||'').trim()):[];
+  $('#rulesAuto').hidden=!older.length;
+  $('#rulesAutoList').innerHTML=older.map(m=>`<div class="rauto">${esc(m.text.length>300?m.text.slice(0,300)+'…':m.text)}</div>`).join('');
+}
+$('#rulesSave').onclick=async()=>{ const rules=$('#rulesText').value.split('\n').map(x=>x.trim()).filter(Boolean); const j=await api('rules',{conv:S.cur,rules}); $('#rulesText').value=(j.rules||[]).map(r=>r.text).join('\n'); $('#rulesSaved').textContent='已保存，下一轮起所有队友都会照着做' };
 $('#memReload').onclick=async()=>{const r=await fetch('/api/conv/'+S.cur);$('#memText').value=(await r.json()).memory||'';$('#memSaved').textContent='已读取最新内容'};
 $('#memSave').onclick=async()=>{await api('memory',{conv:S.cur,text:$('#memText').value});$('#memSaved').textContent='已保存'};
 
@@ -790,7 +894,7 @@ function applyTheme(t){ if(t) document.documentElement.dataset.theme=t; else del
 applyTheme(store.get('hola.theme'));
 $('#toggleTheme').onclick=()=>{
   const dark=document.documentElement.dataset.theme==='dark'||(!document.documentElement.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);
-  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t); syncTitleBar(); if(window.Merc) Merc.redraw();
+  const t=dark?'light':'dark'; applyTheme(t); store.set('hola.theme',t); syncTitleBar(); if(window.Merc) Merc.redraw(); previewTheme();
 };
 
 // ---------- 桌面版：自己画的标题栏（拖动区域、给窗口按钮留位置、按钮颜色跟着深浅色走）
@@ -825,14 +929,24 @@ $('#openSettings').onclick=()=>{
   $('#sConcl').innerHTML=S.members.filter(m=>m.enabled).map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
   $('#sConcl').value=s.conclusionBy||'claude'; $('#sPolicy').value=s.policy||'auto';
   $('#sRounds').value=s.maxDiscussRounds??3;
+  // 花费上限和今天已经花了多少
+  $('#sBudgetConv').value=(s.budget||{}).perConv||0; $('#sBudgetDay').value=(s.budget||{}).perDay||0;
+  fetch('/api/spend'+(S.cur?'?conv='+encodeURIComponent(S.cur):'')).then(r=>r.json()).then(j=>{ $('#sSpent').textContent=` ${EN_UI()?'Today':'今天已花'} ¥${(j.today||0).toFixed(2)}${j.conv!=null?` · ${EN_UI()?'this chat':'这个对话'} ¥${(j.conv||0).toFixed(2)}`:''}` }).catch(()=>{});
   $('#sLang').value=window.HOLA_LANG;
-  $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess; $('#sBrowserAsk').checked=s.browserAsk!==false;
+  $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess; $('#sBrowserAsk').checked=s.browserAsk!==false; $('#sPlanConfirm').checked=s.planConfirm!==false;
   $('#sHops').value=s.maxAutoTurns??10;
   $('#settings').showModal();
+  renderEnvNotes();
+  $('#sRecommend').onclick=async()=>{
+    const rec=await (await fetch('/api/team/recommend')).json(); if(rec.error){ toast(rec.error); return }
+    if(!await ask('推荐的团队配置\n\n'+rec.lines.join('\n'),{ok:'套用',cancel:'先不用'})) return;
+    const j=await api('team/apply',{}); if(j.error){ toast(j.error); return }
+    $('#sConcl').value=j.conclusionBy; $('#sPolicy').value=j.policy; toast('已按推荐配置好团队');
+  };
 };
 $('#sCancel').onclick=()=>$('#settings').close();
 $('#sSave').onclick=async()=>{
-  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,policy:$('#sPolicy').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,maxAutoTurns:+$('#sHops').value}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
+  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,policy:$('#sPolicy').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,planConfirm:$('#sPlanConfirm').checked,maxAutoTurns:+$('#sHops').value,budget:{perConv:+$('#sBudgetConv').value||0,perDay:+$('#sBudgetDay').value||0}}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
 };
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
@@ -960,6 +1074,7 @@ function openMember(m){
   const e = (m && m.via === 'relay' ? m.edit : m && m.relay) || (m && m.edit) || {};
   $('#mBase').value = e.baseUrl || ''; $('#mModel').value = e.model || ''; $('#mTemp').value = e.temperature ?? ''; $('#mVision').checked = !!e.vision; $('#mHands').checked = e.hands !== false; $('#mApiEffort').value = e.effort || ''; $('#mModelPick').hidden = true;
   $('#mKey').value = ''; $('#mKey').placeholder = e.keyHint ? `已保存（${e.keyHint}），留空表示不改` : 'sk-...';
+  const pr = e.price || {}; $('#mPriceIn').value = pr.input ?? ''; $('#mPriceCached').value = pr.cached ?? ''; $('#mPriceOut').value = pr.output ?? '';
   $('#mCmd').value = e.cmd || ''; $('#mArgs').value = e.argsText || ''; $('#mParser').value = e.parser || 'plain';
   $('#mReadOnly').checked = !!e.readOnly; $('#mVer').checked = e.versionCheck !== false;
   $('#mPresetNote').textContent = '选一个会自动填好地址和推荐的模型名；模型名以服务商文档为准。';
@@ -1059,7 +1174,9 @@ $('#mSave').onclick = async()=>{
   if(accessShown()) member.access = $('#mFull').checked ? 'full' : 'safe';
   const modelsLoaded = !!$('#mModelSel').querySelector('option[value="__custom"]');
   if(!$('#modelField').hidden && modelsLoaded){ member.cliModel = pickedModel(); member.cliEffort = $('#mEffortSel').value; }
-  const apiPart = ()=>({ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked, hands:$('#mHands').checked, apiEffort:$('#mApiEffort').value });
+  const apiPart = ()=>({ baseUrl:$('#mBase').value.trim(), model:$('#mModel').value.trim(), apiKey:$('#mKey').value.trim(), temperature:$('#mTemp').value.trim(), vision:$('#mVision').checked, hands:$('#mHands').checked, apiEffort:$('#mApiEffort').value,
+    // 单价：输入和输出都填了才算；都空着就不计价（或用内置的 DeepSeek 价）
+    price: $('#mPriceIn').value!==''&&$('#mPriceOut').value!=='' ? { input:+$('#mPriceIn').value, cached:$('#mPriceCached').value===''?+$('#mPriceIn').value:+$('#mPriceCached').value, output:+$('#mPriceOut').value } : null });
   if(builtin && editVia){
     member.via = editVia;
     if(editVia==='relay'){
@@ -1156,8 +1273,11 @@ function connect(){
     else if(ev.type==='state'){ const i=S.convs.findIndex(c=>c.id===ev.conv.id); if(i>=0) S.convs[i]=ev.conv; renderConvs(); if(ev.conv.id===S.cur){ renderRun(); renderUnder() } }
     else if(ev.type==='msg'){ if(ev.conv===S.cur) putMsg(ev.msg, ev.msg.from==='boss'); if(LIB.kind&&(ev.msg.files||ev.msg.attachments)) libReload() }
     else if(ev.type==='library'){ if(LIB.kind) libReload() }
+    else if(ev.type==='hints'){ if(ev.conv===S.cur&&S.conv){ S.conv.ruleHints=ev.hints; renderHints() } }
+    else if(ev.type==='board'){ if(ev.conv===S.cur&&S.conv){ S.conv.board=ev.board; renderBoard() } }
     else if(ev.type==='browser'){ S.browser=ev.browser; renderBrowser() }
     else if(ev.type==='proc'){ if(ev.conv===S.cur) addStep(ev.id,ev.item) }
+    else if(ev.type==='draft'){ if(ev.conv===S.cur&&S.conv){ const m=S.conv.messages.find(x=>x.id===ev.id); if(m&&m.status==='running'){ m.draft=ev.text; putMsg(m) } } }
     else if(ev.type==='projects'){ S.projects=ev.projects||[]; renderConvs() }
     else if(ev.type==='skills'){ S.skills=ev.skills||[]; if($('#skillsDlg').open) renderSkills() }
     else if(ev.type==='profile'){ S.profile=ev.profile; renderMe(); if(S.conv) renderConv() }
