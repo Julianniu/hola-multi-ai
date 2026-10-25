@@ -21,9 +21,6 @@
   <a href="#add-more-ais">Add DeepSeek and others</a>
 </p>
 
-<p align="center"><img src="docs/en/hola-debate.gif" width="720" alt="A real run: Claude changes its mind and backs Codex, Codex still objects, and the main brain writes the split into the conclusion for the boss to decide"></p>
-<!-- Full demo video link (fill in after publishing): <p align="center"><a href="https://…">▶ All of Hola in 4 minutes</a></p> -->
-
 <p align="center"><img src="docs/en/screenshot-consensus.png" alt="Three AIs reach consensus and write a team conclusion"></p>
 
 ---

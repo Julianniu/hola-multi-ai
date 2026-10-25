@@ -21,9 +21,6 @@
   <a href="#接入更多-ai">接入 DeepSeek 等</a>
 </p>
 
-<p align="center"><img src="docs/hola-debate.gif" width="720" alt="真实运行：讨论中 Claude 改口同意 Codex，Codex 仍然有异议，主脑把分歧写进结论等老板拍板"></p>
-<!-- B站完整演示链接（发布后填）：<p align="center"><a href="https://www.bilibili.com/video/BV…">▶ 4 分钟看完 Hola 全部功能（B站）</a></p> -->
-
 <p align="center"><img src="docs/screenshot-consensus.png" alt="三位 AI 讨论后达成共识，给出团队结论"></p>
 
 ---
