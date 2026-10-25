@@ -64,7 +64,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <h2>怎么派活</h2>
 <ul>
 <li><b>直接发送</b>：由<b>主脑</b>（在"设置"里指定，比如 Claude Opus）一个人回答，最快。主脑会把粗活交给帮手，帮手交回来的东西由主脑验收。</li>
-<li><b>开会讨论</b>：点输入框旁的<b>开会讨论</b>（或者写 <code>@大家</code>），几位"大脑"先各自独立作答，再讨论至少一轮，最后由主脑写团队结论。也可以先直接发送，看了主脑的回答觉得需要，再点下面的<b>让大家讨论一下</b>。</li>
+<li><b>开会讨论</b>：点输入框旁三个圆圈的<b>开会讨论</b>按钮（或者写 <code>@大家</code>），几位"大脑"先各自独立作答，再讨论至少一轮，最后由主脑写团队结论。也可以先直接发送，看了主脑的回答觉得需要，再点下面的<b>让大家讨论一下</b>。</li>
 <li><b>大脑和帮手</b>：在 <b>队友</b> → "编辑" 里选角色。大脑参与开会；帮手不开会、只接活，适合用便宜快速的模型（比如 DeepSeek-flash）。<b>干活策略</b>（设置里）决定主脑交多少活给帮手：自动、质量优先、均衡、省钱。</li>
 <li><b>谈不拢时你来拍板</b>：达成共识的话，队友直接按结论分工开干。讨论到轮数上限还有分歧，结论下面会列出几个方案，写明谁支持哪个；点一个方案，或者直接在输入框里说你的决定（不用 @），队友再按你的决定分工。</li>
 <li><b>@ 谁就让谁来</b>：比如"@Codex 把这个表格做成 Excel"。@ 多位时按 @ 的先后顺序依次来。</li>
@@ -136,6 +136,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>点左下角你的头像打开<b>个人主页</b>：头像、怎么称呼你、回答要多详细、讨论风格等，所有队友都会照着来。</li>
 <li><b>设置 → 界面语言 / Language</b> 可以切换中文和英文。</li>
 </ul>
+<p class="note">检查更新：桌面版在"设置 → 更新"里点那颗水银按钮，随时手动检查；有新版本会自己下载、核对签名，点旁边的按钮重启就换上。查不到时设置里会写明原因（比如访问 GitHub 太频繁），Hola 也会换一条路再试。</p>
 <p class="note">桌面版（Windows）：点右上角的 X 只是把 Hola 缩到屏幕右下角的托盘里，队友继续干活；单击托盘图标打开，右键 →"退出 Hola"才真正退出。压缩包版：窗口关掉后，如果 30 分钟内没有活在跑，它会自己退出。两种都可以点左下角"设置"→"退出 Hola"马上退出。</p>
 
 <h2>常见问题</h2>
@@ -147,7 +148,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <dt>双击图标没反应，或者提示没能启动</dt>
 <dd>双击 <b>START.bat</b>，会出现一个带报错信息的窗口，截图后到 <a href="https://github.com/Julianniu/hola-multi-ai/issues">Issues</a> 提问。</dd>
 <dt>想先看看效果，不登录任何账号</dt>
-<dd>双击 <b>START-DEMO.bat</b>，打开 <code>http://localhost:3457</code>，队友会按预设剧本回答。直接发送看主脑一个人回答；点输入框旁的<b>开会讨论</b>，能看到开会、讨论、结论、分工的完整流程。</dd>
+<dd>双击 <b>START-DEMO.bat</b>，打开 <code>http://localhost:3457</code>，队友会按预设剧本回答。直接发送看主脑一个人回答；点输入框旁三个圆圈的<b>开会讨论</b>按钮，能看到开会、讨论、结论、分工的完整流程。</dd>
 </dl>
 </div>
 
@@ -180,7 +181,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <h2>Giving out work</h2>
 <ul>
 <li><b>Just send</b>: the <b>main brain</b> (set in Settings, say Claude Opus) answers alone, which is fastest. It hands routine work to helpers and reviews whatever they hand back.</li>
-<li><b>Meet</b>: click <b>Meet</b> next to the input box (or write <code>@all</code>). The "brains" answer independently, discuss for at least one round, and the main brain writes the team conclusion. You can also just send first and, if the answer needs more thought, click <b>Ask the team to discuss</b> under it.</li>
+<li><b>Meet</b>: click <b>Meet</b>, the three circles next to the input box (or write <code>@all</code>). The "brains" answer independently, discuss for at least one round, and the main brain writes the team conclusion. You can also just send first and, if the answer needs more thought, click <b>Ask the team to discuss</b> under it.</li>
 <li><b>Brains and helpers</b>: choose a role under <b>Teammates</b> → "Edit". Brains join meetings; helpers don't, and only take work, which suits cheap, fast models (such as DeepSeek-flash). The <b>work strategy</b> (in Settings) decides how much the main brain hands to helpers: automatic, quality first, balanced, or save money.</li>
 <li><b>You decide when they can't agree</b>: with consensus, the team goes ahead and divides up the work. If they're still split at the round limit, the conclusion lists a few options and who supports each; pick one, or just type your decision in the box (no @ needed), and the team divides the work accordingly.</li>
 <li><b>@ someone to assign it</b>: e.g. "@Codex turn this table into Excel". With several @s, they go in @ order.</li>
@@ -252,6 +253,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>Click your avatar at the bottom left for <b>your profile</b>: avatar, what to call you, how detailed answers should be, discussion style and more. Every teammate follows it.</li>
 <li><b>Settings → 界面语言 / Language</b> switches between Chinese and English.</li>
 </ul>
+<p class="note">Checking for updates: in the desktop app, click the mercury button in Settings → Updates to check any time. A new version downloads and has its signature verified on its own; click the button next to it to restart into it. If a check fails, Settings says why (for example, GitHub is limiting requests), and Hola also tries another route.</p>
 <p class="note">Desktop app (Windows): the X only tucks Hola into the tray at the bottom right of the screen, and teammates keep working. Click the tray icon to open it; right-click → "Quit Hola" quits for real. Zip version: after you close the window, it exits on its own if nothing has run for 30 minutes. Either way, "Settings" → "Quit Hola" quits right away.</p>
 
 <h2>FAQ</h2>
@@ -263,7 +265,7 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <dt>Nothing happens when I double-click the icon</dt>
 <dd>Double-click <b>START.bat</b> to see a window with the error, take a screenshot and ask in <a href="https://github.com/Julianniu/hola-multi-ai/issues">Issues</a>.</dd>
 <dt>I want to try it without signing in to anything</dt>
-<dd>Double-click <b>START-DEMO.bat</b> and open <code>http://localhost:3457</code>. The teammates answer from a script. Just send to see the main brain answer alone; click <b>Meet</b> next to the input box to see the whole flow: meeting, discussion, conclusion and hand-offs.</dd>
+<dd>Double-click <b>START-DEMO.bat</b> and open <code>http://localhost:3457</code>. The teammates answer from a script. Just send to see the main brain answer alone; click <b>Meet</b> (the three circles next to the input box) to see the whole flow: meeting, discussion, conclusion and hand-offs.</dd>
 </dl>
 </div>
 </div>

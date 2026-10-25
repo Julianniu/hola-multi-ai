@@ -1,29 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Hola 标志（V3）：白底，三个圆 + 中间一点，只用黑色线条 -->
   <defs>
-    <radialGradient id="bg" cx="50%" cy="46%" r="70%">
-      <stop offset="0" stop-color="#2A2D52"/>
-      <stop offset="1" stop-color="#14162A"/>
-    </radialGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="14"/>
-    </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E6E8EB"/>
+    </linearGradient>
     <clipPath id="tile"><rect width="256" height="256" rx="58"/></clipPath>
   </defs>
   <g clip-path="url(#tile)">
     <rect width="256" height="256" fill="url(#bg)"/>
-    <!-- soft halo -->
-    <g filter="url(#glow)" opacity=".55" style="mix-blend-mode:screen">
-      <circle cx="128" cy="98" r="56" fill="#FF5A4E"/>
-      <circle cx="98" cy="150" r="56" fill="#3D7BFF"/>
-      <circle cx="158" cy="150" r="56" fill="#22D39A"/>
+    <rect x="1" y="1" width="254" height="254" rx="57" fill="none" stroke="#000000" stroke-opacity=".10" stroke-width="2"/>
+    <!-- mark -->
+    <g fill="none" stroke="#16181C" stroke-width="11">
+      <circle cx="128" cy="104" r="52"/>
+      <circle cx="103" cy="147" r="52"/>
+      <circle cx="153" cy="147" r="52"/>
     </g>
-    <!-- three lights, additive -->
-    <g style="isolation:isolate">
-      <circle cx="128" cy="104" r="52" fill="#FF5A4E" style="mix-blend-mode:screen"/>
-      <circle cx="103" cy="147" r="52" fill="#3D7BFF" style="mix-blend-mode:screen"/>
-      <circle cx="153" cy="147" r="52" fill="#22D39A" style="mix-blend-mode:screen"/>
-    </g>
-    <!-- the boss: the point where all light meets -->
-    <circle cx="128" cy="131" r="9" fill="#FFFFFF"/>
+    <circle cx="128" cy="131" r="12" fill="#16181C"/>
   </g>
 </svg>

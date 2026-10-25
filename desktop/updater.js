@@ -135,33 +135,55 @@ function chooseCodeDir({ bundledDir, appsDir, pubKey = RELEASE_PUBKEY }) {
   return { dir, version: p.version, updated: true };
 }
 
+// GitHub 的 API 不让查时（同一个出口 IP 每小时只能查 60 次，公司 VPN 很容易用完；或者 API 连不上），
+// 换一条路：打开网页版的"最新发布"页，它会跳到 /releases/tag/v1.2.3，从跳转后的地址读出版本号，更新包的下载地址是固定格式
+const PAGE = 'https://github.com/Julianniu/hola-multi-ai/releases/latest';
+async function latestFromPage(fetch, pageUrl) {
+  const r = await fetch(pageUrl, { redirect: 'follow', signal: AbortSignal.timeout(15000) });
+  const m = /\/releases\/tag\/v(\d+\.\d+\.\d+)\/?$/.exec(String(r.url || ''));
+  if (!r.ok || !m) throw new Error('page: ' + (r.ok ? 'no version in ' + r.url : 'HTTP ' + r.status));
+  const base = String(r.url).replace(/\/releases\/tag\/v[\d.]+\/?$/, '');
+  return { tag_name: 'v' + m[1], html_url: r.url, assets: [{ name: `hola-app-${m[1]}.zip`, browser_download_url: `${base}/releases/download/v${m[1]}/hola-app-${m[1]}.zip`, guessed: true }] };
+}
+
 // 去 GitHub 看有没有新版本；有的话下载程序更新包、核对、解压，准备好下次启动用
-// fetch 由外壳传进来（Electron 的 net.fetch 会走系统代理）；任何网络问题都安静地失败
-async function checkForUpdate({ fetch, apiUrl = API, currentVersion, shellVersion, appsDir, pubKey = RELEASE_PUBKEY }) {
+// fetch 由外壳传进来（Electron 的 net.fetch 会走系统代理）；查不到时返回 { status: 'error', error: 原因 }，由外壳记进日志
+// onProgress({ status: 'checking' | 'downloading', version })：给设置里的"检查更新"显示进度
+async function checkForUpdate({ fetch, apiUrl = API, pageUrl = PAGE, currentVersion, shellVersion, appsDir, pubKey = RELEASE_PUBKEY, onProgress = () => {} }) {
   try {
-    const r = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) });
-    if (!r.ok) return { status: 'error', error: 'HTTP ' + r.status };
-    const rel = await r.json();
+    onProgress({ status: 'checking' });
+    let rel, apiErr = '';
+    try {
+      const r = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) });
+      if (r.ok) rel = await r.json(); else apiErr = 'HTTP ' + r.status;
+    } catch (e) { apiErr = e.message; }
+    if (!rel) {
+      try { rel = await latestFromPage(fetch, pageUrl); } catch (e) { return { status: 'error', error: `${apiErr}; ${e.message}`, via: 'page' }; }
+    }
+    const via = apiErr ? 'page' : 'api';
     const latest = String(rel.tag_name || '').replace(/^v/, '');
-    if (!/^\d+\.\d+\.\d+$/.test(latest) || cmpVersion(latest, currentVersion) <= 0) return { status: 'latest' };
-    if (readPointer(appsDir).bad.includes(latest)) return { status: 'latest' };
-    const page = /^https:\/\/github\.com\//.test(rel.html_url || '') ? rel.html_url : 'https://github.com/Julianniu/hola-multi-ai/releases/latest';
+    if (!/^\d+\.\d+\.\d+$/.test(latest) || cmpVersion(latest, currentVersion) <= 0) return { status: 'latest', via };
+    if (readPointer(appsDir).bad.includes(latest)) return { status: 'latest', via };
+    const page = /^https:\/\/github\.com\//.test(rel.html_url || '') ? rel.html_url : PAGE;
     const asset = (rel.assets || []).find((a) => a && a.name === `hola-app-${latest}.zip`);
-    if (!asset) return { status: 'needs-shell', version: latest, page };
+    if (!asset) return { status: 'needs-shell', version: latest, page, via };
+    onProgress({ status: 'downloading', version: latest });
     const d = await fetch(asset.browser_download_url, { signal: AbortSignal.timeout(180000) });
-    if (!d.ok) return { status: 'error', error: 'HTTP ' + d.status };
+    // 走网页那条路时更新包的地址是猜的：没有这个文件，说明这次只有安装包，得去下载新安装包
+    if (!d.ok && asset.guessed && d.status === 404) return { status: 'needs-shell', version: latest, page, via };
+    if (!d.ok) return { status: 'error', error: 'HTTP ' + d.status, via };
     const buf = Buffer.from(await d.arrayBuffer());
     try {
       const v = installBundle(buf, { appsDir, pubKey, shellVersion, currentVersion });
       setCurrent(appsDir, v);
-      return { status: 'ready', version: v, page };
+      return { status: 'ready', version: v, page, via };
     } catch (e) {
-      if (e.message === 'needs-new-shell') return { status: 'needs-shell', version: latest, page };
-      return { status: 'error', error: e.message };
+      if (e.message === 'needs-new-shell') return { status: 'needs-shell', version: latest, page, via };
+      return { status: 'error', error: e.message, via };
     }
   } catch (e) {
     return { status: 'error', error: e.message };
   }
 }
 
-module.exports = { unzip, installBundle, readPointer, setCurrent, markBad, markStarted, chooseCodeDir, checkForUpdate, API };
+module.exports = { unzip, installBundle, readPointer, setCurrent, markBad, markStarted, chooseCodeDir, checkForUpdate, latestFromPage, API, PAGE };

@@ -2,9 +2,9 @@
 //   build/icon.png      1024×1024，Mac 安装包要的大图标
 //   hola.ico            Windows 安装包、桌面快捷方式用（16–256 每个尺寸单独按原尺寸画，不是从大图缩小，所以小图标也清楚）
 //   desktop/hola.ico    同上，给窗口和任务栏用（打包时 desktop/ 会带进去）
-//   desktop/tray.ico    右下角托盘用：只画三个圆和中间的白点，不带深色底板，在深浅任务栏上都清楚
-//   public/favicon.png  64×64
-// 小于等于 32 像素时去掉光晕（缩小后会糊成一团），中间的白点放大一点（不然只剩半个像素看不见）
+//   desktop/tray.ico    右下角托盘用：和桌面图标一样（白底黑线，老板定的），在深浅任务栏上都看得清
+//   public/favicon.png  64×64；public/icon-192.png  192×192（Mac / Linux 的窗口图标）
+// V3 标志是白底上的黑色线条：尺寸越小，线条越粗、中间的点越大、三个圆放大一点（不然 16 像素时线条只剩半个像素）
 // 用法：npx electron tools/make-icon.js
 'use strict';
 const { app, BrowserWindow } = require('electron');
@@ -16,25 +16,15 @@ const LOGO = fs.readFileSync(path.join(ROOT, 'public', 'logo.svg'), 'utf8');
 
 function tileSvg(px) {
   let s = LOGO.replace(/width="\d+" height="\d+"/, `width="${px}" height="${px}"`);
-  if (px <= 32) {
-    s = s.replace(/<!-- soft halo -->[\s\S]*?<\/g>\s*/, '');
-    s = s.replace('r="9" fill="#FFFFFF"', `r="${px <= 16 ? 22 : px <= 24 ? 17 : 14}" fill="#FFFFFF"`);
-    // 小图标里三个圆放大一点，多占几个像素
-    const k = px <= 16 ? 1.2 : px <= 24 ? 1.14 : 1.08;
+  if (px <= 48) {
+    const sw = px <= 16 ? 18 : px <= 20 ? 16.5 : px <= 24 ? 15 : px <= 32 ? 13.5 : 12, dot = px <= 16 ? 18 : px <= 24 ? 16 : px <= 32 ? 14 : 13;
+    const k = px <= 16 ? 1.16 : px <= 24 ? 1.12 : px <= 32 ? 1.07 : 1.03;
     const tf = `transform="translate(128 128) scale(${k}) translate(-128 -128)"`;
-    s = s.replace('<g style="isolation:isolate">', `<g style="isolation:isolate" ${tf}>`).replace('<circle cx="128" cy="131"', `<circle ${tf} cx="128" cy="131"`);
+    s = s.replace('stroke="#16181C" stroke-width="11">', `stroke="#16181C" stroke-width="${sw}" ${tf}>`).replace('<circle cx="128" cy="131" r="12"', `<circle ${tf} cx="128" cy="131" r="${dot}"`);
   }
   return s;
 }
-// 托盘：三个圆铺满画面，没有底板
-function traySvg(px) {
-  const dot = px <= 16 ? 26 : px <= 24 ? 21 : 17;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 22 220 216" width="${px}" height="${px}"><g style="isolation:isolate">
-<circle cx="128" cy="86" r="62" fill="#FF5A4E" style="mix-blend-mode:screen"/>
-<circle cx="88" cy="160" r="62" fill="#3D7BFF" style="mix-blend-mode:screen"/>
-<circle cx="168" cy="160" r="62" fill="#22D39A" style="mix-blend-mode:screen"/></g>
-<circle cx="128" cy="135" r="${dot}" fill="#FFFFFF"/></svg>`;
-}
+const traySvg = tileSvg;
 
 // 在页面的 canvas 上按目标像素直接画 SVG（矢量按这个尺寸栅格化），不受屏幕缩放影响
 async function render(win, svg, px) {
@@ -79,6 +69,8 @@ app.whenReady().then(async () => {
   for (const px of [16, 20, 24, 32, 40, 48, 64]) trays.push([px, await render(win, traySvg(px), px)]);
   fs.writeFileSync(path.join(ROOT, 'desktop', 'tray.ico'), ico(trays));
   fs.writeFileSync(path.join(ROOT, 'public', 'favicon.png'), await render(win, tileSvg(64), 64));
+  fs.writeFileSync(path.join(ROOT, 'public', 'icon-192.png'), await render(win, tileSvg(192), 192));
+  fs.writeFileSync(path.join(ROOT, 'docs', 'logo.png'), await render(win, tileSvg(256), 256)); // README 顶上的标志
   // 检查用：把托盘和小尺寸图标放大并排存一张（不提交）
   if (process.env.ICON_PREVIEW) {
     const parts = [...tiles.filter(([p]) => p <= 48), ...trays.filter(([p]) => p <= 32)];

@@ -4,7 +4,21 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('holaDesktop', {
-  shell: 3, // 外壳能力的版本：1.1 起有标题栏和内置浏览器；2.0 起有托盘和页面画的更新提示
+  shell: 4, // 外壳能力的版本：1.1 起有标题栏和内置浏览器；2.0 起有托盘和页面画的更新提示；3.0 起设置里能手动检查更新
+  // 外壳 3.0 起：设置里的"检查更新"。check() 返回最后的结果；检查、下载的过程通过 onProgress 推过来
+  // 外壳 3.0 起（Windows）：窗口按钮由页面自己画（右上角的玻璃胶囊），通过这里最小化 / 最大化 / 关闭（关闭 = 缩到托盘）
+  win: process.platform === 'win32' ? {
+    minimize: () => ipcRenderer.send('hola:win', 'min'),
+    toggleMaximize: () => ipcRenderer.send('hola:win', 'max'),
+    close: () => ipcRenderer.send('hola:win', 'close'),
+    state: () => ipcRenderer.invoke('hola:win-state'),
+    onState: (fn) => ipcRenderer.on('hola:win-state', (_, s) => fn(s)),
+  } : null,
+  updates: {
+    check: () => ipcRenderer.invoke('hola:update-check'),
+    state: () => ipcRenderer.invoke('hola:update-state'),
+    onProgress: (fn) => ipcRenderer.on('hola:update-progress', (_, u) => fn(u)),
+  },
   platform: process.platform,
   setTitleBarColors: (bg, fg) => ipcRenderer.send('hola:titlebar', { bg: String(bg), fg: String(fg) }),
   // 有事等老板（比如队友要点网页）而 Hola 不在前台：任务栏图标闪一闪

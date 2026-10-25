@@ -174,6 +174,33 @@ describe('自动更新', () => {
       up.markBad(appsDir, '1.2.0');
       assert.equal((await check(fakeFetch(release('1.2.0'), bundle('1.2.0')))).status, 'latest');
     });
+    // GitHub 的 API 每个出口 IP 每小时只给查 60 次（公司 VPN 很容易用完）：换成打开网页版的"最新发布"页，从跳转后的地址读版本号
+    const pageFetch = (zip, { assetStatus = 200 } = {}) => async (url) => {
+      if (url.includes('api.github.com')) return { ok: false, status: 403 };
+      if (url.endsWith('/releases/latest')) return { ok: true, status: 200, url: 'https://github.com/Julianniu/hola-multi-ai/releases/tag/v1.4.0' };
+      if (url === 'https://github.com/Julianniu/hola-multi-ai/releases/download/v1.4.0/hola-app-1.4.0.zip') return assetStatus === 200 ? { ok: true, arrayBuffer: async () => zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.length) } : { ok: false, status: assetStatus };
+      throw new Error('unexpected ' + url);
+    };
+    it('API 不让查（403）：换网页那条路，照样下载、核对、装好', async () => {
+      fresh();
+      const seen = [];
+      const r = await up.checkForUpdate({ fetch: pageFetch(bundle('1.4.0')), currentVersion: '1.0.0', shellVersion: '1.0.0', appsDir, pubKey: PUB, onProgress: (u) => seen.push(u.status) });
+      assert.deepEqual([r.status, r.version, r.via], ['ready', '1.4.0', 'page']);
+      assert.deepEqual(seen, ['checking', 'downloading'], '设置里的"检查更新"能看到进度');
+      assert.equal(up.readPointer(appsDir).version, '1.4.0');
+    });
+    it('网页那条路上没有程序更新包（这次只有安装包）：提示去下载页', async () => {
+      fresh();
+      const r = await up.checkForUpdate({ fetch: pageFetch(null, { assetStatus: 404 }), currentVersion: '1.0.0', shellVersion: '1.0.0', appsDir, pubKey: PUB });
+      assert.equal(r.status, 'needs-shell');
+      assert.match(r.page, /^https:\/\/github\.com\/Julianniu\/hola-multi-ai\/releases\/tag\/v1\.4\.0$/);
+    });
+    it('两条路都不通：返回两边的原因（外壳记进 update.log）', async () => {
+      fresh();
+      const r = await check(async (url) => (url.includes('api.github.com') ? { ok: false, status: 429 } : { ok: false, status: 502, url }));
+      assert.equal(r.status, 'error');
+      assert.match(r.error, /HTTP 429.*HTTP 502/);
+    });
   });
 
   // 发版时（HOLA_BUNDLE_DIR=dist）：拿刚打出来的、用作者真钥匙签名的更新包，按桌面版的流程装一遍，再跑起来

@@ -10,6 +10,19 @@ const store = { get(k){ try{return localStorage.getItem(k)}catch(_){return null}
 // ---------- helpers
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function member(id){return S.members.find(m=>m.id===id)||{id,name:id}}
+// 队友头像：各家自己的标志（index.html 里的 #v-xxx，画成银色），按名字、接口地址、模型名认；认不出来的用通用圆环
+const VENDORS=[['deepseek',/deepseek/],['qwen',/qwen|dashscope|tongyi|bailian/],['kimi',/kimi|moonshot/],['zhipu',/zhipu|bigmodel|glm/],['doubao',/doubao|volces|volcengine/],['minimax',/minimax|abab/],['wenxin',/wenxin|ernie|qianfan|baidu/],['hunyuan',/hunyuan|tencent/],['spark',/xfyun|xinghuo|iflytek|spark/],['yi',/lingyi|01\.ai|\byi-/],['baichuan',/baichuan/],['stepfun',/stepfun|\bstep-\d/],['grok',/grok|x\.ai/],['mistral',/mistral|mixtral|codestral/],['meta',/(^|[^o])llama|meta-/],['claude',/claude|anthropic/],['gemini',/gemini|generativelanguage|antigravity/],['openai',/codex|openai|gpt/],['perplexity',/perplexity|sonar/],['ollama',/ollama|:11434/],['openrouter',/openrouter/],['siliconcloud',/silicon/]];
+function vendorOf(m){
+  if(!m||!m.id) return 'generic';
+  const e=m.edit||{}, p=e.parser||'';
+  if(m.builtin){ if(m.id==='claude'||p==='claude-stream') return 'claude'; if(m.id==='codex'||p==='codex-json') return 'openai'; if(m.id==='gemini'||p==='agy-json') return 'gemini' }
+  const txt=[m.name,m.id,e.baseUrl,e.model,e.cmd,m.model].join(' ').toLowerCase();
+  for(const [v,re] of VENDORS) if(re.test(txt)) return v;
+  return p==='claude-stream'?'claude':p==='codex-json'?'openai':p==='agy-json'?'gemini':'generic';
+}
+const vendorSVG=(id)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#v-${vendorOf(member(id))}"/></svg>`;
+const orbHTML=(id,cls)=>`<span class="orb${cls?' '+cls:''}">${vendorSVG(id)}</span>`;
+const LOGO='<svg class="logo" viewBox="0 0 256 256" aria-hidden="true"><use href="#hola-logo"/></svg>';
 function nameOf(id){return id==='boss'?(S.profile.name||t('你')):id==='system'?t('系统'):member(id).name}
 function fmtTime(ts){return new Date(ts).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}
 // ---------- 用量（tokens）
@@ -146,14 +159,15 @@ function renderConvs(){
   const el=$('#convs'); const P=S.projects||[];
   const byP=new Map(P.map(p=>[p.id,[]])); const loose=[];
   for(const c of S.convs){ if(c.project&&byP.has(c.project)) byP.get(c.project).push(c); else loose.push(c) }
-  let h=`<div class="sechead"><span>项目</span><button data-newproj title="新建项目" aria-label="新建项目"><svg class="i"><use href="#i-plus"/></svg></button></div>`;
-  if(!P.length) h+=`<div class="phint">新建一个项目，把相关的对话归进去，每个对话就是一个任务，进度一目了然。</div>`;
+  let h=`<div class="sechead" data-dropnew title="把对话拖到这里：新建一个项目放进去"><span>项目</span><button data-newproj title="新建项目" aria-label="新建项目"><svg class="i"><use href="#i-plus"/></svg></button></div>`;
+  if(!P.length) h+=`<div class="phint">新建一个项目，把相关的对话归进去（直接把对话拖到上面“项目”这一栏也行），每个对话就是一个任务，进度一目了然。</div>`;
   for(const p of P){
     const list=byP.get(p.id).sort((x,y)=>(x.status==='done')-(y.status==='done'));
     const done=list.filter(c=>c.status==='done').length;
     const col=store.get('hola.pc.'+p.id)==='1';
-    h+=`<div class="proj${col?' col':''}" data-pid="${p.id}"><button class="ph" data-ptoggle><svg class="i"><use href="#i-chev"/></svg><span class="pn" data-raw>${esc(p.name)}</span><small>${done}/${list.length}</small></button><button class="pa" data-pnew title="在这个项目里新建任务" aria-label="在这个项目里新建任务"><svg class="i"><use href="#i-plus"/></svg></button><button class="pa" data-pedit title="编辑项目" aria-label="编辑项目"><svg class="i"><use href="#i-dots"/></svg></button></div>`;
+    h+=`<div class="pzone" data-pid="${p.id}"><div class="proj${col?' col':''}" data-pid="${p.id}"><button class="ph" data-ptoggle><svg class="i"><use href="#i-chev"/></svg><span class="pn" data-raw>${esc(p.name)}</span><small>${done}/${list.length}</small></button><button class="pa" data-pnew title="在这个项目里新建任务" aria-label="在这个项目里新建任务"><svg class="i"><use href="#i-plus"/></svg></button><button class="pa" data-pedit title="编辑项目" aria-label="编辑项目"><svg class="i"><use href="#i-dots"/></svg></button></div>`;
     if(!col) h+=`<div class="ptasks">${list.map(c=>convRow(c,true)).join('')||'<div class="pempty">还没有任务，点 + 新建，或把对话拖进来</div>'}</div>`;
+    h+='</div>';
   }
   const today=new Date().toDateString(); let lastGroup='';
   h+=`<div class="sechead" data-dropnone><span>对话</span></div>`;
@@ -176,10 +190,18 @@ function renderConvs(){
     row.querySelector('[data-pnew]').onclick=async()=>{ store.set('hola.pc.'+pid,''); const {id}=await api('conv/new',{project:pid}); await openConv(id); $('#side').classList.remove('show'); input.focus() };
     row.querySelector('[data-pedit]').onclick=()=>openProject(p);
   });
-  el.querySelectorAll('.proj,[data-dropnone]').forEach(z=>{
-    z.ondragover=e=>{ if([...e.dataTransfer.types].includes('text/hola-conv')){ e.preventDefault(); z.classList.add('drop') } };
-    z.ondragleave=()=>z.classList.remove('drop');
-    z.ondrop=e=>{ e.preventDefault(); z.classList.remove('drop'); const id=e.dataTransfer.getData('text/hola-conv'); if(id) api('conv/project',{conv:id,project:z.dataset.pid||null}) };
+  el.querySelectorAll('.pzone,[data-dropnone],[data-dropnew]').forEach(z=>{
+    let n=0; // 拖过里面的子元素时 dragenter / dragleave 会成对出现，用计数免得高亮一闪一闪
+    const conv=(e)=>[...e.dataTransfer.types].includes('text/hola-conv');
+    z.ondragenter=e=>{ if(conv(e)){ n++; z.classList.add('drop') } };
+    z.ondragover=e=>{ if(conv(e)){ e.preventDefault(); e.dataTransfer.dropEffect='move' } };
+    z.ondragleave=()=>{ if(--n<=0){ n=0; z.classList.remove('drop') } };
+    z.ondrop=async e=>{
+      e.preventDefault(); n=0; z.classList.remove('drop');
+      const id=e.dataTransfer.getData('text/hola-conv'); if(!id) return;
+      if(z.dataset.dropnew!=null){ openProject(null, id); return }
+      api('conv/project',{conv:id,project:z.dataset.pid||null});
+    };
   });
   renderCrumb();
 }
@@ -261,14 +283,14 @@ function renderLights(){
   $('#lightsSvg').innerHTML=list.map((m,i)=>{
     const a=-Math.PI/2+(2*Math.PI*i)/Math.max(n,1), x=20+r*Math.cos(a), y=16+r*Math.sin(a);
     const cls=!m.online?'off':working.includes(m.id)?'work':working.length||!act.includes(m.id)?'dim':'';
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${m.color}" style="color:${m.color}" class="${cls}"/>`;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="#9AA0A9" class="${cls}"/>`;
   }).join('');
   syncLights(cs, working, act, list);
   const on=list.filter(m=>m.online).length;
   const PH={initial:'各自思考中',discuss:'内部讨论中',conclusion:'整理结论中',decided:'按你的拍板分工中',memory:'整理记忆中',skill:'整理技能中'};
   $('#whoText').textContent = working.length ? (PH[cs.phase] || (working.length>1?`${working.length} 位在干活`:`${member(working[0]).name} 在干活`))
     : list.some(m=>m.problem==='检查中…') ? '检查中' : `${on}/${n} 在线`;
-  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span><div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}${m.model&&m.model!==m.version?` · <span data-raw>${esc(m.model)}</span>`:''}</p>${S.cards&&S.cards[m.id]&&S.cards[m.id].line?`<p class="card" data-raw>${esc(S.cards[m.id].line)}</p>`:''}${S.cards&&S.cards[m.id]&&S.cards[m.id].health?healthLine(S.cards[m.id].health):''}</div></div>`).join('') +
+  $('#memberPop').innerHTML = list.map(m=>`<div class="mem-row">${orbHTML(m.id,m.online?'':'off')}<div><b>${esc(m.name)}</b>${m.type==='api'?' · API':m.access==='full'?' · 完全权限':m.readOnly?' · 只读':''}<p>${esc(m.strengths)}</p><p class="${m.online?'':'bad'}">${m.online?'在线 '+esc(m.version||''):esc(m.problem||'不在线')}${m.model&&m.model!==m.version?` · <span data-raw>${esc(m.model)}</span>`:''}</p>${S.cards&&S.cards[m.id]&&S.cards[m.id].line?`<p class="card" data-raw>${esc(S.cards[m.id].line)}</p>`:''}${S.cards&&S.cards[m.id]&&S.cards[m.id].health?healthLine(S.cards[m.id].health):''}</div></div>`).join('') +
     convUsageHTML() +
     `<div style="padding:6px 8px 4px;display:flex;gap:6px"><span class="btn" id="popRecheck" role="button">重新检查</span><span class="btn" id="popTeam" role="button">管理队友</span></div>`;
   const pt=$('#popTeam'); if(pt) pt.onclick=e=>{e.stopPropagation();$('#memberPop').classList.remove('show');openTeam()};
@@ -284,7 +306,7 @@ function renderUnder(){
   const hint = '发送：主脑回答 · 开会讨论：大脑们讨论出团队结论 · @ 某人：按 @ 的顺序来';
   $('#under').innerHTML = `<span class="lbl">参与</span>` + enabledMembers().map(m=>{
     const on=act.includes(m.id);
-    return `<button class="part${on?'':' off'}${m.online?'':' down'}" style="--mc:${m.color}" data-part="${m.id}" title="${on?'点一下：这次不让 Ta 参与':'点一下：让 Ta 参与'}${m.online?'':'（不在线）'}"><i></i><span>${esc(m.name)}</span>${m.role==='helper'?'<em>帮手</em>':''}</button>`;
+    return `<button class="part${on?'':' off'}${m.online?'':' down'}" style="--mc:${m.color}" data-part="${m.id}" data-orb title="${on?'点一下：这次不让 Ta 参与':'点一下：让 Ta 参与'}${m.online?'':'（不在线）'}">${orbHTML(m.id)}<span>${esc(m.name)}</span>${m.role==='helper'?'<em>帮手</em>':''}</button>`;
   }).join('') + `<span class="hint">${hint}</span>`;
   $('#under').querySelectorAll('[data-part]').forEach(b=>b.onclick=async()=>{
     const id=await ensureConv(); const c=S.convs.find(x=>x.id===id); let a=activeFor(c);
@@ -317,10 +339,10 @@ function renderEmpty(){
     '@Gemini 先查最近耳机类小红书爆款笔记的风格，@Claude 再据此写 5 篇文案，@Codex 最后整理成 Excel 表',
     '我发了一张竞品海报，大家分别从文案、视觉、卖点三个角度点评一下',
     '@Codex 做一个网页小工具：输入活动预算和达人报价，自动算出投放组合'];
-  $('#feed').innerHTML=`<div class="empty"><img class="glow" src="/logo.svg" alt="">
+  $('#feed').innerHTML=`<div class="empty"><svg class="glow" viewBox="0 0 256 256" aria-hidden="true"><use href="#hola-logo"/></svg>
     <h2>${S.profile.callMe?esc(S.profile.callMe)+'，':''}今天让大家一起做什么？</h2>
-    <p>直接发送，由主脑回答，最快。值得多想想的问题，点「开会讨论」：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。</p>
-    <div class="team">${enabledMembers().map(m=>`<div><b><i style="background:${m.color};box-shadow:0 0 8px ${m.color}"></i>${esc(m.name)}</b><span>${esc(m.strengths)}</span></div>`).join('')}</div>
+    <p>直接发送，由主脑回答，最快。值得多想想的问题，点输入框旁三个圆圈的「开会讨论」按钮：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。</p>
+    <div class="team">${enabledMembers().map(m=>`<div><b>${orbHTML(m.id,'sm')}${esc(m.name)}</b><span>${esc(m.strengths)}</span></div>`).join('')}</div>
     <div class="tries">${tries.map(t=>`<button>${esc(t)}</button>`).join('')}</div></div>`;
   $('#feed').querySelectorAll('.tries button').forEach(b=>b.onclick=()=>{input.value=b.textContent;autoGrow();updateSend();input.focus()});
 }
@@ -456,7 +478,7 @@ function msgHTML(m){
   const reviewHead = passed ? `<div class="rv"><canvas class="merc" data-merc="check" data-state="pass" data-colors="#22D39A" data-key="${esc(m.id)}" data-ts="${m.endedAt||''}" aria-hidden="true"></canvas><b class="review ${m.review}">${m.review==='pass'?'验收通过':'改好后通过'}</b>${m.skillHint&&m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="这次的做法验收通过了：存成技能，下次同类的活直接照着做"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   const stance = m.reason==='discuss'&&m.status==='done'&&m.stance ? `<span class="stance ${m.stance}">${m.stance==='agree'?'同意':'有异议'}</span>` : '';
   const concl = m.reason==='conclusion';
-  const conclHead = concl&&!running ? `<div class="concl-head"><img src="/logo.svg" alt="">团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
+  const conclHead = concl&&!running ? `<div class="concl-head">${LOGO}团队结论<small>${m.consensus?'大家达成共识':m.awaitDecision?(m.decided?'老板已拍板':'仍有分歧，等你拍板'):'仍有分歧，已写明'}</small>${m.status==='done'?`<button class="save-skill" data-saveskill="${m.id}" title="把这次的做法沉淀到技能库，下次同类任务直接用"><svg class="i"><use href="#i-book"/></svg>存为技能</button>`:''}</div>` : '';
   let body;
   const WK={main:'思考中',review:'验收中',handoff:'接手中',initial:'独立思考中',discuss:'读队友的观点，思考中',conclusion:'整理团队结论',decided:'按你的拍板分工',fix:'返工中',replan:'调整中'};
   const sp=showProc(), anySteps=(m.process||[]).some(x=>x.k!=='say');
@@ -476,7 +498,7 @@ function msgHTML(m){
   const showBubble = m.text || running || m.from!=='boss';
   const memb = m.from!=='boss';
   const bossPic = !memb && S.profile.avatar ? ` pic" style="background-image:url('${S.profile.avatar}')` : '';
-  return `<div class="row ${memb?'mem':'boss'}${concl?' concl':''}"${memb?` style="--mc:${colorOf(m.from)}"`:''}><span class="av ${memb?'mem':'boss'}${bossPic}"></span><div class="col">
+  return `<div class="row ${memb?'mem':'boss'}${concl?' concl':''}"${memb?` style="--mc:${colorOf(m.from)}"`:''}><span class="av ${memb?'mem':'boss'}${bossPic}">${memb?vendorSVG(m.from):''}</span><div class="col">
     <div class="meta"><span class="who">${esc(nameOf(m.from))}</span>${tag?`<span>${tag}</span>`:''}${stance}${reviewTag}${(m.skills||[]).map(k=>`<span class="skilltag" data-openskill="${esc(k.id)}" title="用了技能库里的这个技能"><svg class="i"><use href="#i-book"/></svg><span data-raw>${esc(k.name)}</span></span>`).join('')}<span>${fmtTime(m.ts)}${state}</span></div>
     ${files}${showBubble?`<div class="bubble${m.status==='error'?' err':''}">${body}${latest}</div>`:''}${out}${proc}</div></div>`;
 }
@@ -534,6 +556,7 @@ function bindFiles(el){
 $('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
 // ---------- 版本标识：官方版 / 开发版 / 非官方修改版（服务端启动时核对签名和文件指纹）
 function renderBuild(b){
+  S.build=b||{};
   const tag=$('#buildTag'); if(!b) return;
   const en=EN_UI(), st=b.status;
   // 平时不在侧栏显示版本号（在设置窗口底部）；只有被改过、不是官方版时才在侧栏提醒
@@ -762,7 +785,7 @@ function checkMention(){
   if(!m){hideMpop();return}
   mStart=pos-m[0].length; const opts=mentionOptions(m[1]); if(!opts.length){hideMpop();return}
   mIdx=Math.min(mIdx,opts.length-1);
-  const p=$('#mpop'); p.innerHTML=opts.map((o,i)=>`<button class="${i===mIdx?'sel':''}" data-v="${esc(o.v)}"><i style="background:${o.id==='all'?'conic-gradient(#FF5A4E,#22D39A,#3D7BFF,#FF5A4E)':colorOf(o.id)}"></i>${esc(o.v)}<small>${esc(o.d)}</small></button>`).join('');
+  const p=$('#mpop'); p.innerHTML=opts.map((o,i)=>`<button class="${i===mIdx?'sel':''}" data-v="${esc(o.v)}">${o.id==='all'?'<span class="orb"><svg viewBox="0 0 256 256" style="fill:none;filter:none;color:#E9EBEE"><use href="#hola-logo"/></svg></span>':orbHTML(o.id)}${esc(o.v)}<small>${esc(o.d)}</small></button>`).join('');
   p.classList.add('show'); p.querySelectorAll('button').forEach(b=>b.onmousedown=e=>{e.preventDefault();pickMention(b.dataset.v)});
 }
 function hideMpop(){$('#mpop').classList.remove('show');mIdx=0}
@@ -900,6 +923,19 @@ $('#toggleTheme').onclick=()=>{
 // ---------- 桌面版：自己画的标题栏（拖动区域、给窗口按钮留位置、按钮颜色跟着深浅色走）
 const DESKTOP = window.holaDesktop || null;
 if (DESKTOP) document.body.classList.add('desktop', 'os-' + DESKTOP.platform);
+// 外壳 3.0 起（Windows）：系统不画窗口按钮了，右上角自己画一个玻璃胶囊（最小化 / 最大化 / 关闭 = 缩到托盘），四周的缝一样宽；
+// 老外壳还是系统画的按钮，页面照旧在最上面留一条标题栏
+if (DESKTOP && DESKTOP.win) {
+  document.body.classList.add('own-ctl');
+  const c=document.createElement('div'); c.className='winctl'; c.setAttribute('role','toolbar'); c.setAttribute('aria-label','窗口');
+  c.innerHTML='<button type="button" data-w="min" title="最小化" aria-label="最小化"><svg class="i"><use href="#i-wmin"/></svg></button><button type="button" data-w="max" title="最大化" aria-label="最大化"><svg class="i"><use href="#i-wmax"/></svg></button><button type="button" data-w="close" title="关闭（缩到右下角托盘，右键托盘图标才是退出）" aria-label="关闭"><svg class="i"><use href="#i-x"/></svg></button>';
+  document.body.appendChild(c);
+  c.querySelector('[data-w=min]').onclick=()=>DESKTOP.win.minimize();
+  c.querySelector('[data-w=max]').onclick=()=>DESKTOP.win.toggleMaximize();
+  c.querySelector('[data-w=close]').onclick=()=>DESKTOP.win.close();
+  const setMax=(s)=>{ const b=c.querySelector('[data-w=max]'), m=!!(s&&s.max); b.title=m?'还原':'最大化'; b.setAttribute('aria-label',b.title); b.querySelector('use').setAttribute('href',m?'#i-wrestore':'#i-wmax'); document.body.classList.toggle('maxed',m) };
+  DESKTOP.win.onState(setMax); DESKTOP.win.state().then(setMax).catch(()=>{});
+}
 // 新版本准备好了：用 Hola 自己的弹窗问老板（外壳 2.0 起；老外壳没有 onUpdate，照旧弹系统窗口）
 if (DESKTOP && DESKTOP.onUpdate) {
   DESKTOP.onUpdate(async (u) => {
@@ -913,9 +949,9 @@ if (DESKTOP && DESKTOP.onUpdate) {
 function syncTitleBar(){
   if(!DESKTOP||!DESKTOP.setTitleBarColors) return;
   const hex=(c)=>'#'+(c.match(/\d+/g)||[]).slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
-  // 右上角窗口按钮盖在顶栏上：分屏开着时盖在预览区（深一档）上，否则盖在聊天区上
+  // 右上角的窗口按钮在最上面那条标题栏里，那条和背景一个颜色（--wallTop）
   const cs=getComputedStyle(document.documentElement), v=(k)=>{ const x=cs.getPropertyValue(k).trim(); return /^#[0-9a-f]{6}$/i.test(x)?x.toLowerCase():hex(x) };
-  DESKTOP.setTitleBarColors(v($('#split').hidden?'--paper':'--pane'), v('--ink2'));
+  DESKTOP.setTitleBarColors(v('--wallTop'), v('--ink2'));
 }
 syncTitleBar();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ syncTitleBar(); if(window.Merc) Merc.redraw() });
@@ -936,6 +972,7 @@ $('#openSettings').onclick=()=>{
   $('#sMem').checked=s.autoMemory!==false; $('#sProc').checked=!!s.showProcess; $('#sBrowserAsk').checked=s.browserAsk!==false; $('#sPlanConfirm').checked=s.planConfirm!==false;
   $('#sHops').value=s.maxAutoTurns??10;
   $('#settings').showModal();
+  openUpdField();
   renderEnvNotes();
   $('#sRecommend').onclick=async()=>{
     const rec=await (await fetch('/api/team/recommend')).json(); if(rec.error){ toast(rec.error); return }
@@ -1029,11 +1066,16 @@ function renderTeam(){
   $('#teamList').innerHTML = S.members.map(m=>{
     const kind = (m.builtin ? '内置' : m.type==='api' ? 'API' : '命令行') + (m.via==='relay' ? '</span><span class="tag">中转站' : '') + (m.access==='full' ? '</span><span class="tag">完全权限' : '') + (m.type==='api' && m.edit && (m.edit.hands===false || m.edit.toolsOk===false) ? '</span><span class="tag">只动脑' : '');
     const sub = (!m.enabled ? '已停用' : m.online ? `在线 · ${esc(m.version||'')}` : esc(m.problem||'不在线')) + (m.model && m.model!==m.version ? ` · <span data-raw>${esc(m.model)}</span>` : '');
-    return `<div class="team-row${m.enabled?'':' disabled'}"><span class="dot" style="background:${m.color};box-shadow:0 0 8px ${m.color}"></span>
+    return `<div class="team-row${m.enabled?'':' disabled'}">${orbHTML(m.id)}
       <div class="info"><b>${esc(m.name)}</b><span class="tag">${kind}</span><small>${esc(m.strengths)}</small><small class="${m.enabled&&!m.online?'bad':''}">${sub}</small></div>
-      <div class="acts"><button class="btn" data-tedit="${m.id}">编辑</button><button class="btn" data-ttoggle="${m.id}">${m.enabled?'停用':'启用'}</button></div></div>`;
+      <div class="acts"><button class="btn" data-tedit="${m.id}">编辑</button><button class="btn" data-ttoggle="${m.id}">${m.enabled?'停用':'启用'}</button>${m.builtin?'':`<button class="btn danger" data-tdel="${m.id}" title="删除这位队友（之前的聊天记录不受影响）">删除</button>`}</div></div>`;
   }).join('');
   $('#teamList').querySelectorAll('[data-tedit]').forEach(b=>b.onclick=()=>openMember(S.members.find(m=>m.id===b.dataset.tedit)));
+  $('#teamList').querySelectorAll('[data-tdel]').forEach(b=>b.onclick=async()=>{
+    const m=S.members.find(x=>x.id===b.dataset.tdel); if(!m) return;
+    if(!await ask(`删除队友「${m.name}」？\n\n之前的聊天记录不受影响。`,{ok:'删除',tone:'danger'})) return;
+    await api('members/delete',{id:m.id}); toast('已删除');
+  });
   $('#teamList').querySelectorAll('[data-ttoggle]').forEach(b=>b.onclick=async()=>{
     const m=S.members.find(x=>x.id===b.dataset.ttoggle);
     await saveMemberRaw({ id:m.id, name:m.name, enabled:!m.enabled });
@@ -1207,7 +1249,7 @@ $('#mSave').onclick = async()=>{
 
 // ---------- profile
 function initials(){ const n=(S.profile.name||'').trim(); return n? esc([...n][0].toUpperCase()) : '我' }
-function paintAva(el){ if(S.profile.avatar){ el.style.backgroundImage=`url('${S.profile.avatar}')`; el.innerHTML='' } else { el.style.backgroundImage=''; el.innerHTML=initials() } }
+function paintAva(el){ el.style.backgroundImage = S.profile.avatar ? `url('${S.profile.avatar}')` : ''; el.classList.toggle('pic', !!S.profile.avatar); el.innerHTML='' }
 function renderMe(){
   paintAva($('#meAva'));
   $('#meName').textContent = S.profile.name || t('你');
@@ -1285,5 +1327,65 @@ function connect(){
     else if(ev.type==='members'){ S.members=ev.members; renderLights(); if($('#feed .empty')) renderEmpty(); if($('#teamDlg').open) renderTeam() }
     else if(ev.type==='settings'){ const pv=!!S.settings.showProcess; S.settings=ev.settings; S.members=ev.members; renderLights(); if(pv!==!!S.settings.showProcess&&S.conv) renderConv() }
   };
+}
+// ---------- V3：背景的液态银、开关里的水银珠、水银按钮（发送、检查更新……），都画在 public/mercury.js 里
+if(window.Merc){ Merc.wall($('#wall')); Merc.bead(); Merc.scan(document) }
+// 提示：鼠标停一下，按钮旁边冒出一小块玻璃（代替系统自带的提示条）。文字就是按钮的 title（i18n 已经翻译过）；只管工具条上的图标
+(function(){
+  const tip=document.createElement('div'); tip.className='tip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip);
+  let cur=null, timer=0;
+  // 放回原来的 title；鼠标停着的时候程序要是改过它（比如"立即重启 / 去下载"），就用新的，不拿旧的盖掉
+  const hide=()=>{ clearTimeout(timer); tip.classList.remove('show'); if(cur&&cur.dataset.tipText!=null){ if(!cur.hasAttribute('title')) cur.setAttribute('title',cur.dataset.tipText); delete cur.dataset.tipText } cur=null };
+  document.addEventListener('pointerover',e=>{
+    const el=e.target.closest&&e.target.closest('[title]');
+    if(!el||el===cur||!el.closest('header,aside,.composer,.split .sph,.split .spbar,.under,.upd,.concl-head,.rv,.winctl,.team-row')) return;
+    hide(); cur=el; el.dataset.tipText=el.getAttribute('title'); el.removeAttribute('title');
+    timer=setTimeout(()=>{
+      if(cur!==el||!el.isConnected) return;
+      tip.textContent=el.dataset.tipText; tip.classList.add('show');
+      const r=el.getBoundingClientRect(), w=tip.offsetWidth, h=tip.offsetHeight;
+      let x=r.left+r.width/2-w/2, y=r.bottom+8; if(y+h>innerHeight-6) y=r.top-h-8;
+      tip.style.left=Math.max(8,Math.min(innerWidth-w-8,x))+'px'; tip.style.top=y+'px';
+    },420);
+  });
+  document.addEventListener('pointerout',e=>{ if(cur&&(!e.relatedTarget||!cur.contains(e.relatedTarget))) hide() });
+  document.addEventListener('pointerdown',hide,true);
+})();
+// ---------- 设置里的"检查更新"（桌面版外壳 4 起才有；网页版、老外壳不显示这一块）
+const UPD = DESKTOP && DESKTOP.shell>=4 && DESKTOP.updates ? DESKTOP.updates : null;
+let updBar=null, updLast={status:'idle'};
+function updReason(e){
+  e=String(e||'');
+  if(/HTTP (403|429)/.test(e)) return '访问 GitHub 太频繁，过一会儿再试';
+  if(/timeout|abort/i.test(e)) return '连不上 GitHub（网络超时）';
+  if(/fetch failed|ENOTFOUND|ECONN|ERR_|network/i.test(e)) return '连不上 GitHub';
+  if(/signature|hash|verify/i.test(e)) return '下载的文件没通过签名核对，已丢弃';
+  return e;
+}
+function updRender(u){
+  if(u) updLast=u;
+  u=updLast; const st=u.status||'idle', v=String(u.version||''), cur=(S.build&&S.build.version)||'';
+  $('#sUpdVer').textContent = st==='ready'&&v ? v : cur ? 'v'+cur : '';
+  const at=u.at?new Date(u.at).toLocaleTimeString(EN_UI()?'en-US':'zh-CN',{hour:'2-digit',minute:'2-digit'}):'';
+  const ST={idle:at?`上次检查 ${at}`:'', checking:'正在检查…', downloading:`发现 ${v}，正在下载并核对签名…`, ready:`${v} 已准备好，重启后生效`, latest:'已经是最新版', 'needs-shell':`${v} 需要下载新的安装包`, error:`没查到：${updReason(u.error)}`};
+  $('#sUpdStatus').textContent = ST[st]!=null ? ST[st] : '';
+  const b=$('#sUpdBtn'); if(b._mb) b._mb.busy(st==='checking'||st==='downloading');
+  b.disabled = st==='checking'||st==='downloading';
+  const r=$('#sUpdRestart'); r.hidden = !(st==='ready'||st==='needs-shell');
+  r.title = st==='needs-shell' ? '去下载新安装包' : '立即重启'; r.setAttribute('aria-label', r.title);
+  r.querySelector('use').setAttribute('href', st==='needs-shell' ? '#i-down' : '#i-power');
+  if(updBar) updBar.set(st==='checking'||st==='downloading'||st==='ready' ? st : 'idle');
+}
+if(UPD){
+  UPD.onProgress(u=>updRender(u));
+  $('#sUpdBtn').onclick=()=>{ updRender({status:'checking'}); UPD.check().then(updRender).catch(e=>updRender({status:'error',error:e&&e.message})) };
+  $('#sUpdRestart').onclick=()=>DESKTOP.updateAnswer(updLast.status==='needs-shell'?'download':'restart');
+}
+function openUpdField(){
+  $('#sUpdField').hidden=!UPD; if(!UPD) return;
+  if(!updBar&&window.Merc) updBar=Merc.bar($('#sUpdBar'));
+  UPD.state().then(u=>{ if(u) updRender(u) }).catch(()=>{});
+  updRender();
+  requestAnimationFrame(()=>{ if(window.Merc){ Merc.scan($('#settings')); ['#sUpdBtn','#sUpdRestart'].forEach(s=>{ const b=$(s); if(b._mb) b._mb.redraw() }); if(updBar) updBar.redraw() } });
 }
 renderUnder(); connect();

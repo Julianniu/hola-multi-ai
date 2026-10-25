@@ -126,12 +126,24 @@ describe('桌面版', { skip }, () => {
   it('标题栏：系统标题栏换成 Hola 自己的顶栏，能拖动窗口，按钮和弹窗不受影响', async () => {
     const r = await page.evaluate(() => {
       const region = (sel) => getComputedStyle(document.querySelector(sel)).webkitAppRegion || getComputedStyle(document.querySelector(sel)).getPropertyValue('app-region');
-      return { desktop: !!window.holaDesktop, header: region('header'), button: region('#skillsBtn'), pad: getComputedStyle(document.querySelector('header')).paddingRight };
+      const bar = document.querySelector('#dragbar').getBoundingClientRect(), main = document.querySelector('main').getBoundingClientRect(), side = document.querySelector('aside').getBoundingClientRect();
+      const ctl = document.querySelector('.winctl'), c = ctl && ctl.getBoundingClientRect();
+      return { desktop: !!window.holaDesktop, header: region('header'), button: region('#skillsBtn'), strip: region('#dragbar'), barH: Math.round(bar.height), mainTop: Math.round(main.top), sideTop: Math.round(side.top), bottomGap: Math.round(innerHeight - main.bottom), rightGap: Math.round(innerWidth - main.right),
+        own: document.body.classList.contains('own-ctl'), ctl: c && { right: Math.round(innerWidth - c.right), mid: Math.round(c.top + c.height / 2), buttons: ctl.querySelectorAll('button').length }, headerMid: Math.round(document.querySelector('header').getBoundingClientRect().top + document.querySelector('header').getBoundingClientRect().height / 2) };
     });
     assert.equal(r.desktop, true);
     assert.equal(r.header, 'drag');
     assert.equal(r.button, 'no-drag');
-    if (process.platform === 'win32') assert.equal(r.pad, '150px', '右上角给最小化 / 最大化 / 关闭留位置');
+    assert.equal(r.strip, 'drag');
+    if (process.platform === 'win32') {
+      // V3（外壳 3.0）：窗口按钮是右上角自己画的玻璃胶囊，和顶栏对齐；四周的缝一样宽
+      assert.equal(r.own, true);
+      assert.equal(r.ctl.buttons, 3);
+      assert.ok(Math.abs(r.ctl.mid - r.headerMid) <= 2, `窗口按钮和顶栏对齐 ${JSON.stringify(r)}`);
+      assert.deepEqual([r.mainTop, r.sideTop, r.bottomGap, r.rightGap, r.barH], [10, 10, 10, 10, 10], '上下左右的缝一样宽');
+    } else {
+      assert.ok(r.mainTop >= 44, 'Mac：红黄绿按钮那一条留在最上面');
+    }
     await page.click('#openSettings');
     await page.waitForSelector('dialog[open]');
     assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('header')).webkitAppRegion), 'no-drag', '弹窗打开时不能拖窗口');
@@ -355,6 +367,60 @@ describe('桌面版', { skip }, () => {
     assert.ok(await page.evaluate(() => document.querySelector('#lightsMerc').width > 0));
     assert.ok(await page.locator('.rv canvas.merc[data-merc="check"]').count() >= 1);
     assert.equal(await page.locator('#feed canvas.merc:not([data-merc="check"])').count(), 0);
+    // V3：背景的液态银画好了；发送键是一颗水银珠；队友头像是各家自己的标志
+    const v3 = await page.evaluate(() => ({
+      wall: document.querySelector('#wall').width, send: !!document.querySelector('#sendBtn.mb canvas.mbc'),
+      claude: !!document.querySelector('.row.mem .av use[href="#v-claude"]'), codex: !!document.querySelector('.row.mem .av use[href="#v-openai"]'),
+    }));
+    assert.ok(v3.wall > 0, '背景的液态银');
+    assert.equal(v3.send, true, '发送键是水银按钮');
+    assert.deepEqual([v3.claude, v3.codex], [true, true], '头像是 Claude、OpenAI 的标志');
+  });
+
+  it('侧栏：对话直接拖进项目；拖到"项目"那一栏就新建项目放进去', async () => {
+    // 隐藏窗口里模拟不了系统级的鼠标拖动，这里在页面里直接派发拖放事件（和真拖动走同一套处理）
+    const drag = (src, dst) => page.evaluate(([a, b]) => {
+      const s = document.querySelector(a), d = document.querySelector(b), dt = new DataTransfer();
+      s.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+      for (const t of ['dragenter', 'dragover', 'drop']) d.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      s.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+    }, [src, dst]);
+    const proj = await page.evaluate(async () => (await api('projects/save', { project: { name: '拖拽测试项目', brief: '' } })).id);
+    await page.waitForSelector(`.pzone[data-pid="${proj}"]`);
+    const conv = await page.evaluate(async () => (await api('conv/new', {})).id);
+    await page.waitForSelector(`.convs > .conv[data-id="${conv}"]`);
+    await drag(`.convs > .conv[data-id="${conv}"]`, `.pzone[data-pid="${proj}"] .proj`);
+    await page.waitForFunction(([c, p]) => !!document.querySelector(`.pzone[data-pid="${p}"] .conv[data-id="${c}"]`), [conv, proj], { timeout: 10000 });
+    // 拖回"对话"那一栏
+    await drag(`.pzone .conv[data-id="${conv}"]`, '[data-dropnone]');
+    await page.waitForFunction((c) => !!document.querySelector(`.convs > .conv[data-id="${c}"]`), conv, { timeout: 10000 });
+    // 拖到"项目"那一栏：弹出新建项目，保存后对话就在新项目里
+    await drag(`.convs > .conv[data-id="${conv}"]`, '[data-dropnew]');
+    await page.waitForSelector('#projDlg[open]');
+    await page.fill('#pName', '拖出来的新项目');
+    await page.click('#pSave');
+    await page.waitForFunction((c) => { const z = document.querySelector(`.pzone .conv[data-id="${c}"]`); return z && /拖出来的新项目/.test(z.closest('.pzone').textContent); }, conv, { timeout: 10000 });
+  });
+
+  it('队友列表：不用的自定义队友能直接删掉（内置的不能删）', async () => {
+    await page.evaluate(() => saveMemberRaw({ name: 'TmpBot', type: 'api', enabled: false, baseUrl: 'http://127.0.0.1:9/v1', model: 'x', apiKey: 'sk-test' }));
+    await page.click('#openTeam');
+    await page.waitForSelector('[data-tdel]');
+    assert.equal(await page.locator('.team-row').filter({ hasText: 'Claude' }).locator('[data-tdel]').count(), 0, '内置的没有删除按钮');
+    await page.locator('.team-row').filter({ hasText: 'TmpBot' }).locator('[data-tdel]').click();
+    await page.click('#askDlg [data-ok]');
+    await page.waitForFunction(() => ![...document.querySelectorAll('.team-row')].some((r) => /TmpBot/.test(r.textContent)), null, { timeout: 10000 });
+    await page.click('#teamClose');
+  });
+
+  it('设置里的"检查更新"：外壳 4 起有这个按钮；这份不能自动更新时说清楚原因，不卡住', async () => {
+    assert.equal(await page.evaluate(() => window.holaDesktop.shell), 4);
+    await page.click('#openSettings');
+    await page.waitForSelector('#sUpdField:not([hidden])');
+    await page.click('#sUpdBtn');
+    await page.waitForFunction(() => /没查到|Check failed/.test(document.querySelector('#sUpdStatus').textContent), null, { timeout: 15000 });
+    assert.equal(await page.locator('#sUpdBtn').isDisabled(), false, '查完按钮能再点');
+    await page.keyboard.press('Escape');
   });
 
   it('自己画的弹窗：更新提示不用系统对话框，点"稍后"告诉外壳', async () => {

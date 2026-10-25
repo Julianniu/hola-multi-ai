@@ -16,7 +16,7 @@
     '删除对话': 'Delete chat', '刚刚': 'just now',
     // 项目
     '项目': 'Projects', '新建项目': 'New project', '编辑项目': 'Edit project', '在这个项目里新建任务': 'New task in this project',
-    '新建一个项目，把相关的对话归进去，每个对话就是一个任务，进度一目了然。': 'Create a project and group related chats in it. Each chat becomes a task, so progress is easy to see.',
+    '新建一个项目，把相关的对话归进去（直接把对话拖到上面“项目”这一栏也行），每个对话就是一个任务，进度一目了然。': 'Create a project and group related chats in it (or just drag a chat onto “Projects” above). Each chat becomes a task, so progress is easy to see.',
     '还没有任务，点 + 新建，或把对话拖进来': 'No tasks yet. Click + or drag a chat here', '对话': 'Chats', '所有对话都归进了项目': 'Every chat is in a project',
     '标为完成': 'Mark as done', '标为进行中': 'Mark as in progress', '更多': 'More', '移到项目': 'Move to project', '不放进项目': 'No project',
     '新建项目并移入…': 'New project and move it there…', '重命名': 'Rename',
@@ -111,7 +111,7 @@
     '新的用法': "What's new", '知道了': 'Got it', '好': 'OK', '退出': 'Quit', '打开完全权限': 'Turn on full access',
     '开会讨论 · 正在进行': 'Meeting in progress', '大家达成共识': 'Consensus reached', '验收通过': 'Approved', '改好后通过': 'Fixed and approved',
     '新版本已经下载好': 'A new version is ready', '立即重启': 'Restart now', '稍后': 'Later', '去下载': 'Download', '主脑': 'Main brain', '验收': 'Review', '帮手': 'Helper',
-    '直接发送，由主脑一个人回答，更快。想听大家一起讨论，点输入框旁的「开会讨论」，或者在主脑的回答下面点「让大家讨论一下」。主脑、干活策略在"设置"里改，大脑 / 帮手在"队友 → 编辑"里改。': 'Sending a message now gets an answer from the main brain alone, which is faster. To hear the whole team, click "Meet" next to the input box, or "Ask the team to discuss" under the main brain\'s answer. Change the main brain and work strategy in Settings, and brains / helpers under Teammates → Edit.',
+    '直接发送，由主脑一个人回答，更快。想听大家一起讨论，点输入框旁三个圆圈的「开会讨论」按钮，或者在主脑的回答下面点「让大家讨论一下」。主脑、干活策略在"设置"里改，大脑 / 帮手在"队友 → 编辑"里改。': 'Sending a message now gets an answer from the main brain alone, which is faster. To hear the whole team, click "Meet" (the three circles next to the input box), or "Ask the team to discuss" under the main brain\'s answer. Change the main brain and work strategy in Settings, and brains / helpers under Teammates → Edit.',
     '直接发送时由主脑回答；开会时由主脑写团队结论；队友交付的东西由主脑验收。': 'The main brain answers when you just send, writes the team conclusion in meetings, and reviews what teammates deliver.',
     '干活策略': 'Work strategy', '自动（推荐）': 'Automatic (recommended)', '质量优先': 'Quality first', '均衡': 'Balanced', '省钱': 'Save money',
     '决定主脑把多少活交给帮手。自动：主脑用订阅时质量优先，用 API 时均衡。质量优先：主脑能做的都自己做。均衡：主脑想和审，粗活和长文交给帮手。省钱：主脑只出方案和验收。': 'How much work the main brain hands to helpers. Automatic: quality first when the main brain uses a subscription, balanced when it uses an API. Quality first: the main brain does everything it can. Balanced: the main brain thinks and reviews; routine work and long writing go to helpers. Save money: the main brain only plans and reviews.',
@@ -120,7 +120,7 @@
     '让大家讨论一下': 'Ask the team to discuss', '其他大脑先各自独立作答，再和主脑一起讨论出团队结论': 'The other brains answer independently first, then discuss with the main brain and reach a team conclusion',
     '✓ 验收通过': '✓ Approved', '✓ 改好后通过': '✓ Fixed and approved', '退回重做': 'Sent back', '思考中': 'Thinking', '验收中': 'Reviewing',
     '发送：主脑回答 · 开会讨论：大脑们讨论出团队结论 · @ 某人：按 @ 的顺序来': 'Send: the main brain answers · Meet: the brains discuss and reach a team conclusion · @ someone: in @ order',
-    '直接发送，由主脑回答，最快。值得多想想的问题，点「开会讨论」：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。': 'Just send for the fastest answer, from the main brain. For questions worth thinking through, click "Meet": the brains answer independently, then discuss, challenge each other and give you a team conclusion once they agree. Use @ to choose who works and in what order. Drag in or paste images and files.',
+    '直接发送，由主脑回答，最快。值得多想想的问题，点输入框旁三个圆圈的「开会讨论」按钮：几位大脑各自独立作答，再讨论、互相挑战，形成共识后给你一个团队结论。想指定谁做、按什么顺序做，就用 @。图片和文件可以直接拖进来或粘贴。': 'Just send for the fastest answer, from the main brain. For questions worth thinking through, click "Meet" (the three circles next to the input box): the brains answer independently, then discuss, challenge each other and give you a team conclusion once they agree. Use @ to choose who works and in what order. Drag in or paste images and files.',
     '只能把主脑的回答拿去讨论': "Only the main brain's answer can be taken to a meeting", '等这一轮做完再开会': 'Wait until the current work finishes', '等这一轮讨论结束再开会': 'Wait until the current discussion ends', '已经排好队，马上开会': 'A meeting is already queued', '这条回答已经讨论过了': 'This answer has already been discussed',
     // 内置队友改走中转站、读取可用模型、思考深度
     '接入方式': 'How it connects', '订阅登录（命令行）': 'Subscription (command line)', '中转站 / API': 'Relay / API', '中转站': 'Relay',
@@ -200,10 +200,21 @@
     '比如：价格一律写成 ¥ 加数字，不写“元”': 'For example: always write prices as ¥ plus the number', '保存规矩': 'Save rules',
     '自动收进来的：你较早说过的话（最近 50 条以外）': 'Added automatically: what you said earlier (beyond the last 50 messages)',
     '已保存，下一轮起所有队友都会照着做': 'Saved. From the next turn on, every teammate follows these rules',
+    // V3：图标按钮的提示、设置里的"检查更新"
+    '把对话拖到这里：新建一个项目放进去': 'Drop a chat here to make a new project for it', '最小化': 'Minimize', '最大化': 'Maximize', '还原': 'Restore', '窗口': 'Window',
+    '关闭（缩到右下角托盘，右键托盘图标才是退出）': 'Close (Hola keeps running in the tray; right-click the tray icon to quit)', '删除这位队友（之前的聊天记录不受影响）': 'Delete this teammate (earlier chats are kept)',
+    '新对话（Ctrl+N）': 'New chat (Ctrl+N)', '工具': 'Tools', '开会讨论：让几位大脑讨论出团队结论': 'Meet: the brains discuss and reach a team conclusion',
+    '更新': 'Updates', '检查更新': 'Check for updates', '去下载新安装包': 'Download the new installer', '正在检查…': 'Checking…', '已经是最新版': 'You have the latest version',
+    '打开 Hola 时和每 6 小时会自动查一次；查不到时会写下原因，并换一条路再试。': 'Hola checks automatically when it starts and every 6 hours. If a check fails, it notes the reason and tries another route.',
+    '访问 GitHub 太频繁，过一会儿再试': 'GitHub is limiting requests; try again later', '连不上 GitHub（网络超时）': "Can't reach GitHub (timed out)", '连不上 GitHub': "Can't reach GitHub",
+    '下载的文件没通过签名核对，已丢弃': 'The download failed the signature check and was discarded',
   };
 
   const P = [
     [/^碰到 (d+) 次$/, (m, n) => `Hit ${n} times`], [/^体检正常，响应 ([d.]+) 秒（(d+) 小时内）$/, (m, s, h) => `Health check OK, ${s}s response (within ${h}h)`], [/^（(d+) 小时内）$/, (m, h) => ` (within ${h}h)`],
+    [/^上次检查 (.+)$/, (m, t) => `Last checked ${t}`], [/^发现 (\S+)，正在下载并核对签名…$/, (m, v) => `Found ${v}, downloading and verifying…`],
+    [/^(\S+) 已准备好，重启后生效$/, (m, v) => `${v} is ready; restart to use it`], [/^(\S+) 需要下载新的安装包$/, (m, v) => `${v} needs the new installer`],
+    [/^没查到：([\s\S]+)$/, (m, e) => `Check failed: ${D[e] || e}`],
     [/^进行中 (\d+)$/, (m, n) => `${n} running`], [/^排队 (\d+)$/, (m, n) => `${n} queued`], [/^完成 (\d+)$/, (m, n) => `${n} done`],
     [/^删除项目「(.+)」？[\s\S]*$/, (m, n) => `Delete the project "${n}"?\n\nIts chats won't be deleted; they move to Chats.`],
     [/^用过 (\d+) 次$/, (m, n) => `Used ${n} time${n === '1' ? '' : 's'}`],

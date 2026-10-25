@@ -153,4 +153,27 @@ describe('任务板和开工确认', () => {
     assert.match(fs.readFileSync(path.join(h.workspace, id, '.hola', 'prompt-Codex.txt'), 'utf8'), /Hola 上次重启打断了这一项/);
     assert.deepEqual(c.board.items.map((x) => `${x.reason}:${x.status}`), ['main:done', 'handoff:done', 'review:done']);
   });
+
+  it('老板叫停后：任务板上没做完的都标成"已停"，Hola 重启也不再接着做（2026-10-25 老板碰到过：叫停的活一重启又跑起来）', async () => {
+    const h = await start(HELPER, { HOLA_DEMO_SLOW_WORK: '6000' });
+    const id = await h.newConv();
+    await h.ask(id, '帮我把推广要点做成表格');
+    const card = (await h.conv(id)).messages.find((m) => m.plan);
+    await h.post('plan', { conv: id, msg: card.id, action: 'go' });
+    await until(h, id, (c) => c.board.items.some((x) => x.reason === 'handoff' && x.status === 'running'));
+    assert.equal((await h.post('stop', { conv: id })).status, 200);
+    let c = await h.waitIdle(id, 15000);
+    assert.deepEqual(c.board.items.filter((x) => x.reason !== 'main').map((x) => `${x.reason}:${x.status}`), ['handoff:stopped'], JSON.stringify(c.board.items));
+    // 等存盘，然后重启：不能有"重启前还有活没做完"，也不能再派给 Codex
+    const saved = () => { try { return JSON.parse(fs.readFileSync(path.join(h.workspace, id, '.hola', 'chat.json'), 'utf8')).board.items.some((x) => x.status === 'stopped'); } catch (_) { return false; } };
+    for (let i = 0; i < 60 && !saved(); i++) await sleep(100);
+    assert.ok(saved());
+    await h.kill();
+    const h2 = await startHola({ settings: HELPER, env: { HOLA_DATA_DIR: h.dataDir, HOLA_WORKSPACE: h.workspace } });
+    hs.unshift(h2);
+    await sleep(2500); // 续做在队友检查完之后才会开始
+    c = await h2.conv(id);
+    assert.ok(!c.messages.some((m) => m.from === 'system' && /重启前还有/.test(m.text)), '叫停过的活不续做');
+    assert.equal(c.messages.filter((m) => m.reason === 'handoff').length, 1);
+  });
 });

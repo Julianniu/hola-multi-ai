@@ -81,7 +81,8 @@ if (!app.requestSingleInstanceLock()) {
       icon: WIN_ICON, autoHideMenuBar: true,
       // 不用系统自带的标题栏：Windows 只保留右上角的最小化 / 最大化 / 关闭（颜色跟着 Hola 的主题），Mac 保留左上角的红黄绿三个按钮
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-      ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 18 } } : { titleBarOverlay: { color: '#F6F6FB', symbolColor: '#4A4D68', height: 44 } }),
+      // 外壳 3.0 起 Windows 不再用系统画的窗口按钮：页面在右上角自己画一个玻璃胶囊（最小化 / 最大化 / 关闭），四周的缝一样宽
+      ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 18 } } : {}),
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: !process.env.HOLA_TEST_HIDDEN },
     });
     // HOLA_TEST_HIDDEN：自动测试时窗口不弹出来，免得打扰正在用电脑的人
@@ -98,6 +99,9 @@ if (!app.requestSingleInstanceLock()) {
       if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     });
     win.on('focus', () => win.flashFrame(false));
+    // 页面自己画的"最大化 / 还原"按钮要知道现在是不是最大化
+    const winState = () => { if (!win.isDestroyed()) win.webContents.send('hola:win-state', { max: win.isMaximized() }); };
+    win.on('maximize', winState); win.on('unmaximize', winState);
     // Windows：点右上角的 X 只是缩到右下角托盘，后台继续干活；真正退出用托盘图标的右键菜单
     win.on('close', (e) => {
       if (quitting || !tray) return;
@@ -181,6 +185,14 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
   // 内置浏览器：只听 Hola 主窗口的（"在新窗口打开"的预览页也带着这个小口子，但不许它们控制浏览器）
   let browser = null;
   const fromMain = (e) => win && !win.isDestroyed() && e.sender === win.webContents;
+  // 页面自己画的窗口按钮（Windows）：最小化 / 最大化 / 关闭（关闭 = 缩到托盘，和以前点 X 一样）
+  ipcMain.on('hola:win', (e, op) => {
+    if (!fromMain(e)) return;
+    if (op === 'min') win.minimize();
+    else if (op === 'max') { if (win.isMaximized()) win.unmaximize(); else win.maximize(); }
+    else if (op === 'close') win.close();
+  });
+  ipcMain.handle('hola:win-state', (e) => (fromMain(e) ? { max: win.isMaximized() } : null));
   ipcMain.on('hola:browser-bounds', (e, rect) => {
     if (!browser || !fromMain(e)) return;
     const ok = rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]));
@@ -195,8 +207,11 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
   let pageUpdates = false, pendingUpdate = null;
   ipcMain.on('hola:ui', (e, info) => { if (fromMain(e) && info && info.updates) pageUpdates = true; });
   ipcMain.on('hola:update-answer', (e, a) => {
-    if (!fromMain(e) || !pendingUpdate) return;
-    const r = pendingUpdate; pendingUpdate = null;
+    if (!fromMain(e)) return;
+    // 点"稍后"不清掉：老板之后还能在设置里点"立即重启 / 去下载"（设置里的按钮也走这里）
+    const r = pendingUpdate || (updState.status === 'ready' || updState.status === 'needs-shell' ? updState : null);
+    if (!r || a === 'later') return;
+    pendingUpdate = null;
     if (a === 'restart' && r.status === 'ready') { quitting = true; app.relaunch(); app.exit(0); }
     else if (a === 'download' && r.status === 'needs-shell' && /^https:\/\//.test(String(r.page || ''))) shell.openExternal(r.page);
   });
@@ -267,6 +282,7 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
     browser = createBrowser(() => win);
     try { require(path.join(code.dir, 'lib', 'browser.js')).setBackend(browser); } catch (_) {}
     if (UPDATES) {
+      runningVersion = code.version;
       setTimeout(() => checkUpdates(code.version), Number(process.env.HOLA_UPDATE_DELAY_MS) || 8000);
       setInterval(() => checkUpdates(code.version), 6 * 3600 * 1000);
     }
@@ -278,9 +294,45 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
   function bundledVersion() { try { return JSON.parse(fs.readFileSync(path.join(CODE_DIR, 'release.json'), 'utf8')).version; } catch (_) { return '0.0.0'; } }
   function T(zh, en) { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'settings.json'), 'utf8')).uiLang === 'en' ? en : zh; } catch (_) { return zh; } }
   let asked = '';
-  async function checkUpdates(currentVersion) {
-    const apiUrl = !app.isPackaged && process.env.HOLA_UPDATE_URL ? process.env.HOLA_UPDATE_URL : updater.API;
-    const r = await updater.checkForUpdate({ fetch: (u, o) => net.fetch(u, o), apiUrl, currentVersion, shellVersion: app.getVersion(), appsDir: APPS_DIR, pubKey: UPDATE_PUBKEY });
+  // 检查更新的状态（设置里的"检查更新"显示它）；每次检查的结果都记进 app-data 的 update.log，查不到时能看出原因
+  let updState = { status: 'idle' }, updRunning = null, runningVersion = null;
+  function sendUpd(u) { if (win && !win.isDestroyed()) win.webContents.send('hola:update-progress', u); }
+  function logUpdate(r, manual) {
+    try {
+      const f = path.join(app.getPath('userData'), 'update.log');
+      try { if (fs.statSync(f).size > 200e3) fs.writeFileSync(f, ''); } catch (_) {}
+      fs.appendFileSync(f, `${new Date().toISOString()} ${manual ? 'manual' : 'auto'} ${r.status}${r.version ? ' ' + r.version : ''}${r.via ? ' via ' + r.via : ''}${r.error ? ' — ' + r.error : ''}\n`);
+    } catch (_) {}
+  }
+  function checkUpdates(currentVersion, manual) {
+    if (updRunning) return updRunning;
+    // 新版本已经下好、等重启：不用再下一次
+    if (manual && updState.status === 'ready') return Promise.resolve(updState);
+    updRunning = runCheck(currentVersion, manual).finally(() => { updRunning = null; });
+    return updRunning;
+  }
+  async function runCheck(currentVersion, manual) {
+    const dev = !app.isPackaged;
+    const apiUrl = dev && process.env.HOLA_UPDATE_URL ? process.env.HOLA_UPDATE_URL : updater.API;
+    const pageUrl = dev && process.env.HOLA_UPDATE_PAGE ? process.env.HOLA_UPDATE_PAGE : updater.PAGE;
+    const onProgress = (u) => { updState = { ...u, at: updState.at }; sendUpd(updState); };
+    const r = await updater.checkForUpdate({ fetch: (u, o) => net.fetch(u, o), apiUrl, pageUrl, currentVersion, shellVersion: app.getVersion(), appsDir: APPS_DIR, pubKey: UPDATE_PUBKEY, onProgress });
+    updState = { status: r.status, version: r.version ? String(r.version) : '', error: r.error || '', page: r.page || '', at: Date.now() };
+    sendUpd(updState);
+    logUpdate(r, manual);
+    if (r.status === 'ready' || r.status === 'needs-shell') pendingUpdate = r;
+    // 老板自己点的"检查更新"：结果就显示在设置里（重启 / 去下载的按钮也在那儿），不再另外弹窗
+    if (manual) { if (r.version) asked = r.version; return updState; }
+    await promptUpdate(r);
+    return updState;
+  }
+  ipcMain.handle('hola:update-check', (e) => {
+    if (!fromMain(e)) return null;
+    if (!UPDATES || !runningVersion) return { status: 'error', error: T('这一份 Hola 不能自动更新（开发版或演示模式）', 'This copy of Hola cannot update itself (development copy or demo mode)'), at: Date.now() };
+    return checkUpdates(runningVersion, true);
+  });
+  ipcMain.handle('hola:update-state', (e) => (fromMain(e) ? updState : null));
+  async function promptUpdate(r) {
     if (process.env.HOLA_TEST_HIDDEN) return; // 自动测试点不了系统弹窗
     if (!win || r.version === asked || (r.status !== 'ready' && r.status !== 'needs-shell')) return;
     asked = r.version;
