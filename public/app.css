@@ -724,3 +724,89 @@ canvas.merc{display:block;flex:none}
 .envnote{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:12px;background:var(--wash);font-size:13px}
 .envnote span{flex:1}
 .envnote em{font-style:normal;font-size:11.5px;color:var(--ink3)}
+/* 设置页（3.1）：不再是弹窗，占据对话那一块面板；左边分类，右边内容。设置、队友、技能库、我的资料几个弹窗搬进来，
+   原来的 dialog 元素保留（不模态地 show），代码照旧用 .open / .close() */
+.setpage{flex:1;min-width:0;display:flex;background:var(--paper);border-radius:22px;overflow:hidden;box-shadow:var(--panelSh),0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi)}
+.setpage[hidden]{display:none}
+body.view-set main,body.view-set #split,body.view-set #splitGrip{display:none!important}
+body[data-ready].view-set .setpage{animation:rise .5s cubic-bezier(.16,1,.3,1) both}
+.setnav{width:208px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 10px 12px;border-right:.5px solid var(--line)}
+.setnav .snh{font-size:17px;font-weight:600;padding:2px 12px 14px}
+body.desktop .setnav .snh{-webkit-app-region:drag}
+.setnav button{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:12px;color:var(--ink2);font-size:13.5px;text-align:left;position:relative;transition:background .25s,color .25s}
+.setnav button svg{width:17px;height:17px;flex:none}
+.setnav button:hover{background:var(--wash);color:var(--ink)}
+.setnav button.on{background:var(--sel);color:var(--ink);font-weight:500;box-shadow:var(--selSh)}
+.setnav button.on::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:var(--rim);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.setnav .snback{margin-top:auto}
+.setbody{flex:1;min-width:0;overflow-y:auto;padding:22px 28px 28px}
+body.own-ctl .setbody{padding-top:56px}
+.setbody dialog{position:static;display:none;width:auto;max-width:720px;margin:0 auto;background:none;box-shadow:none;border-radius:0;animation:none!important;color:var(--ink)}
+.setbody dialog[open]{display:block}
+.setbody .dlg{padding:0}
+.setbody .dlg h3{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:.01em}
+.setbody .dlg>p{font-size:13.5px;margin-bottom:20px;max-width:620px}
+.setbody dialog .scrollable{max-height:none;overflow:visible;margin:0;padding:0}
+.setbody .dfoot{position:sticky;bottom:-28px;margin:16px -28px -28px;padding:12px 28px 16px;background:linear-gradient(transparent,var(--paper) 30%)}
+#settings .sh{display:none}
+#settings [data-sec]{display:none}
+#settings[data-sec="general"] [data-sec="general"],#settings[data-sec="work"] [data-sec="work"],#settings[data-sec="connect"] [data-sec="connect"],#settings[data-sec="spend"] [data-sec="spend"]{display:revert}
+#settings[data-sec] .field[hidden]{display:none!important}
+#settings .dfoot .left[data-sec]{display:none}
+#settings[data-sec="general"] .dfoot .left[data-sec]{display:flex}
+#settings[data-sec="connect"] .dfoot{display:none}
+#settings[data-sec="connect"]:has(#sBrowserField:not([hidden])) .dfoot{display:flex}
+/* 连接（MCP） */
+.mcphead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.mcphead label{margin:0!important}
+.mcpadd{display:flex;gap:8px}
+.mcpadd select{width:auto!important;min-width:150px}
+.mcplist{display:flex;flex-direction:column;gap:8px}
+.mcpitem{border-radius:16px;background:var(--surface);box-shadow:0 0 0 .5px var(--line),0 4px 14px rgba(0,0,0,.04);padding:10px 12px}
+.mcpitem .mh{display:flex;align-items:center;gap:10px}
+.mcpitem .mh b{font-size:14px;font-weight:600}
+.mcpitem .mh .st{font-size:12px;color:var(--ink3)}
+.mcpitem .mh .st.bad{color:var(--bad)}
+.mcpitem .mh .sp{flex:1}
+.mcpitem .mh .btn{height:28px;padding:0 10px;font-size:12px}
+.mcpitem .tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mcpitem .tool{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:12px;background:var(--wash);font-size:12px;color:var(--ink2);cursor:pointer;border:0}
+.mcpitem .tool.w{box-shadow:inset 0 0 0 1px var(--ink3);color:var(--ink)}
+.mcpitem .tool.off{opacity:.4;text-decoration:line-through}
+.mcpitem .err{margin-top:6px;font-size:12px;color:var(--bad);white-space:pre-wrap;word-break:break-word}
+.mcpitem .who{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--ink3)}
+.mcpitem .who label{display:inline-flex!important;align-items:center;gap:4px;margin:0!important;font-weight:400!important;font-size:12px!important;color:var(--ink2)}
+.mcpitem .who select{width:auto!important;min-width:120px;height:30px!important;padding:0 28px 0 10px!important;font-size:12px;line-height:30px}
+.mcpempty{padding:14px;border-radius:16px;background:var(--surface);color:var(--ink3);font-size:13px;text-align:center}
+.mcpform{margin-top:10px;padding:12px;border-radius:16px;background:var(--surface);box-shadow:0 0 0 .5px var(--line)}
+.mcpform .kv{display:grid;grid-template-columns:minmax(120px,1fr) 2fr;gap:6px;margin-bottom:6px}
+.mfr{margin-bottom:10px}
+.mfr>span{display:block;font-size:12px;color:var(--ink2);margin-bottom:3px}
+.mcpform .help{font-size:12px;color:var(--ink2);margin-bottom:10px;line-height:1.6}
+.mcpform .acts{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.mcpform .acts .testres{margin-right:auto}
+@media (max-width:760px){.setnav{width:64px;padding:12px 6px}.setnav button span,.setnav .snh{display:none}.setbody{padding:16px}}
+/* 开屏：盖住启动和第一次加载，标志 + 三颗水银慢慢合成一颗，加载完淡出 */
+#splash{position:fixed;inset:0;z-index:9999;pointer-events:none;display:grid;place-items:center;background:radial-gradient(900px 600px at 20% 0%,rgba(255,255,255,.35),transparent 70%),var(--wall);transition:opacity .6s ease,visibility 0s linear .6s}
+#splash.out{opacity:0;visibility:hidden}
+#splash .sp-in{display:flex;flex-direction:column;align-items:center;gap:6px}
+#splash canvas{width:150px;height:130px;display:block}
+#splash .sp-name{font:600 22px/1 var(--ui);letter-spacing:.06em;color:var(--ink)}
+#splash .sp-sub{font-size:12.5px;color:var(--ink3);letter-spacing:.2em;height:18px}
+#splash .sp-logo{width:64px;height:64px;color:var(--ink);opacity:.92}
+#splash canvas{margin-top:-6px}
+body.no-wall #splash,#splash.static{background:var(--paper)}
+/* 设置页里改了就存：不要"保存 / 取消"；"开会与干活""花费"这些分类底下没有按钮，整条不显示 */
+.setbody #sSave,.setbody #sCancel{display:none}
+#settings:not([data-sec="general"]) .dfoot{display:none!important}
+.mfr .btn.small{margin-top:2px}
+.mfr[hidden]{display:none}
+.mcpform textarea{width:100%;font:12px/1.5 Consolas,monospace}
+.setbody #teamClose,.setbody #skillsClose,.setbody #pfCancel{display:none}
+/* 设置页右上角的"完成"：右上角那组是整个窗口的按钮（最小化 / 最大化 / 关闭到托盘），设置自己的关闭按钮放在它左边，写字不用叉，免得分不清 */
+.setpage{position:relative}
+.setdone{position:absolute;top:12px;right:16px;z-index:3;display:flex;align-items:center;gap:6px;height:34px;padding:0 16px 0 12px;border-radius:17px;background:var(--ink);color:var(--paper);font-size:13px;font-weight:500;box-shadow:0 4px 14px rgba(18,22,30,.16);transition:transform .15s,opacity .2s;-webkit-app-region:no-drag}
+.setdone:hover{opacity:.88}
+.setdone:active{transform:scale(.97)}
+.setdone svg.i{width:15px;height:15px;stroke-width:2.2}
+body.own-ctl .setdone{right:136px}

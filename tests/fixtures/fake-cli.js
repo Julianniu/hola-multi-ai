@@ -11,8 +11,38 @@ try { fs.mkdirSync('.hola', { recursive: true }); fs.writeFileSync(`.hola/args-$
 
 let input = '';
 process.stdin.on('data', (d) => { input += d; });
-process.stdin.on('end', run);
+process.stdin.on('end', () => { useMcp().then(run, run); });
 process.stdin.resume();
+
+// 提示词里有"用外部工具"、参数里挂了 Hola 的外部工具转接服务时：像真的命令行一样启动它，列工具、调用两次，结果记到 .hola/mcp-result.json
+function useMcp() {
+  const prompt = input || (args.includes('-p') ? args[args.indexOf('-p') + 1] : '');
+  if (!prompt.includes('用外部工具')) return Promise.resolve();
+  const files = args.filter((a) => /mcp-[a-z]+-\d+\.json$/.test(a));
+  if (!files.length) return Promise.resolve();
+  const cfg = JSON.parse(fs.readFileSync(files[0], 'utf8')).mcpServers['hola-mcp'];
+  const { spawn } = require('child_process');
+  return new Promise((resolve) => {
+    const ch = spawn(cfg.command, cfg.args, { env: { ...process.env, ...cfg.env } });
+    let o = '';
+    ch.stdout.on('data', (d) => { o += d; });
+    const msgs = [{ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, { jsonrpc: '2.0', id: 2, method: 'tools/list' }];
+    const lines = () => o.trim().split('\n').filter(Boolean);
+    ch.stdin.write(msgs.map((m) => JSON.stringify(m) + '\n').join(''));
+    const wait = (n) => new Promise((r) => { const t = setInterval(() => { if (lines().length >= n) { clearInterval(t); r(); } }, 50); });
+    wait(2).then(() => {
+      const tools = JSON.parse(lines()[1]).result.tools.map((t) => t.name);
+      const call = (id, name, a) => ch.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: a } }) + '\n');
+      call(3, tools.find((t) => t.endsWith('__list_users')), {});
+      call(4, tools.find((t) => t.endsWith('__send_message')), { text: '你好' });
+      return wait(4).then(() => {
+        fs.writeFileSync('.hola/mcp-result.json', JSON.stringify({ tools, replies: lines().slice(2).map((l) => JSON.parse(l)) }));
+        ch.stdin.end();
+        resolve();
+      });
+    });
+  });
+}
 
 function out(o) { process.stdout.write(JSON.stringify(o) + '\n'); }
 // 被请去"看图写说明"时，回一段像样的描述（提示词可能从标准输入来，也可能在 -p 参数里）

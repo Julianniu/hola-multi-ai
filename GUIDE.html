@@ -107,6 +107,14 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li>为了安全，内置浏览器不打开本机地址和本地文件，网页要摄像头、麦克风、定位等权限一律拒绝。</li>
 </ul>
 
+<h2>连接外部工具（MCP）</h2>
+<ul>
+<li>打开 <b>设置 → 连接</b>，在"添加"里选一个：<b>钉钉</b>（现成模板）、<b>远程 MCP（网址）</b> 或 <b>本机命令</b>。也可以点"从别的应用导入"，把这台电脑上 Claude、Cursor 里已经配好的服务搬过来，或者粘贴服务说明里的 <code>{"mcpServers": …}</code> 配置。</li>
+<li>钉钉：先在钉钉开放平台建一个企业内部应用，"凭证与基础信息"里有 Client ID 和 Client Secret；ACTIVE_PROFILES 选要开的功能（通讯录、机器人发消息、待办、日程……），每项都要在应用里加对应权限。一般要公司钉钉管理员帮忙开。需要电脑装有 Node.js。</li>
+<li>点 <b>保存并测试</b>：连上后会列出这个服务的所有工具。有黑框的是"会改动外部数据"的（发消息、建待办……），队友用之前会先问你；点一下某个工具可以停用它。还可以选"谁能用"和"动手前"要不要问你。</li>
+<li>队友只在干活的时候能用这些工具（开会讨论时不用）。密钥只存在这台电脑上，不会显示在页面上。</li>
+</ul>
+
 <h2>项目</h2>
 <ul>
 <li>左侧"项目"旁的 <b>+</b> 新建项目，写上项目说明（目标、背景、时间节点、要求）。项目里所有任务的队友都会看到它，还会参考同项目其他任务定下的结论。</li>
@@ -222,6 +230,14 @@ html[lang="zh-CN"] [data-l="zh"],html[lang="en"] [data-l="en"]{display:block}
 <li><b>Before a teammate clicks or types</b>, a card above the input box asks you: <b>Allow</b>, <b>Allow for this chat</b> or <b>Don't allow</b>. No answer within 3 minutes counts as no. If you'd rather not be asked each time, turn off "Ask me" in <b>Settings</b>.</li>
 <li>Note: on sites you're signed in to there, teammates act as you. Payments, posting and deleting are best done yourself.</li>
 <li>For safety, the built-in browser won't open local addresses or local files, and it refuses every page's request for camera, microphone, location and similar permissions.</li>
+</ul>
+
+<h2>Outside tools (MCP)</h2>
+<ul>
+<li>Open <b>Settings → Connections</b> and pick one under "Add": <b>DingTalk</b> (ready template), <b>Remote MCP (URL)</b> or <b>Local command</b>. You can also click "Import from other apps" to bring over servers already set up in Claude or Cursor on this PC, or paste the <code>{"mcpServers": …}</code> config from the server's docs.</li>
+<li>DingTalk: create an internal app on the DingTalk open platform; its Client ID and Client Secret are under "Credentials". ACTIVE_PROFILES picks the features (contacts, robot messages, tasks, calendar…), and each needs the matching permission in the app — usually your company's DingTalk admin has to grant it. Needs Node.js on this PC.</li>
+<li>Click <b>Save and test</b>: once connected, all of the server's tools are listed. Outlined ones change outside data (sending messages, creating tasks…), so teammates ask you before using them; click a tool to turn it off. You can also choose who may use it and whether to ask you before acting.</li>
+<li>Teammates use these tools only while working (not in meetings). Keys stay on this PC and are never shown on the page.</li>
 </ul>
 
 <h2>Projects</h2>

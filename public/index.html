@@ -30,6 +30,9 @@
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L12 5.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></symbol>
+  <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 7.5 12 12l3.5-4.5M8 12.5h8M8 15.5h8M12 12v6"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
   <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5.5 5"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6.5A2.5 2.5 0 0 0 4 20.5 2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 7h7M9 11h5"/></symbol>
@@ -99,6 +102,7 @@
   <symbol id="hola-logo" viewBox="0 0 256 256"><g fill="none" stroke="currentColor" stroke-width="14"><circle cx="128" cy="104" r="52"/><circle cx="103" cy="147" r="52"/><circle cx="153" cy="147" r="52"/></g><circle cx="128" cy="131" r="12" fill="currentColor"/></symbol>
 </svg>
 
+<div id="splash" aria-hidden="true"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 256 256"><use href="#hola-logo"/></svg><canvas id="splashMerc"></canvas><div class="sp-name">Hola</div><div class="sp-sub">光辉联合</div></div></div>
 <canvas id="wall" aria-hidden="true"></canvas>
 <div id="dragbar" aria-hidden="true"></div>
 <aside id="side">
@@ -114,6 +118,21 @@
   </nav>
 </aside>
 <div class="grip" id="sideGrip" title="拖动调整侧栏宽度，双击恢复"></div>
+<section class="setpage" id="setPage" hidden aria-label="设置">
+  <nav class="setnav" id="setNav">
+    <div class="snh">设置</div>
+    <button type="button" data-go="general"><svg class="i"><use href="#i-sliders"/></svg><span>通用</span></button>
+    <button type="button" data-go="team"><svg class="i"><use href="#i-users"/></svg><span>队友</span></button>
+    <button type="button" data-go="work"><svg class="i"><use href="#i-meet"/></svg><span>开会与干活</span></button>
+    <button type="button" data-go="connect"><svg class="i"><use href="#i-link"/></svg><span>连接</span></button>
+    <button type="button" data-go="spend"><svg class="i"><use href="#i-coin"/></svg><span>花费</span></button>
+    <button type="button" data-go="skills"><svg class="i"><use href="#i-book"/></svg><span>技能库</span></button>
+    <button type="button" data-go="profile"><svg class="i"><use href="#i-person"/></svg><span>我的资料</span></button>
+    <button type="button" class="snback" id="setBack"><svg class="i"><use href="#i-back"/></svg><span>回到对话</span></button>
+  </nav>
+  <div class="setbody" id="setBody"></div>
+  <button type="button" class="setdone" id="setDone" title="关闭设置，回到对话"><svg class="i"><use href="#i-check"/></svg><span>完成</span></button>
+</section>
 
 <main id="main">
   <header>
@@ -211,60 +230,70 @@
 
 <dialog id="settings">
   <div class="dlg">
-    <h3>设置</h3>
-    <p>你是包工头。这里设置队友之间怎么讨论。队友的增减和各自擅长什么，在左下角"队友"里管理。</p>
-    <div class="field">
+    <h3 class="sh" data-sec="general">通用</h3>
+    <h3 class="sh" data-sec="work">开会与干活</h3>
+    <p class="sh" data-sec="work">你是包工头。这里设置队友之间怎么讨论、怎么分工干活。</p>
+    <h3 class="sh" data-sec="connect">连接</h3>
+    <p class="sh" data-sec="connect">把外部工具接给队友：钉钉、飞书、数据库、公司内部系统……只要对方提供 MCP 服务就能接。Hola 自己去连，队友干活时通过 Hola 用；发消息、改数据这类操作会先问你。</p>
+    <h3 class="sh" data-sec="spend">花费</h3>
+    <div class="field" data-sec="general">
       <label for="sLang">界面语言 / Language</label>
       <select id="sLang"><option value="zh">中文</option><option value="en">English</option></select>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label for="sRounds">内部讨论最多几轮</label>
       <input id="sRounds" type="number" min="1" max="6">
       <small>不点名时，参与的队友先各自作答；只要有人认为值得讨论，就进入讨论，直到大家都同意或到达轮数上限。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label for="sConcl">主脑</label>
       <select id="sConcl"></select>
       <small>直接发送时由主脑回答；开会时由主脑写团队结论；队友交付的东西由主脑验收。</small>
       <button type="button" class="btn" id="sRecommend" style="align-self:flex-start;margin-top:6px">按推荐配置团队</button>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label for="sPolicy">干活策略</label>
       <select id="sPolicy"><option value="auto">自动（推荐）</option><option value="quality">质量优先</option><option value="balanced">均衡</option><option value="saving">省钱</option></select>
       <small>决定主脑把多少活交给帮手。自动：主脑用订阅时质量优先，用 API 时均衡。质量优先：主脑能做的都自己做。均衡：主脑想和审，粗活和长文交给帮手。省钱：主脑只出方案和验收。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label><input type="checkbox" id="sMem" style="width:auto;margin:0 4px 0 0">每轮结束后自动整理对话记忆</label>
       <small>由"团队结论由谁整理"的那位队友兼任记忆整理，每轮多用一次额度。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="general">
       <label><input type="checkbox" id="sProc" style="width:auto;margin:0 4px 0 0">显示后台过程（排查问题时用）</label>
       <small>打开后能看到每位队友读了哪些文件、跑了什么命令，以及原始报错。平时关着就行。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label><input type="checkbox" id="sPlanConfirm" style="width:auto;margin:0 4px 0 0">派活给队友前，先请我确认分工（开工）</label>
       <small>确认一次之后，接力、验收、返工、内置浏览器里的点击都自动进行，不再逐个问你。关掉就全自动。</small>
     </div>
-    <div class="field" id="sEnvField" hidden>
+    <div class="field" data-sec="work" id="sEnvField" hidden>
       <label>本机经验</label>
       <div id="sEnvNotes" class="envnotes"></div>
       <small>队友在这台电脑上踩过两次以上的坑。点"加入"后，以后每个干活的队友都会先知道，少走弯路。</small>
     </div>
-    <div class="field" id="sBrowserField" hidden>
+    <div class="field mcpbox" data-sec="connect">
+      <div class="mcphead"><label>外部工具（MCP）</label><div class="mcpadd"><select id="mcpPreset" aria-label="添加"></select><button type="button" class="btn" id="mcpImport">从别的应用导入</button></div></div>
+      <div id="mcpList" class="mcplist"></div>
+      <div id="mcpForm" class="mcpform" hidden></div>
+      <small>本机命令型的服务（比如钉钉）需要电脑装有 Node.js。密钥只存在这台电脑的 Hola 数据文件夹里（data\mcp.json），不会显示在页面上。<a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">什么是 MCP</a></small>
+    </div>
+    <div class="field" data-sec="connect" id="sBrowserField" hidden>
       <label><input type="checkbox" id="sBrowserAsk" style="width:auto;margin:0 4px 0 0">队友在内置浏览器里点按钮、填表前，先问我</label>
       <small>关掉后，队友用内置浏览器时不再逐个征求你同意。浏览器里登录过的网站，队友也能用你的身份操作。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="work">
       <label for="sHops">队友之间最多自动接力几次</label>
       <input id="sHops" type="number" min="0" max="50">
       <small>队友在回复里 @ 别人会自动交接。超过次数就停下来等你看。</small>
     </div>
-    <div class="field">
+    <div class="field" data-sec="spend">
       <label>花费上限（元，0 = 不限）</label>
       <div class="budget"><span>每个对话</span><input id="sBudgetConv" type="number" min="0" step="0.5"><span>每天</span><input id="sBudgetDay" type="number" min="0" step="1"></div>
       <small>只算按用量收费的 API 队友（订阅制的 Claude、Codex、Gemini 不按次收钱）。到了上限就停下来告诉你。<span id="sSpent" data-raw></span></small>
     </div>
-    <div class="field upd" id="sUpdField" hidden>
+    <div class="field upd" data-sec="general" id="sUpdField" hidden>
       <label>更新</label>
       <div class="updrow">
         <button type="button" class="mb big" id="sUpdBtn" title="检查更新" aria-label="检查更新"><svg class="i"><use href="#i-reload"/></svg></button>
@@ -273,9 +302,9 @@
       </div>
       <small>打开 Hola 时和每 6 小时会自动查一次；查不到时会写下原因，并换一条路再试。</small>
     </div>
-    <p class="ver" id="sVersion" data-raw></p>
+    <p class="ver" data-sec="general" id="sVersion" data-raw></p>
     <div class="dfoot">
-      <div class="left"><button class="btn" id="recheck">重新检查队友</button><button class="btn danger" id="quitApp">退出 Hola</button></div>
+      <div class="left" data-sec="general"><button class="btn" id="recheck">重新检查队友</button><button class="btn danger" id="quitApp">退出 Hola</button></div>
       <button class="btn" id="sCancel">取消</button><button class="btn pri" id="sSave">保存</button>
     </div>
   </div>

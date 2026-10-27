@@ -86,7 +86,7 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: !process.env.HOLA_TEST_HIDDEN },
     });
     // HOLA_TEST_HIDDEN：自动测试时窗口不弹出来，免得打扰正在用电脑的人
-    if (!process.env.HOLA_TEST_HIDDEN) win.once('ready-to-show', () => win.show());
+    if (!process.env.HOLA_TEST_HIDDEN) win.once('ready-to-show', () => { win.show(); setTimeout(hideSplash, 150); });
     // 外部网址用系统浏览器打开；Hola 自己的页面（比如"在新窗口打开"预览）开在新窗口里
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (url.startsWith(base + '/')) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: WIN_ICON } };
@@ -146,12 +146,47 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
 <script>document.getElementById('ok').focus();addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Enter')location.href='hola:close'})</script></body></html>`;
         const w = new BrowserWindow({ width: 500, height: detail ? 380 : 230, frame: false, transparent: true, resizable: false, show: false, icon: WIN_ICON, title: 'Hola', webPreferences: { sandbox: true, contextIsolation: true } });
         w.webContents.on('will-navigate', (e) => { e.preventDefault(); w.close(); });
-        w.once('ready-to-show', () => w.show());
+        // 先让提示窗出来再关开屏（反过来的话窗口一个不剩，程序会直接退出）
+        w.once('ready-to-show', () => { w.show(); hideSplash(); });
         w.on('closed', () => resolve());
         w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
       } catch (_) { dialog.showErrorBox(title, [body, detail].filter(Boolean).join('\n\n')); resolve(); }
     });
   }
+  // 开屏（外壳 3.1）：双击图标后马上出一个小窗口，Hola 的线条标志一笔一笔画出来、三颗水银合拢，
+  // 盖住后台启动的这两三秒；主窗口画好了再关掉它（主窗口里页面自己还有一层开屏，盖住第一次加载）
+  let splash = null;
+  function showSplash() {
+    if (process.env.HOLA_TEST_HIDDEN) return;
+    try {
+      const { nativeTheme } = require('electron');
+      const dark = nativeTheme.shouldUseDarkColors;
+      const c = dark ? { bg: 'rgba(30,31,35,.94)', ink: '#ECECEE', ink3: '#8A8E96', ring: 'rgba(255,255,255,.12)', a: '#F4F5F7', b: '#6B6F77' }
+        : { bg: 'rgba(246,247,249,.96)', ink: '#1A1C1F', ink3: '#8A8E96', ring: 'rgba(26,28,31,.10)', a: '#FFFFFF', b: '#8D929B' };
+      const sub = T('光辉联合', 'Team of AIs');
+      const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}
+.box{position:absolute;inset:16px;border-radius:28px;background:${c.bg};box-shadow:0 0 0 .5px ${c.ring},0 18px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;-webkit-app-region:drag}
+svg{width:96px;height:96px;color:${c.ink}}
+.l{fill:none;stroke:currentColor;stroke-width:14;stroke-dasharray:330;stroke-dashoffset:330;animation:draw 1.1s cubic-bezier(.6,.1,.3,1) forwards}
+.l:nth-child(2){animation-delay:.18s}.l:nth-child(3){animation-delay:.36s}
+.d{fill:currentColor;transform-origin:128px 131px;transform:scale(0);animation:pop .5s cubic-bezier(.3,1.6,.5,1) 1.1s forwards}
+.drops{position:relative;width:90px;height:26px;margin-top:6px}
+.drops i{position:absolute;top:5px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,${c.a},${c.b} 70%);box-shadow:inset 0 -1px 2px rgba(0,0,0,.25),0 2px 4px rgba(0,0,0,.18);animation:gather 2.4s ease-in-out infinite alternate}
+.drops i:nth-child(1){left:8px;--x:29px}.drops i:nth-child(2){left:37px;--x:0px}.drops i:nth-child(3){left:66px;--x:-29px}
+b{font-weight:600;font-size:20px;letter-spacing:.06em;color:${c.ink};margin-top:6px}
+span{font-size:12px;letter-spacing:.2em;color:${c.ink3}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{to{transform:scale(1)}}
+@keyframes gather{0%,15%{transform:translateX(0) scale(1)}85%,100%{transform:translateX(var(--x)) scale(.82)}}
+</style></head><body><div class="box"><svg viewBox="0 0 256 256"><g><circle class="l" cx="128" cy="104" r="52"/><circle class="l" cx="103" cy="147" r="52"/><circle class="l" cx="153" cy="147" r="52"/></g><circle class="d" cx="128" cy="131" r="12"/></svg><div class="drops"><i></i><i></i><i></i></div><b>Hola</b><span>${sub}</span></div></body></html>`;
+      splash = new BrowserWindow({ width: 300, height: 320, frame: false, transparent: true, resizable: false, movable: true, show: false, skipTaskbar: true, icon: WIN_ICON, title: 'Hola', webPreferences: { sandbox: true, contextIsolation: true } });
+      splash.once('ready-to-show', () => { if (splash) splash.show(); });
+      splash.on('closed', () => { splash = null; });
+      splash.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    } catch (_) { splash = null; }
+  }
+  function hideSplash() { if (splash && !splash.isDestroyed()) splash.close(); splash = null; }
   // 彻底退出：先请后台把正在跑的队友（claude / codex / agy 进程）都叫停，再关掉整个程序
   async function quitAll() {
     quitting = true;
@@ -234,6 +269,7 @@ pre{flex:1;min-height:0;overflow:auto;margin:10px 0 0;padding:8px 10px;border-ra
   app.whenReady().then(async () => {
     if (process.platform === 'win32') app.setAppUserModelId('io.github.julianniu.hola');
     buildMenu();
+    showSplash();
     const port = await pickPort();
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.mkdirSync(WORKSPACE, { recursive: true });

@@ -713,10 +713,10 @@ function renderBrowser(){
   const asks=b.asks||[];
   if(asks.length>webAsks&&!document.hasFocus()&&window.holaDesktop&&window.holaDesktop.attention) window.holaDesktop.attention();
   webAsks=asks.length;
-  $('#bAsks').innerHTML=asks.map(a=>`<div class="bask" data-id="${esc(a.id)}"><div class="bq"><b data-raw>${esc(a.name)}</b> <span>想在内置浏览器里操作</span></div><div class="bd" data-raw>${esc(a.detail)}</div>${a.convTitle?`<div class="bc"><span>来自对话</span> <span data-raw>${esc(a.convTitle)}</span></div>`:''}<div class="bb"><button class="btn pri" data-bans="once">允许</button><button class="btn" data-bans="conv">这个对话都允许</button><button class="btn" data-bans="no">不允许</button></div></div>`).join('');
+  $('#bAsks').innerHTML=asks.map(a=>`<div class="bask" data-id="${esc(a.id)}"><div class="bq"><b data-raw>${esc(a.name)}</b> <span>${a.kind==='mcp'?t('想用外部工具'):t('想在内置浏览器里操作')}</span></div><div class="bd" data-raw>${esc(a.detail)}</div>${a.convTitle?`<div class="bc"><span>来自对话</span> <span data-raw>${esc(a.convTitle)}</span></div>`:''}<div class="bb"><button class="btn pri" data-bans="once">允许</button><button class="btn" data-bans="conv">这个对话都允许</button><button class="btn" data-bans="no">不允许</button></div></div>`).join('');
   $('#bAsks').querySelectorAll('[data-bans]').forEach(btn=>btn.onclick=()=>{ btn.closest('.bask').classList.add('done'); api('browser/answer',{id:btn.closest('.bask').dataset.id,answer:btn.dataset.bans}) });
   // 队友要点网页了：把浏览器打开，让你看到它要点的是哪个网页
-  if(asks.length&&!webOn) openBrowser();
+  if(asks.some(a=>a.kind!=='mcp')&&!webOn) openBrowser();
 }
 // 1.2 起直接发送由主脑回答：第一次打开时提示一下新用法
 if(!store.get('hola.notice12')) $('#v12Notice').hidden=false;
@@ -957,7 +957,7 @@ syncTitleBar();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ syncTitleBar(); if(window.Merc) Merc.redraw() });
 new MutationObserver(syncTitleBar).observe($('#split'), { attributes: true, attributeFilter: ['hidden'] });
 // 弹窗打开时整页都不当作拖动区域（不然点到标题栏那一条会变成拖窗口）
-new MutationObserver(()=>{ document.body.classList.toggle('no-drag', !!document.querySelector('dialog[open]')); if(typeof syncWeb==='function') syncWeb() }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+new MutationObserver(()=>{ document.body.classList.toggle('no-drag', !!document.querySelector('dialog[open]:not(#setBody > dialog)')); if(typeof syncWeb==='function') syncWeb() }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 
 // settings
 $('#openSettings').onclick=()=>{
@@ -982,12 +982,160 @@ $('#openSettings').onclick=()=>{
   };
 };
 $('#sCancel').onclick=()=>$('#settings').close();
-$('#sSave').onclick=async()=>{
-  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,policy:$('#sPolicy').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,planConfirm:$('#sPlanConfirm').checked,maxAutoTurns:+$('#sHops').value,budget:{perConv:+$('#sBudgetConv').value||0,perDay:+$('#sBudgetDay').value||0}}); const lang=$('#sLang').value; $('#settings').close(); toast('设置已保存');
+// 设置页里改了就存（不用再点保存）；语言要刷新页面
+async function saveSettings(){
+  await api('settings',{maxDiscussRounds:+$('#sRounds').value,conclusionBy:$('#sConcl').value,policy:$('#sPolicy').value,autoMemory:$('#sMem').checked,showProcess:$('#sProc').checked,browserAsk:$('#sBrowserAsk').checked,planConfirm:$('#sPlanConfirm').checked,maxAutoTurns:+$('#sHops').value,budget:{perConv:+$('#sBudgetConv').value||0,perDay:+$('#sBudgetDay').value||0}});
+  const lang=$('#sLang').value;
   if(lang!==window.HOLA_LANG){ await api('settings',{uiLang:lang}); window.setHolaLang(lang); setTimeout(()=>location.reload(),300); }
-};
+}
+$('#sSave').onclick=async()=>{ await saveSettings(); $('#settings').close(); toast('设置已保存') };
+let setSaveT=0;
+$('#settings').addEventListener('change',e=>{
+  if(!e.target.id||!/^s[A-Z]/.test(e.target.id)) return;
+  clearTimeout(setSaveT); setSaveT=setTimeout(()=>saveSettings().then(()=>toast('已保存')).catch(()=>toast('保存失败')),250);
+});
 $('#recheck').onclick=()=>{api('recheck');toast('正在重新检查队友')};
 $('#quitApp').onclick=async()=>{ if(!await ask('退出 Hola？\n\n正在进行的工作会被叫停。下次双击桌面图标即可重新打开。',{ok:'退出',tone:'warn'}))return; await api('quit'); document.body.innerHTML='<div style="margin:auto;text-align:center;color:#888;font-size:15px">Hola 已退出，可以关掉这个窗口了。</div>' };
+
+// ---------- 设置页（3.1）：设置、队友、技能库、我的资料从弹窗搬进一个独立页面，左边分类、右边内容。
+// 原来的 dialog 元素留着（不模态地 show），打开它们的老代码照旧调用 showModal / close / .open
+const PAGE_DLG={general:'settings',team:'teamDlg',work:'settings',connect:'settings',spend:'settings',skills:'skillsDlg',profile:'profileDlg'};
+const PAGE_IDS=['settings','teamDlg','skillsDlg','profileDlg'];
+const dlgShow=HTMLDialogElement.prototype.show, dlgClose=HTMLDialogElement.prototype.close;
+let setSec='general';
+PAGE_IDS.forEach(id=>{
+  const d=$('#'+id); $('#setBody').appendChild(d);
+  d.showModal=function(){ showSet(id==='settings'?setSec:Object.keys(PAGE_DLG).find(k=>PAGE_DLG[k]===id)) };
+  d.close=function(){ closeSet() };
+});
+// 离开一个分类（换分类、回到对话、按 Esc）时把没存的改动存掉：数字框按 Esc 不会触发 change，我的资料要点"保存"才存
+function flushSet(next){
+  const a=document.activeElement; if(a&&a.closest&&a.closest('#setBody')) a.blur();
+  if(setSaveT){ clearTimeout(setSaveT); setSaveT=0; saveSettings().catch(()=>{}) }
+  if(pfDirty&&$('#profileDlg').open&&next!=='profile') $('#pfSave').onclick();
+}
+function showSet(sec){
+  flushSet(sec);
+  setSec=sec; const id=PAGE_DLG[sec];
+  PAGE_IDS.forEach(x=>{ const d=$('#'+x); if(x===id){ if(!d.open) dlgShow.call(d) } else if(d.open) dlgClose.call(d) });
+  if(id==='settings') $('#settings').dataset.sec=sec;
+  document.querySelectorAll('#setNav [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===sec));
+  const was=!$('#setPage').hidden;
+  $('#setPage').hidden=false; document.body.classList.add('view-set');
+  if(!was||$('#setBody').dataset.sec!==sec) $('#setBody').scrollTop=0;
+  $('#setBody').dataset.sec=sec;
+  document.querySelectorAll('.dock .ibtn').forEach(b=>b.classList.toggle('on',(b.id==='openSettings'&&id==='settings')||(b.id==='openTeam'&&sec==='team')||(b.id==='openProfile'&&sec==='profile')));
+  if(sec==='connect') loadMcp();
+  if(typeof syncWeb==='function') syncWeb();
+}
+function closeSet(){
+  flushSet();
+  PAGE_IDS.forEach(x=>{ const d=$('#'+x); if(d.open) dlgClose.call(d) });
+  $('#setPage').hidden=true; document.body.classList.remove('view-set');
+  document.querySelectorAll('.dock .ibtn').forEach(b=>b.classList.remove('on'));
+  if(typeof syncWeb==='function') syncWeb();
+}
+function goSet(sec){
+  if(PAGE_DLG[sec]==='settings'){ if($('#settings').open) showSet(sec); else { setSec=sec; $('#openSettings').onclick() } }
+  else if(sec==='team') openTeam(); else if(sec==='skills') openSkills(); else openProfile();
+}
+document.querySelectorAll('#setNav [data-go]').forEach(b=>b.onclick=()=>goSet(b.dataset.go));
+$('#setBack').onclick=closeSet;
+$('#setDone').onclick=closeSet;
+// 左下角的齿轮总是从"通用"开始（分类之间切换走 goSet）
+$('#openSettings').addEventListener('click',()=>{ setSec='general' },true);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#setPage').hidden&&!document.querySelector('dialog[open]:not(#setBody > dialog)')) closeSet() });
+
+// ---------- 连接：外部工具（MCP）
+let mcpEditing=null;
+async function loadMcp(){ try{ S.mcp=await (await fetch('/api/mcp')).json() }catch(_){ S.mcp={servers:[],presets:[]} } renderMcp() }
+const ASK_LABEL={write:'会改动的先问我',always:'每次都问我',never:'不问'};
+function renderMcp(){
+  const m=S.mcp||{servers:[],presets:[]};
+  $('#mcpPreset').innerHTML=`<option value="">${t('添加…')}</option>`+m.presets.map(p=>`<option value="${esc(p.key)}">${esc(p.name)}</option>`).join('');
+  const brains=S.members.filter(x=>x.enabled);
+  $('#mcpList').innerHTML=m.servers.length?m.servers.map(s=>{
+    const st=s.testing?t('正在连接…'):s.error?t('连不上'):s.tools.length?`${s.tools.filter(x=>!x.off).length} / ${s.tools.length} ${t('个工具')}`:t('还没测试');
+    const who=s.who==='all'?'all':'some';
+    return `<div class="mcpitem" data-id="${esc(s.id)}">
+      <div class="mh"><input type="checkbox" data-mon ${s.on?'checked':''} aria-label="${t('启用')}"><b data-raw>${esc(s.name)}</b><span class="st ${s.error?'bad':''}">${esc(st)}</span><span class="sp"></span>
+        <button type="button" class="btn" data-mtest>${t('测试')}</button><button type="button" class="btn" data-medit>${t('编辑')}</button><button type="button" class="btn danger" data-mdel>${t('删除')}</button></div>
+      ${s.error?`<div class="err" data-raw>${esc(s.error)}</div>`:''}
+      ${s.tools.length?`<div class="tools">${s.tools.map(x=>`<button type="button" class="tool ${x.write?'w':''} ${x.off?'off':''}" data-mtool="${esc(x.name)}" title="${esc((x.write?t('会改动外部数据')+' · ':'')+t('点一下停用 / 启用')+'\n'+x.description)}" data-raw>${esc(x.name)}</button>`).join('')}</div>`:''}
+      <div class="who"><span>${t('谁能用')}</span><select data-mwho><option value="all" ${who==='all'?'selected':''}>${t('所有队友')}</option><option value="some" ${who==='some'?'selected':''}>${t('指定队友')}</option></select>
+        ${who==='some'?brains.map(b=>`<label><input type="checkbox" data-mmem="${esc(b.id)}" ${(s.who||[]).includes(b.id)?'checked':''}><span data-raw>${esc(b.name)}</span></label>`).join(''):''}
+        <span style="margin-left:auto">${t('动手前')}</span><select data-mask>${Object.entries(ASK_LABEL).map(([k,v])=>`<option value="${k}" ${s.ask===k?'selected':''}>${t(v)}</option>`).join('')}</select></div>
+    </div>`;
+  }).join(''):`<div class="mcpempty">${t('还没有接任何外部工具。从右上角"添加"选一个开始，比如钉钉。')}</div>`;
+}
+const mcpById=id=>((S.mcp||{}).servers||[]).find(s=>s.id===id);
+$('#mcpList').addEventListener('click',async e=>{
+  const it=e.target.closest('.mcpitem'); if(!it) return; const s=mcpById(it.dataset.id); if(!s) return;
+  if(e.target.closest('[data-mtest]')){ s.testing=true; renderMcp(); await api('mcp/test',{id:s.id}); await loadMcp() }
+  else if(e.target.closest('[data-medit]')) mcpForm(s);
+  else if(e.target.closest('[data-mdel]')){ if(!await ask(t('删除这个连接？')+'\n\n'+s.name,{ok:'删除',tone:'warn'})) return; await api('mcp/delete',{id:s.id}); await loadMcp() }
+  else if(e.target.closest('[data-mtool]')){ const name=e.target.closest('[data-mtool]').dataset.mtool, tool=s.tools.find(x=>x.name===name); await api('mcp/toggle',{id:s.id,tool:name,patch:{off:!tool.off}}); await loadMcp() }
+});
+$('#mcpList').addEventListener('change',async e=>{
+  const it=e.target.closest('.mcpitem'); if(!it) return; const s=mcpById(it.dataset.id); if(!s) return;
+  let patch=null;
+  if(e.target.matches('[data-mon]')) patch={on:e.target.checked};
+  else if(e.target.matches('[data-mask]')) patch={ask:e.target.value};
+  else if(e.target.matches('[data-mwho]')) patch={who:e.target.value==='all'?'all':[]};
+  else if(e.target.matches('[data-mmem]')) patch={who:[...it.querySelectorAll('[data-mmem]:checked')].map(x=>x.dataset.mmem)};
+  if(patch){ await api('mcp/toggle',{id:s.id,patch}); await loadMcp() }
+});
+// 命令参数：空格分开，带空格的用引号包起来
+const splitCmdArgs=v=>(String(v).match(/"[^"]*"|'[^']*'|\S+/g)||[]).map(x=>x.replace(/^["']|["']$/g,''));
+const joinCmdArgs=a=>(a||[]).map(x=>/\s/.test(x)?`"${x}"`:x).join(' ');
+function mcpForm(s,preset){
+  const p=preset||{}, src=s||p, http=(src.kind||'stdio')==='http';
+  mcpEditing={id:s&&s.id||'',preset:p.key||s&&s.preset||''};
+  const kv=(o,kind)=>Object.entries(o||{}).map(([k,v])=>{ const sec=v&&typeof v==='object'; return `<div class="kv"><input data-k="${kind}" value="${esc(k)}" placeholder="${t('名称')}"><input data-v="${kind}" ${sec||/secret|token|key|password|authorization/i.test(k)?'type="password" autocomplete="off"':''} value="${sec?'':esc(v)}" placeholder="${sec&&v.set?esc(t('已填')+' '+v.hint+' · '+t('留空不变')):''}"></div>` }).join('');
+  $('#mcpForm').innerHTML=`${src.help?`<div class="help" data-raw>${esc(src.help)}${src.link?` <a href="${esc(src.link)}" target="_blank" rel="noopener">${t('说明文档')}</a>`:''}</div>`:''}
+    <div class="mfr"><span>${t('名字')}</span><input id="mfName" value="${esc(src.name||'')}" maxlength="40"></div>
+    <div class="mfr"><span>${t('类型')}</span><select id="mfKind"><option value="stdio" ${!http?'selected':''}>${t('本机命令')}</option><option value="http" ${http?'selected':''}>${t('远程网址')}</option></select></div>
+    <div class="mfr" data-for="stdio" ${http?'hidden':''}><span>${t('命令')}</span><input id="mfCmd" value="${esc(src.command||'')}" placeholder="npx"></div>
+    <div class="mfr" data-for="stdio" ${http?'hidden':''}><span>${t('参数')}</span><input id="mfArgs" value="${esc(joinCmdArgs(src.args))}" placeholder="-y some-mcp-server"></div>
+    <div class="mfr" data-for="stdio" ${http?'hidden':''}><span>${t('环境变量（密钥等）')}</span><div id="mfEnv">${kv(src.env,'env')}</div><button type="button" class="btn small" data-addkv="env">${t('加一项')}</button></div>
+    <div class="mfr" data-for="http" ${http?'':'hidden'}><span>${t('网址')}</span><input id="mfUrl" value="${esc(src.url||'')}" placeholder="https://…/mcp"></div>
+    <div class="mfr" data-for="http" ${http?'':'hidden'}><span>${t('请求头（密钥等）')}</span><div id="mfHeaders">${kv(src.headers,'headers')}</div><button type="button" class="btn small" data-addkv="headers">${t('加一项')}</button></div>
+    <div class="acts"><span class="testres" id="mfRes"></span><button type="button" class="btn" id="mfCancel">${t('取消')}</button><button type="button" class="btn pri" id="mfSave">${t('保存并测试')}</button></div>`;
+  $('#mcpForm').hidden=false;
+  $('#mfKind').onchange=()=>$('#mcpForm').querySelectorAll('[data-for]').forEach(r=>r.hidden=r.dataset.for!==$('#mfKind').value);
+  $('#mcpForm').querySelectorAll('[data-addkv]').forEach(b=>b.onclick=()=>{ const k=b.dataset.addkv; $(k==='env'?'#mfEnv':'#mfHeaders').insertAdjacentHTML('beforeend',`<div class="kv"><input data-k="${k}" placeholder="${t('名称')}"><input data-v="${k}"></div>`) });
+  $('#mfCancel').onclick=()=>{ $('#mcpForm').hidden=true; mcpEditing=null };
+  $('#mfSave').onclick=async()=>{
+    const read=kind=>{ const o={}; $('#mcpForm').querySelectorAll('.kv').forEach(r=>{ const k=r.querySelector(`[data-k="${kind}"]`), v=r.querySelector(`[data-v="${kind}"]`); if(!k||!v||!k.value.trim()) return; o[k.value.trim()]= v.value==='' && v.placeholder ? {keep:true} : v.value }); return o };
+    const server={id:mcpEditing.id||undefined,preset:mcpEditing.preset,name:$('#mfName').value,kind:$('#mfKind').value,command:$('#mfCmd').value.trim(),args:splitCmdArgs($('#mfArgs').value),url:$('#mfUrl').value.trim(),env:read('env'),headers:read('headers'),on:s?s.on:true,who:s?s.who:'all',ask:s?s.ask:'write'};
+    const res=$('#mfRes'); res.className='testres'; res.textContent=t('正在连接…（第一次要下载，可能要几分钟）');
+    $('#mfSave').disabled=true;
+    try{
+      const j=await api('mcp/save',{server});
+      if(j.error){ res.className='testres bad'; res.textContent=j.error; return }
+      if(j.server&&j.server.error){ res.className='testres bad'; res.textContent=t('已保存，但连不上：')+j.server.error; mcpEditing.id=j.server.id; await loadMcp(); return }
+      $('#mcpForm').hidden=true; mcpEditing=null; toast(t('已接上')+` · ${j.server.tools.length} ${t('个工具')}`); await loadMcp();
+    } finally { $('#mfSave').disabled=false }
+  };
+  $('#mfName').focus();
+}
+$('#mcpPreset').onchange=e=>{ const p=((S.mcp||{}).presets||[]).find(x=>x.key===e.target.value); e.target.value=''; if(p) mcpForm(null,p) };
+$('#mcpImport').onclick=async()=>{
+  const j=await (await fetch('/api/mcp/import')).json(), list=j.servers||[];
+  if(!list.length){ mcpPaste(); return }
+  if(!await ask(t('导入这些外部工具？')+'\n\n'+list.map(s=>`· ${s.name}（${s.from}）`).join('\n'),{ok:'导入'})) return;
+  const r=await api('mcp/import',{names:list.map(s=>s.name)}); toast(t('已导入')+' '+r.added); await loadMcp();
+};
+// 别的应用里没找到：让老板把服务说明里的配置整段贴进来
+function mcpPaste(){
+  $('#mcpForm').innerHTML=`<div class="help">${t('在这台电脑的 Claude、Cursor 里没找到可以导入的。也可以把服务说明里的配置（{"mcpServers": {…}}）整段粘贴进来。')}</div>
+    <textarea id="mfPaste" rows="6" spellcheck="false" placeholder='{"mcpServers": {"名字": {"command": "npx", "args": ["-y", "…"]}}}'></textarea>
+    <div class="acts" style="margin-top:8px"><span class="testres" id="mfRes"></span><button type="button" class="btn" id="mfCancel">${t('取消')}</button><button type="button" class="btn pri" id="mfDoPaste">${t('导入')}</button></div>`;
+  $('#mcpForm').hidden=false;
+  $('#mfCancel').onclick=()=>{ $('#mcpForm').hidden=true };
+  $('#mfDoPaste').onclick=async()=>{ const r=await api('mcp/import',{text:$('#mfPaste').value}); if(r.error){ $('#mfRes').className='testres bad'; $('#mfRes').textContent=r.error; return } $('#mcpForm').hidden=true; toast(t('已导入')+' '+r.added); await loadMcp() };
+  $('#mfPaste').focus();
+}
 
 // ---------- team manager
 // ---------------- 技能库
@@ -1256,16 +1404,17 @@ function renderMe(){
   const sub=[S.profile.title,S.profile.org].filter(Boolean).join(' · ');
   $('#meSub').textContent = sub; $('#meSub').hidden = !sub;
 }
-let pfDraft = {};
+let pfDraft = {}, pfDirty = false;
+$('#profileDlg').addEventListener('input',()=>{ pfDirty=true });
 function openProfile(){
-  const p=S.profile; pfDraft={...p};
+  const p=S.profile; pfDraft={...p}; pfDirty=false;
   $('#pfName').value=p.name||''; $('#pfCall').value=p.callMe||''; $('#pfTitle').value=p.title||''; $('#pfOrg').value=p.org||'';
   $('#pfIndustry').value=p.industry||''; $('#pfBio').value=p.bio||''; $('#pfExtra').value=p.extra||'';
   document.querySelectorAll('#profileDlg [data-pref]').forEach(seg=>{
     const k=seg.dataset.pref;
     seg.querySelectorAll('button').forEach(b=>{
       b.classList.toggle('on',pfDraft[k]===b.dataset.v);
-      b.onclick=()=>{ pfDraft[k]= pfDraft[k]===b.dataset.v ? '' : b.dataset.v; seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',pfDraft[k]===x.dataset.v)) };
+      b.onclick=()=>{ pfDraft[k]= pfDraft[k]===b.dataset.v ? '' : b.dataset.v; pfDirty=true; seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',pfDraft[k]===x.dataset.v)) };
     });
   });
   paintAva($('#pfAva')); $('#pfRemove').hidden=!p.avatar; $('#pfRes').textContent='';
@@ -1293,7 +1442,7 @@ $('#pfSave').onclick=async()=>{
     industry:$('#pfIndustry').value, bio:$('#pfBio').value, extra:$('#pfExtra').value};
   ['detail','tone','format','language','debate'].forEach(k=>{ if(prof[k]==null) prof[k]='' });
   delete prof.avatar;
-  try{ const j=await api('profile',{profile:prof}); S.profile=j.profile; renderMe(); $('#profileDlg').close(); toast('个人主页已保存，队友下次干活就会按这个来'); if(S.conv) renderConv(); else renderEmpty(); }
+  try{ const j=await api('profile',{profile:prof}); S.profile=j.profile; pfDirty=false; renderMe(); toast('个人主页已保存，队友下次干活就会按这个来'); if(S.conv) renderConv(); else renderEmpty(); }
   catch(_){ $('#pfRes').className='testres bad'; $('#pfRes').textContent='保存失败' }
 };
 
@@ -1305,7 +1454,7 @@ function connect(){
   es.onmessage=e=>{
     const ev=JSON.parse(e.data);
     if(ev.type==='init'){
-      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; S.skills=ev.skills||[]; S.projects=ev.projects||[]; renderMe(); renderBuild(ev.build); S.browser=ev.browser||null; renderBrowser(); document.body.dataset.ready='1';
+      S.convs=ev.convs; S.members=ev.members; S.settings=ev.settings; S.profile=ev.profile||{}; S.skills=ev.skills||[]; S.projects=ev.projects||[]; renderMe(); renderBuild(ev.build); S.browser=ev.browser||null; renderBrowser(); document.body.dataset.ready='1'; if(window.hideSplash) hideSplash();
       if(!S.settings.uiLang){ api('settings',{uiLang:window.HOLA_LANG}); S.settings.uiLang=window.HOLA_LANG; }
       else if(S.settings.uiLang!==window.HOLA_LANG){ window.setHolaLang(S.settings.uiLang); location.reload(); return; }
       const want=S.cur||store.get('hola.cur'); renderConvs();
@@ -1317,6 +1466,7 @@ function connect(){
     else if(ev.type==='library'){ if(LIB.kind) libReload() }
     else if(ev.type==='hints'){ if(ev.conv===S.cur&&S.conv){ S.conv.ruleHints=ev.hints; renderHints() } }
     else if(ev.type==='board'){ if(ev.conv===S.cur&&S.conv){ S.conv.board=ev.board; renderBoard() } }
+    else if(ev.type==='mcp'){ S.mcp=ev.mcp; if($('#settings').open&&setSec==='connect'&&!(document.activeElement&&document.activeElement.closest('#mcpForm'))) renderMcp() }
     else if(ev.type==='browser'){ S.browser=ev.browser; renderBrowser() }
     else if(ev.type==='proc'){ if(ev.conv===S.cur) addStep(ev.id,ev.item) }
     else if(ev.type==='draft'){ if(ev.conv===S.cur&&S.conv){ const m=S.conv.messages.find(x=>x.id===ev.id); if(m&&m.status==='running'){ m.draft=ev.text; putMsg(m) } } }
@@ -1328,6 +1478,19 @@ function connect(){
     else if(ev.type==='settings'){ const pv=!!S.settings.showProcess; S.settings=ev.settings; S.members=ev.members; renderLights(); if(pv!==!!S.settings.showProcess&&S.conv) renderConv() }
   };
 }
+// ---------- 开屏：三颗水银（代表队友）先各自流动、再交融，内容加载好就合成一颗、淡出。启动是"有事发生"，水银可以动
+(function(){
+  const sp=$('#splash'); if(!sp) return;
+  const t0=performance.now(), team=[1,2,3].map(i=>({id:'sp'+i,on:true,join:true}));
+  let L=null;
+  try{ if(window.Merc){ L=Merc.lights($('#splashMerc')); L.set(team,'idle'); setTimeout(()=>L&&L.set(team,'meet'),200) } }catch(_){ L=null }
+  window.hideSplash=()=>{
+    if(sp.dataset.going) return; sp.dataset.going='1';
+    const wait=Math.max(0,900-(performance.now()-t0));
+    setTimeout(()=>{ if(L) L.set(team,'merge'); setTimeout(()=>{ sp.classList.add('out'); setTimeout(()=>{ sp.remove(); L=null },700) },L?500:0) },wait);
+  };
+  setTimeout(()=>window.hideSplash(),10000); // 后台一直没回话也不能一直挡着
+})();
 // ---------- V3：背景的液态银、开关里的水银珠、水银按钮（发送、检查更新……），都画在 public/mercury.js 里
 if(window.Merc){ Merc.wall($('#wall')); Merc.bead(); Merc.scan(document) }
 // 提示：鼠标停一下，按钮旁边冒出一小块玻璃（代替系统自带的提示条）。文字就是按钮的 title（i18n 已经翻译过）；只管工具条上的图标

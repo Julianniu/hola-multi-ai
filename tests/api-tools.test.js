@@ -268,7 +268,8 @@ describe('API 队友能动手', () => {
     const dir = path.join(h.workspace, conv);
     fs.writeFileSync(path.join(dir, '脚本.md'), '# 脚本\n\n福利价 89 元，今晚有效。\n乳胶枕原价 89 元。\n');
     queue.push(
-      (res) => jsonRes(res, { choices: [{ message: { tool_calls: [call('e1', 'search_files', { query: '89 元' })] } }] }),
+      (res) => jsonRes(res, { choices: [{ message: { tool_calls: [call('e1', 'search_files', { query: '89 元' }), call('e0', 'edit_file', { path: '脚本.md', old_string: '福利价 89 元', new_string: '福利价 79 元' })] } }] }),
+      (res) => jsonRes(res, { choices: [{ message: { tool_calls: [call('r1', 'read_file', { path: '脚本.md' })] } }] }),
       (res) => jsonRes(res, { choices: [{ message: { tool_calls: [
         call('e2', 'edit_file', { path: '脚本.md', old_string: '89 元', new_string: '79 元' }),
         call('e3', 'edit_file', { path: '脚本.md', old_string: '福利价 89 元', new_string: '福利价 79 元' }),
@@ -282,8 +283,9 @@ describe('API 队友能动手', () => {
     const reqs = seen.slice(n0);
     assert.match(toolMsgs(reqs[1])[0].content, /脚本\.md:3: 福利价 89 元/);
     assert.match(toolMsgs(reqs[1])[0].content, /脚本\.md:4: 乳胶枕原价 89 元/);
-    const t = toolMsgs(reqs[2]);
-    assert.match(t.find((x) => x.tool_call_id === 'e2').content, /出现了 2 次/, '原文不唯一就不改');
+    assert.match(toolMsgs(reqs[1])[1].content, /还没读过 脚本\.md/, '没读过的文件先读再改（学 dsh）');
+    const t = toolMsgs(reqs[3]);
+    assert.match(t.find((x) => x.tool_call_id === 'e2').content, /出现了 2 次（第 3、4 行）/, '原文不唯一就不改，并说出在哪几行');
     assert.match(t.find((x) => x.tool_call_id === 'e3').content, /已修改/);
     assert.match(t.find((x) => x.tool_call_id === 'e4').content, /不能用/);
     assert.equal(fs.readFileSync(path.join(dir, '脚本.md'), 'utf8'), '# 脚本\n\n福利价 79 元，今晚有效。\n乳胶枕原价 89 元。\n');

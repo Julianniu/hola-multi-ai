@@ -133,6 +133,15 @@ module.exports = [
     },
   },
   {
+    // 第 5 阶段（学 dsh）：命令跑超过 2 分钟不能直接被杀掉，要能转后台等它跑完
+    id: 'S21', title: '运行一个要跑两分半的脚本，拿到结果', suites: STD,
+    async run(ctx) {
+      const a = await ctx.attach('慢统计.js');
+      const r = await ctx.say('用 node 运行附件里的 慢统计.js（它要跑两分半钟左右，中间会打印进度），把它最后打印的"统计结果"告诉我。不要改脚本，也不要自己另算。', { attachments: [a] });
+      ctx.check('答对：统计结果 454396537', C.has(answerOf(ctx, r), '454396537'));
+    },
+  },
+  {
     id: 'S10', gate: true, title: '续接：给上一轮做的表加一列', suites: ALL, settings: { autoMemory: true },
     async run(ctx, res, task) {
       const a = await ctx.attach('6月直播销售.xlsx');

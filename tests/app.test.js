@@ -146,8 +146,15 @@ describe('桌面版', { skip }, () => {
     }
     await page.click('#openSettings');
     await page.waitForSelector('dialog[open]');
-    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('header')).webkitAppRegion), 'no-drag', '弹窗打开时不能拖窗口');
+    // 3.1 起设置是独立页面：盖住对话那一块，左上角"设置"两个字能拖窗口；按 Esc 回到对话
+    const sp = await page.evaluate(() => ({ page: getComputedStyle(document.querySelector('#setPage')).display, main: getComputedStyle(document.querySelector('main')).display, drag: getComputedStyle(document.querySelector('.setnav .snh')).webkitAppRegion }));
+    assert.deepEqual(sp, { page: 'flex', main: 'none', drag: 'drag' }, '设置页盖住对话，标题能拖窗口');
+    await page.click('#openTeam');
+    assert.equal(await page.evaluate(() => document.querySelector('#teamDlg').open && !document.querySelector('#settings').open), true, '左下角点队友，设置页里换到队友');
+    await page.click('#setNav [data-go="connect"]');
+    await page.waitForSelector('#mcpList .mcpempty');
     await page.keyboard.press('Escape');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('main')).display !== 'none');
     // 换深浅色时，右上角窗口按钮的颜色要跟着换
     await app.evaluate(({ ipcMain }) => { global.__tb = []; ipcMain.on('hola:titlebar', (e, c) => global.__tb.push(c)); });
     await page.click('#toggleTheme');
@@ -410,7 +417,7 @@ describe('桌面版', { skip }, () => {
     await page.locator('.team-row').filter({ hasText: 'TmpBot' }).locator('[data-tdel]').click();
     await page.click('#askDlg [data-ok]');
     await page.waitForFunction(() => ![...document.querySelectorAll('.team-row')].some((r) => /TmpBot/.test(r.textContent)), null, { timeout: 10000 });
-    await page.click('#teamClose');
+    await page.click('#setBack');
   });
 
   it('设置里的"检查更新"：外壳 4 起有这个按钮；这份不能自动更新时说清楚原因，不卡住', async () => {
@@ -487,6 +494,15 @@ describe('桌面版', { skip }, () => {
       await scan(label);
       await page.keyboard.press('Escape');
     }
+    // 3.1 设置页的其他分类：开会与干活、连接（含"添加"里的钉钉模板表单）、花费、技能库
+    for (const sec of ['work', 'connect', 'spend', 'skills']) {
+      await page.evaluate((s) => goSet(s), sec);
+      await page.waitForTimeout(300);
+      if (sec === 'connect') { await page.selectOption('#mcpPreset', 'dingtalk'); await page.waitForSelector('#mcpForm:not([hidden])'); }
+      await scan('设置·' + sec);
+    }
+    await page.evaluate(() => document.querySelector('#mfCancel').click());
+    await page.keyboard.press('Escape');
     // 这两处故意中英并列 / 用中文写语言名，方便找到
     const allowed = /：(界面语言 \/ Language|中文)$/;
     assert.deepEqual([...leftovers].filter((t) => !allowed.test(t)), []);
