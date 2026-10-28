@@ -331,6 +331,7 @@ function renderConvAfter(){ renderUnder() }
 function renderConv(){
   const feed=$('#feed'); feed.innerHTML=''; nodes.clear();
   $('#title').textContent = S.conv ? S.conv.title : 'Hola';
+  if(typeof renderFolderTag==='function') renderFolderTag();
   if(!S.conv||!S.conv.messages.length){ renderEmpty(); } else { S.conv.messages.forEach(m=>putMsg(m)); scrollDown(); }
   renderLights(); renderRun(); updateSend(); renderUnder(); renderBoard(); renderHints();
 }
@@ -837,7 +838,40 @@ main.addEventListener('drop',e=>{e.preventDefault();dragN=0;$('#drop').classList
 // header buttons
 $('#newConv').onclick=async()=>{setView('chat');const {id}=await api('conv/new');await openConv(id);input.focus();$('#side').classList.remove('show')};
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();$('#newConv').click()} if(e.key==='Escape'){if(!document.querySelector('dialog[open]')&&!$('#split').hidden&&!$('#lightbox').classList.contains('show')&&!$('#drawer').classList.contains('show'))closePreview();$('#lightbox').classList.remove('show');$('#drawer').classList.remove('show');$('#memBtn').classList.remove('on')}});
-$('#dirBtn').onclick=()=>LIB.kind?api('open',{library:true}):api('open',{conv:S.cur||undefined});
+$('#dirBtn').onclick=()=>LIB.kind?api('open',{library:true}):S.cur?openFolderDlg():api('open',{});
+// ---------- 这个对话的工作文件夹（3.2）：默认在 Hola 的工作区里；可以换成自己电脑上的任意文件夹，队友就在那里干活
+function openFolderDlg(){
+  const c=S.conv||{}, d=$('#folderDlg');
+  $('#fdNow').textContent=c.folder||t('Hola 默认的位置（文档\\Hola 里这个对话的文件夹）');
+  $('#fdNote').textContent=c.folder?t('用的是你自己的文件夹'):'';
+  $('#fdPath').value=c.folder||''; $('#fdRes').textContent=''; $('#fdRes').className='testres';
+  $('#fdReset').hidden=!c.folder;
+  const pick=window.holaDesktop&&window.holaDesktop.pickFolder;
+  $('#fdPick').hidden=!pick;
+  d.showModal();
+  if(pick&&!c.folder) setTimeout(()=>$('#fdPick').focus(),50); else $('#fdPath').focus();
+}
+$('#fdOpen').onclick=()=>api('open',{conv:S.cur});
+$('#fdCancel').onclick=()=>$('#folderDlg').close();
+$('#fdPick').onclick=async()=>{ const p=await window.holaDesktop.pickFolder($('#fdPath').value||''); if(p){ $('#fdPath').value=p; $('#fdSave').focus() } };
+async function setFolder(folder){
+  const res=$('#fdRes'); res.className='testres'; res.textContent='';
+  const j=await api('conv/folder',{conv:S.cur,folder});
+  if(j.error){ res.className='testres bad'; res.textContent=j.error; return }
+  if(S.conv) S.conv.folder=j.folder;
+  $('#folderDlg').close();
+  toast(j.folder?t('队友会在这个文件夹里干活：')+j.folder:t('已改回 Hola 默认的位置'));
+  renderFolderTag();
+}
+$('#fdSave').onclick=()=>{ const v=$('#fdPath').value.trim(); if(!v){ $('#fdRes').className='testres bad'; $('#fdRes').textContent=t('请先选一个文件夹'); return } setFolder(v) };
+$('#fdReset').onclick=()=>setFolder('');
+$('#fdPath').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#fdSave').click() } });
+// 顶栏的"文件夹"按钮：用的是自己选的文件夹时亮起来，提示里写上路径
+function renderFolderTag(){
+  const b=$('#dirBtn'), f=S.conv&&S.conv.folder;
+  b.classList.toggle('on',!!f);
+  b.title=f?t('工作文件夹')+'：'+f:t('工作文件夹');
+}
 // ---------- 布局：侧栏可拖宽 / 收起，聊天区三档宽度，分屏预览可拖宽（都记在本机浏览器里）
 const isNarrow=()=>matchMedia('(max-width:760px)').matches;
 $('#menuBtn').onclick=()=>{ if(isNarrow()) return $('#side').classList.toggle('show'); store.set('hola.sideOff', document.body.classList.toggle('side-off')?'1':'') };

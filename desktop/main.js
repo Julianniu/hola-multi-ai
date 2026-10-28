@@ -228,6 +228,12 @@ span{font-size:12px;letter-spacing:.2em;color:${c.ink3}}
     else if (op === 'close') win.close();
   });
   ipcMain.handle('hola:win-state', (e) => (fromMain(e) ? { max: win.isMaximized() } : null));
+  // 外壳 3.2 起：给对话选一个工作文件夹（系统自带的选文件夹窗口）；只回答主窗口，取消返回空
+  ipcMain.handle('hola:pick-folder', async (e, start) => {
+    if (!fromMain(e)) return '';
+    const r = await dialog.showOpenDialog(win, { title: T('选择这个对话的工作文件夹', 'Choose the working folder for this chat'), defaultPath: typeof start === 'string' && start ? start : undefined, properties: ['openDirectory', 'createDirectory'] });
+    return r.canceled || !r.filePaths.length ? '' : r.filePaths[0];
+  });
   ipcMain.on('hola:browser-bounds', (e, rect) => {
     if (!browser || !fromMain(e)) return;
     const ok = rect && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(rect[k]));

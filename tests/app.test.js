@@ -421,7 +421,7 @@ describe('桌面版', { skip }, () => {
   });
 
   it('设置里的"检查更新"：外壳 4 起有这个按钮；这份不能自动更新时说清楚原因，不卡住', async () => {
-    assert.equal(await page.evaluate(() => window.holaDesktop.shell), 4);
+    assert.ok(await page.evaluate(() => window.holaDesktop.shell) >= 4);
     await page.click('#openSettings');
     await page.waitForSelector('#sUpdField:not([hidden])');
     await page.click('#sUpdBtn');
@@ -506,6 +506,23 @@ describe('桌面版', { skip }, () => {
     // 这两处故意中英并列 / 用中文写语言名，方便找到
     const allowed = /：(界面语言 \/ Language|中文)$/;
     assert.deepEqual([...leftovers].filter((t) => !allowed.test(t)), []);
+  });
+
+  it('工作文件夹：顶栏的文件夹按钮打开选择窗口，外壳 5 起有"选择文件夹…"，换好后按钮亮起', async () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'hola-ui-folder-'));
+    try {
+      await page.evaluate(async () => { const { id } = await api('conv/new', {}); await openConv(id); });
+      await page.click('#dirBtn');
+      await page.waitForSelector('#folderDlg[open]');
+      assert.equal(await page.locator('#fdPick').isVisible(), true, '桌面版能弹出系统的选文件夹窗口');
+      await page.fill('#fdPath', dir);
+      await page.click('#fdSave');
+      await page.waitForFunction(() => document.querySelector('#dirBtn').classList.contains('on') && !document.querySelector('#folderDlg').open);
+      assert.match(await page.getAttribute('#dirBtn', 'title'), /hola-ui-folder-/);
+      await page.click('#dirBtn');
+      await page.click('#fdReset');
+      await page.waitForFunction(() => !document.querySelector('#dirBtn').classList.contains('on'));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
   it('整个过程没有脚本报错', () => {

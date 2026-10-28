@@ -4,7 +4,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('holaDesktop', {
-  shell: 4, // 外壳能力的版本：1.1 起有标题栏和内置浏览器；2.0 起有托盘和页面画的更新提示；3.0 起设置里能手动检查更新
+  shell: 5, // 外壳能力的版本：1.1 起有标题栏和内置浏览器；2.0 起有托盘和页面画的更新提示；3.0 起设置里能手动检查更新；3.2 起能弹出选文件夹的窗口
+  pickFolder: (start) => ipcRenderer.invoke('hola:pick-folder', start ? String(start) : ''),
   // 外壳 3.0 起：设置里的"检查更新"。check() 返回最后的结果；检查、下载的过程通过 onProgress 推过来
   // 外壳 3.0 起（Windows）：窗口按钮由页面自己画（右上角的玻璃胶囊），通过这里最小化 / 最大化 / 关闭（关闭 = 缩到托盘）
   win: process.platform === 'win32' ? {

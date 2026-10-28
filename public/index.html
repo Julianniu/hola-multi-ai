@@ -450,6 +450,16 @@
 </dialog>
 
 
+<dialog id="folderDlg">
+  <form class="dlg" onsubmit="return false">
+    <h3>这个对话的工作文件夹</h3>
+    <p>队友在这个文件夹里读写文件、存放做好的东西。可以换成你电脑上已有的文件夹（比如放着活动资料的文件夹），队友就直接在那里干活。</p>
+    <div class="field"><label>现在用的</label><div class="fdnow"><span id="fdNow" data-raw></span><button type="button" class="btn small" id="fdOpen">打开</button></div><small id="fdNote"></small></div>
+    <div class="field"><label for="fdPath">换成</label><div class="fdrow"><input id="fdPath" placeholder="比如 D:\双十一活动资料" spellcheck="false"><button type="button" class="btn" id="fdPick" hidden>选择文件夹…</button></div><small>原来的文件不会被搬走。Hola 会在里面放一个 .hola 文件夹和"对话记忆.md"；删除这个对话时只删 Hola 自己放进去的东西，你的文件一个不动。</small></div>
+    <div class="dfoot"><span class="testres" id="fdRes"></span><button type="button" class="btn" id="fdReset">用默认位置</button><button type="button" class="btn" id="fdCancel">取消</button><button type="button" class="btn pri" id="fdSave">使用这个文件夹</button></div>
+  </form>
+</dialog>
+
 <dialog id="askDlg">
   <div class="dlg">
     <div class="ah"><span class="ai"></span><h3 data-raw></h3></div>

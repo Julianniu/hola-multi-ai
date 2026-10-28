@@ -810,3 +810,9 @@ body.no-wall #splash,#splash.static{background:var(--paper)}
 .setdone:active{transform:scale(.97)}
 .setdone svg.i{width:15px;height:15px;stroke-width:2.2}
 body.own-ctl .setdone{right:136px}
+/* 对话的工作文件夹（3.2） */
+.fdnow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--wash);font-size:13px;word-break:break-all}
+.fdnow span{flex:1}
+.fdrow{display:flex;gap:8px}
+.fdrow input{flex:1}
+#dirBtn.on{background:var(--sel);color:var(--ink);box-shadow:var(--selSh)}
